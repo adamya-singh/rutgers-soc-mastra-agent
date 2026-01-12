@@ -116,7 +116,7 @@ When conflicts are found:
 export const socAgent = new Agent({
   name: 'Rutgers SOC Agent',
   instructions: SYSTEM_PROMPT,
-  model: 'openai/gpt-4o',
+  model: 'anthropic/claude-sonnet-4-20250514',
   tools: {
     searchCourses,
     getCourseDetails,
