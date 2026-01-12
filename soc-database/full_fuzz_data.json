@@ -1,0 +1,2205 @@
+{
+  "endpoints": [
+    {
+      "url": "https://sis.rutgers.edu/soc/api/courses.json?year=2025&term=1&campus=NB",
+      "status_code": 200,
+      "is_valid": true,
+      "data_sample": "Array with 4486 items, first item keys: ['campusLocations', 'subject', 'openSections', 'synopsisUrl', 'title']"
+    },
+    {
+      "url": "https://sis.rutgers.edu/soc/api/subjects.json?year=2025&term=1&campus=NB",
+      "status_code": 404,
+      "is_valid": false,
+      "data_sample": null
+    },
+    {
+      "url": "https://sis.rutgers.edu/soc/api/openSections.json?year=2025&term=1&campus=NB",
+      "status_code": 200,
+      "is_valid": true,
+      "data_sample": "Array with 8140 items, first item keys: <class 'str'>"
+    },
+    {
+      "url": "https://sis.rutgers.edu/soc/api/buildings.json?year=2025&term=1&campus=NB",
+      "status_code": 404,
+      "is_valid": false,
+      "data_sample": null
+    },
+    {
+      "url": "https://sis.rutgers.edu/soc/api/instructors.json?year=2025&term=1&campus=NB",
+      "status_code": 404,
+      "is_valid": false,
+      "data_sample": null
+    },
+    {
+      "url": "https://sis.rutgers.edu/soc/api/schools.json?year=2025&term=1&campus=NB",
+      "status_code": 404,
+      "is_valid": false,
+      "data_sample": null
+    },
+    {
+      "url": "https://sis.rutgers.edu/soc/api/campus.json?year=2025&term=1&campus=NB",
+      "status_code": 404,
+      "is_valid": false,
+      "data_sample": null
+    },
+    {
+      "url": "https://sis.rutgers.edu/soc/api/terms.json?year=2025&term=1&campus=NB",
+      "status_code": 404,
+      "is_valid": false,
+      "data_sample": null
+    }
+  ],
+  "parameters": {
+    "level": [
+      {
+        "params": {
+          "year": "2025",
+          "term": "1",
+          "campus": "NB",
+          "level": "U"
+        },
+        "status_code": 200,
+        "record_count": 4486,
+        "has_data": true
+      },
+      {
+        "params": {
+          "year": "2025",
+          "term": "1",
+          "campus": "NB",
+          "level": "G"
+        },
+        "status_code": 200,
+        "record_count": 4486,
+        "has_data": true
+      }
+    ],
+    "subject": [
+      {
+        "params": {
+          "year": "2025",
+          "term": "1",
+          "campus": "NB",
+          "subject": "198"
+        },
+        "status_code": 200,
+        "record_count": 4486,
+        "has_data": true
+      },
+      {
+        "params": {
+          "year": "2025",
+          "term": "1",
+          "campus": "NB",
+          "subject": "640"
+        },
+        "status_code": 200,
+        "record_count": 4486,
+        "has_data": true
+      },
+      {
+        "params": {
+          "year": "2025",
+          "term": "1",
+          "campus": "NB",
+          "subject": "750"
+        },
+        "status_code": 200,
+        "record_count": 4486,
+        "has_data": true
+      },
+      {
+        "params": {
+          "year": "2025",
+          "term": "1",
+          "campus": "NB",
+          "subject": "119"
+        },
+        "status_code": 200,
+        "record_count": 4486,
+        "has_data": true
+      },
+      {
+        "params": {
+          "year": "2025",
+          "term": "1",
+          "campus": "NB",
+          "subject": "014"
+        },
+        "status_code": 200,
+        "record_count": 4486,
+        "has_data": true
+      }
+    ],
+    "undocumented": [
+      {
+        "params": {
+          "year": "2025",
+          "term": "1",
+          "campus": "NB",
+          "openOnly": "true"
+        },
+        "status_code": 200,
+        "record_count": 4486,
+        "has_data": true
+      },
+      {
+        "params": {
+          "year": "2025",
+          "term": "1",
+          "campus": "NB",
+          "openOnly": "1"
+        },
+        "status_code": 200,
+        "record_count": 4486,
+        "has_data": true
+      },
+      {
+        "params": {
+          "year": "2025",
+          "term": "1",
+          "campus": "NB",
+          "open": "true"
+        },
+        "status_code": 200,
+        "record_count": 4486,
+        "has_data": true
+      },
+      {
+        "params": {
+          "year": "2025",
+          "term": "1",
+          "campus": "NB",
+          "instructor": "SMITH"
+        },
+        "status_code": 200,
+        "record_count": 4486,
+        "has_data": true
+      },
+      {
+        "params": {
+          "year": "2025",
+          "term": "1",
+          "campus": "NB",
+          "building": "HLL"
+        },
+        "status_code": 200,
+        "record_count": 4486,
+        "has_data": true
+      },
+      {
+        "params": {
+          "year": "2025",
+          "term": "1",
+          "campus": "NB",
+          "day": "M"
+        },
+        "status_code": 200,
+        "record_count": 4486,
+        "has_data": true
+      },
+      {
+        "params": {
+          "year": "2025",
+          "term": "1",
+          "campus": "NB",
+          "credits": "3"
+        },
+        "status_code": 200,
+        "record_count": 4486,
+        "has_data": true
+      }
+    ]
+  },
+  "stats": {
+    "combinations_tested": 39,
+    "combinations_with_data": 39,
+    "total_courses": 47266,
+    "by_term": {
+      "Winter": 596,
+      "Summer": 5329,
+      "Spring": 21572,
+      "Fall": 19769
+    },
+    "by_campus": {
+      "NB": 30602,
+      "ONLINE_NB": 845,
+      "ONLINE_NK": 203,
+      "ONLINE_CM": 222,
+      "NK": 9170,
+      "CM": 6224
+    },
+    "by_year": {
+      "2025": 16537,
+      "2024": 15219,
+      "2023": 15510
+    },
+    "errors": [],
+    "response_times": [
+      0.35614609718322754,
+      0.3683180809020996,
+      0.7173240184783936,
+      0.7154250144958496,
+      0.5058491230010986,
+      0.393934965133667,
+      0.35238003730773926,
+      0.3196380138397217,
+      0.3269050121307373,
+      1.3125760555267334,
+      0.6309340000152588,
+      0.6270649433135986,
+      0.39461207389831543,
+      0.4329793453216553,
+      1.7683391571044922,
+      0.5600090026855469,
+      0.5330240726470947,
+      0.3234102725982666,
+      0.32427287101745605,
+      1.4139068126678467,
+      0.8177351951599121,
+      0.6788101196289062,
+      0.4003028869628906,
+      0.3487269878387451,
+      1.182305097579956,
+      0.8066110610961914,
+      0.48171186447143555,
+      0.5005662441253662,
+      0.3215179443359375,
+      0.378648042678833,
+      1.4874920845031738,
+      0.8322639465332031,
+      0.5473728179931641,
+      0.6679942607879639,
+      0.41280102729797363,
+      0.38913583755493164,
+      1.4390578269958496,
+      0.6005878448486328,
+      0.6671240329742432
+    ]
+  },
+  "error_responses": [
+    {
+      "params": {
+        "year": "1999",
+        "term": "1",
+        "campus": "NB"
+      },
+      "status_code": 200,
+      "response_length": 2,
+      "response_preview": "[]",
+      "is_json": true,
+      "data_type": "list",
+      "record_count": 0
+    },
+    {
+      "params": {
+        "year": "2099",
+        "term": "1",
+        "campus": "NB"
+      },
+      "status_code": 200,
+      "response_length": 2,
+      "response_preview": "[]",
+      "is_json": true,
+      "data_type": "list",
+      "record_count": 0
+    },
+    {
+      "params": {
+        "year": "2025",
+        "term": "5",
+        "campus": "NB"
+      },
+      "status_code": 200,
+      "response_length": 2,
+      "response_preview": "[]",
+      "is_json": true,
+      "data_type": "list",
+      "record_count": 0
+    },
+    {
+      "params": {
+        "year": "2025",
+        "term": "99",
+        "campus": "NB"
+      },
+      "status_code": 200,
+      "response_length": 2,
+      "response_preview": "[]",
+      "is_json": true,
+      "data_type": "list",
+      "record_count": 0
+    },
+    {
+      "params": {
+        "year": "2025",
+        "term": "1",
+        "campus": "XX"
+      },
+      "status_code": 200,
+      "response_length": 2,
+      "response_preview": "[]",
+      "is_json": true,
+      "data_type": "list",
+      "record_count": 0
+    },
+    {
+      "params": {
+        "year": "2025",
+        "term": "1",
+        "campus": "ZZZ"
+      },
+      "status_code": 200,
+      "response_length": 2,
+      "response_preview": "[]",
+      "is_json": true,
+      "data_type": "list",
+      "record_count": 0
+    },
+    {
+      "params": {
+        "term": "1",
+        "campus": "NB"
+      },
+      "status_code": 400,
+      "response_length": 1011,
+      "response_preview": "<!DOCTYPE html><html><head><title>Apache Tomcat/8.0.30 - Error report</title><style type=\"text/css\">H1 {font-family:Tahoma,Arial,sans-serif;color:white;background-color:#525D76;font-size:22px;} H2 {fo",
+      "is_json": false
+    },
+    {
+      "params": {
+        "year": "2025",
+        "campus": "NB"
+      },
+      "status_code": 400,
+      "response_length": 1011,
+      "response_preview": "<!DOCTYPE html><html><head><title>Apache Tomcat/8.0.30 - Error report</title><style type=\"text/css\">H1 {font-family:Tahoma,Arial,sans-serif;color:white;background-color:#525D76;font-size:22px;} H2 {fo",
+      "is_json": false
+    },
+    {
+      "params": {
+        "year": "2025",
+        "term": "1"
+      },
+      "status_code": 400,
+      "response_length": 1011,
+      "response_preview": "<!DOCTYPE html><html><head><title>Apache Tomcat/8.0.30 - Error report</title><style type=\"text/css\">H1 {font-family:Tahoma,Arial,sans-serif;color:white;background-color:#525D76;font-size:22px;} H2 {fo",
+      "is_json": false
+    },
+    {
+      "params": {},
+      "status_code": 400,
+      "response_length": 1011,
+      "response_preview": "<!DOCTYPE html><html><head><title>Apache Tomcat/8.0.30 - Error report</title><style type=\"text/css\">H1 {font-family:Tahoma,Arial,sans-serif;color:white;background-color:#525D76;font-size:22px;} H2 {fo",
+      "is_json": false
+    },
+    {
+      "params": {
+        "year": "abc",
+        "term": "1",
+        "campus": "NB"
+      },
+      "status_code": 400,
+      "response_length": 1011,
+      "response_preview": "<!DOCTYPE html><html><head><title>Apache Tomcat/8.0.30 - Error report</title><style type=\"text/css\">H1 {font-family:Tahoma,Arial,sans-serif;color:white;background-color:#525D76;font-size:22px;} H2 {fo",
+      "is_json": false
+    }
+  ],
+  "fields": [
+    {
+      "path": "campusLocations",
+      "types": [
+        "array"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 39
+    },
+    {
+      "path": "campusLocations[*]",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 39
+    },
+    {
+      "path": "campusLocations[*].code",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "O",
+        "3",
+        "S",
+        "2",
+        "NA"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "campusLocations[*].description",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "O",
+        "Livingston",
+        "Study Abroad",
+        "Busch",
+        "N/A"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "subject",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "050",
+        "082",
+        "160",
+        "175",
+        "195"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "openSections",
+      "types": [
+        "integer"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        1,
+        0,
+        2,
+        3,
+        4
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "synopsisUrl",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "https://amerstudies.rutgers.edu/academics/undergraduate/course-descriptions",
+        "https://arthistory.rutgers.edu/academics/undergraduate-welcome/course-descriptions-syllabi",
+        "https://rutchem.rutgers.edu/academics/undergraduate-program/undergraduate-course-descriptions",
+        "https://www.cinemastudies.rutgers.edu/academics/undergraduate-students/course-descriptions",
+        "https://complit.rutgers.edu/academics/undergraduate/undergraduate-courses"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "title",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "POPULAR CULTURE",
+        "CULT FILMS AMER CULT",
+        "AM DETCTIV FICT&FILM",
+        "21ST CENT EXPRESSION",
+        "ART HISTORY PRE-1400"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "preReqNotes",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "",
+        "(01:160:159 GEN CHEM FOR ENGRS )<em> OR </em>(01:160:161 GENERAL CHEMISTRY )<em> OR </em>(01:160:163 HONORS GENERAL CHEM )<em> OR </em>(01:160:165 EXTENDED GENERAL CHEMISTRY )<em> OR </em>(21:160:115 GENERAL CHEMISTRY )<em> OR </em>(50:160:115 CHEMICAL PRINCPLE I )",
+        "(01:355:101 COLLEGE WRITING )<em> OR </em>(01:355:103 EXPOSITION &ARGUMENT )<em> OR </em>(01:355:104 COLLEGE WRITING EXTENDED )<em> OR </em>(21:355:102 ENGLISH COMPOSITION )<em> OR </em>(21:355:104 HONORS ENGLISH COMPOSITION )<em> OR </em>(50:350:102 ENGLISH COMPOSITION II )",
+        "(01:119:116 GENERAL BIOLOGY II )",
+        "(01:830:101 GENERAL PSYCHOLOGY )"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "courseString",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "01:050:259",
+        "01:050:266",
+        "01:050:306",
+        "01:050:316",
+        "01:082:105"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "school",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 39
+    },
+    {
+      "path": "school.code",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "01",
+        "03",
+        "04",
+        "05",
+        "10"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "school.description",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "School of Arts and Sciences",
+        "Office of the Provost",
+        "School of Communication and Information  (Undergraduate)",
+        "Graduate School of Education (U)",
+        "Edward J. Bloustein School of Planning and  Public Policy (Undergraduate)"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "credits",
+      "types": [
+        "float",
+        "integer",
+        "null"
+      ],
+      "null_rate": 0.11602420344433631,
+      "sample_values": [
+        3,
+        1,
+        1.5,
+        2,
+        0
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "subjectDescription",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "American Studies",
+        "Art History",
+        "Chemistry",
+        "Cinema Studies",
+        "Comparative Literature"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "coreCodes",
+      "types": [
+        "array"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 39
+    },
+    {
+      "path": "coreCodes[*]",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 39
+    },
+    {
+      "path": "coreCodes[*].id",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "2025001050259  16",
+        "2025001050259  17",
+        "2025001050316  17",
+        "2025001050316  78586",
+        "2025001082105  17"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "coreCodes[*].year",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "2025",
+        "2024",
+        "2023"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "coreCodes[*].term",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "0",
+        "7",
+        "1",
+        "9"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "coreCodes[*].lastUpdated",
+      "types": [
+        "integer"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        1468423723000,
+        1468423733000,
+        1545063307000,
+        1468423759000,
+        1468423822000
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "coreCodes[*].effective",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "20250",
+        "20240",
+        "20257",
+        "20247",
+        "20251"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "coreCodes[*].coreCodeReferenceId",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "16",
+        "17",
+        "78586",
+        "20",
+        "27"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "coreCodes[*].coreCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "AHo",
+        "AHp",
+        "CCO",
+        "HST",
+        "WCd"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "coreCodes[*].coreCodeDescription",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "Philosophical and Theoretical Issues",
+        "Arts and Literatures",
+        "Our Common Future",
+        "Historical Analysis",
+        "Writing and Communication in a Discipline"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "coreCodes[*].supplement",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "  "
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "coreCodes[*].description",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "Philosophical and Theoretical Issues",
+        "Arts and Literatures",
+        "Our Common Future",
+        "Historical Analysis",
+        "Writing and Communication in a Discipline"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "coreCodes[*].offeringUnitCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "01",
+        "50",
+        "21"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "coreCodes[*].offeringUnitCampus",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "NB",
+        "CM",
+        "NK"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "coreCodes[*].code",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "AHo",
+        "AHp",
+        "CCO",
+        "HST",
+        "WCd"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "coreCodes[*].unit",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "01",
+        "04",
+        "05",
+        "10",
+        "11"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "coreCodes[*].course",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "259",
+        "316",
+        "105",
+        "106",
+        "135"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "coreCodes[*].subject",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "050",
+        "082",
+        "195",
+        "359",
+        "381"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "expandedTitle",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "",
+        "CULT FILMS IN AMERICAN CULTURE                                                  ",
+        "AMERICAN DETECTIVE FICTION AND FILM                                             ",
+        "TWENTY-FIRST CENTURY EXPRESSION: ON AND OFF THE NET                             ",
+        "INTRODUCTION TO ART HISTORY: PREHISTORY TO 1400                                 "
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "mainCampus",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "NB",
+        "NK",
+        "CM"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "subjectNotes",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "",
+        "https://psych.rutgers.edu/academics/undergraduate/syllabus-archive**PREREGISTRATION GUIDELINES may be found at:  https://psych.rutgers.edu/academics/undergraduate/advising/guidelines-for-preregistration\r\n",
+        "CURRENT COURSE SYNOPSIS AND SYLLABI CAN BE FOUND ON THE AMERICAN STUDIES HOMEPAGE AT: http://amerstudies.rutgers.edu/courses-menu/course-offerings",
+        "NO SPECIAL PERMISSION NUMBERS ARE GIVEN FOR CLOSED SECTIONS. STUDENTS MAY REGISTER FOR OPEN SECTIONS ONLY.\r\n",
+        "SEE ALSO SPANISH(940) FOR ADDITIONAL COURSES."
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "courseNumber",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "259",
+        "266",
+        "306",
+        "316",
+        "105"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "creditsObject",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 39
+    },
+    {
+      "path": "creditsObject.code",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "3_0",
+        "1_0",
+        "1_5",
+        "BA",
+        "2_0"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "creditsObject.description",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "3.0 credits",
+        "1.0 credit",
+        "1.5 credits",
+        "Credits by arrangement",
+        "2.0 credits"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "level",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "U",
+        "G"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "campusCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "NB",
+        "OB",
+        "NK",
+        "CM",
+        "ON"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "subjectGroupNotes",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        ""
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "offeringUnitCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "01",
+        "03",
+        "04",
+        "05",
+        "10"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "offeringUnitTitle",
+      "types": [
+        "null"
+      ],
+      "null_rate": 1.0,
+      "sample_values": [],
+      "sources_count": 39
+    },
+    {
+      "path": "courseDescription",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "",
+        "Laboratory illustrating basic chemical methods. Lab fee required.Lab. 3 hrs. Pre- or corequisite: 01:160:159, 161, or 163. Prerequisite: 01:640:111 or 115 or equivalent.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       ",
+        "The cult film from its origins in the 1920s to its evolution in American culture. Close analyses of cult films paired with readings by J. Hoberman and Jonathan Rosenbaum, Sigmund Freud, and others.Credit not given for both this course and 01:050:266.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      ",
+        "Introductory geology for the non-science major, designed to give a broad, basic understanding of the planet on which we reside, its age and origin, composition and evolution, interrelationships of Earth's major physical systems, scientific revolutions in Earth Science, and the role the physical Earth plays in global politics and economics.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           ",
+        "Plate tectonics and the origin of earthquakes and volcanoes: causes, mechanisms, consequences, and effect on humans.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            "
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections",
+      "types": [
+        "array"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*]",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].sectionEligibility",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "",
+        "SENIORS ONLY",
+        "JUNIORS AND SENIORS",
+        "ALL EXCEPT 1ST YEAR",
+        "JUNIORS ONLY"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].sessionDatePrintIndicator",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "Y",
+        "N"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].examCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "A",
+        "C",
+        "O",
+        "U",
+        "T"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].specialPermissionAddCode",
+      "types": [
+        "string",
+        "null"
+      ],
+      "null_rate": 0.7415948797142166,
+      "sample_values": [
+        "03",
+        "04",
+        "16",
+        "14",
+        "26"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].crossListedSections",
+      "types": [
+        "array"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].sectionNotes",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "START 12/23/24 ENDS 1/17/25 UNIVERSITY IS CLOSED 12/25/24 & 01/01/25 ",
+        "COURSE MEETS: 12/23/24 THRU 1/17 ONLINE  ",
+        "COURSE RUNS 12/22/23-1/12/2024 NO CLASS ON 12/25/23 & 1/1/24  ",
+        "12/23/2024 - 1/17/2025 ONLINE",
+        "COURSE MEETS:01/02/25-1/12/25"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].specialPermissionDropCode",
+      "types": [
+        "string",
+        "null"
+      ],
+      "null_rate": 0.9422479394198746,
+      "sample_values": [
+        "3",
+        "2",
+        "1",
+        "4",
+        "5"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].crossListedSectionType",
+      "types": [
+        "string",
+        "null"
+      ],
+      "null_rate": 0.0008727684896571267,
+      "sample_values": [
+        "0",
+        "2",
+        "1",
+        "5",
+        "6"
+      ],
+      "sources_count": 30
+    },
+    {
+      "path": "sections[*].instructors",
+      "types": [
+        "array"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].instructors[*]",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].instructors[*].name",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "REINHARD",
+        "NIGRIN, ALBERT",
+        "MCELHINNEY",
+        "MOOMJY, THOMAS",
+        "COUTAVAS"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].number",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "90",
+        "01",
+        "02",
+        "91",
+        "03"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].majors",
+      "types": [
+        "array"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].openToText",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "",
+        "UNIT: 14 (School of Engineering)",
+        "MAJ: 377 (Exercise Science)",
+        "MAJ: 955 (Sport Management)",
+        "MAJ: 192 (Communication)"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].openStatusText",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "OPEN",
+        "CLOSED"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].sessionDates",
+      "types": [
+        "string",
+        "null"
+      ],
+      "null_rate": 0.923614341265559,
+      "sample_values": [
+        "07/07/2025 - 08/01/2025",
+        "05/27/2025 - 07/03/2025",
+        "07/07/2025 - 08/13/2025",
+        "05/27/2025 - 06/20/2025",
+        "06/23/2025 - 08/13/2025"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].specialPermissionDropCodeDescription",
+      "types": [
+        "string",
+        "null"
+      ],
+      "null_rate": 0.9422479394198746,
+      "sample_values": [
+        "3",
+        "2",
+        "1",
+        "4",
+        "5"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].subtopic",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "",
+        "Old styles of command-control are now a thing of the past, except for the most conservative organizations. While good leaders employ a variety of leadership skills and leadership styles to motivate team members, even this is not enough.In addition to traditional leadership traits, Agile leadership emphasizes facilitation and active communication skills. This unique emphasis better positions a leader to lead in a fast paced, impatient, complex environment.The best leaders understand that the leader can no longer stand still, they must be adaptive and nimble. This means new leadership roles and competencies must be practiced that will empower and motivate employees and teams to new levels of productivity. We will explore how to apply agile principles to leadership and the best practices needed to be an effective leader today.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             ",
+        "Students develop a professional e-portfolio that showcases: a resume; academic work, professional development courses, certifications and/or military service; social media and other digital assets; relevant audio/video material; professional, community, and school activities; and writing samples.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       ",
+        "This remote learning lecture-discussion focuses on the relationship between cinema and aesthetic movements in the arts. Films to be screened include Blood of a Poet, The Man Who Fell To Earth, 2001: A Space Odyssey, The Draughtsman's Contract, The Red Shoes, Mulholland Drive, and others. Warning: some films may contain nudity, sexual situations, violence, profanity, substance abuse, and disturbing images.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        ",
+        "Focuses on films in which a teacher is the central character. Students will study these films as a cinematic art form, as positive inspirational role models for students considering a teaching career, and as unrealistic examples that shape the public's view concerning teaching                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           "
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].courseFeeDescr",
+      "types": [
+        "string",
+        "null"
+      ],
+      "null_rate": 0.9681311221026089,
+      "sample_values": [
+        "LAB FEE",
+        "COURSE FEE",
+        "TRANSPORTATION/LODGING",
+        "COURSE MATERIALS FEE",
+        "COVERS SUPPLIES AND MATERIALS"
+      ],
+      "sources_count": 18
+    },
+    {
+      "path": "sections[*].openStatus",
+      "types": [
+        "boolean"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        true,
+        false
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].comments",
+      "types": [
+        "array"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].comments[*]",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].comments[*].code",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "AK",
+        "05",
+        "56",
+        "AL",
+        "23"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].comments[*].description",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "Please contact the department offering this course to confirm technology requirements",
+        "Go to http://canvas.rutgers.edu",
+        "Online Course",
+        "Course may require: Webcam, Microphone, Phone Camera or Scanner",
+        "Hybrid Section - Some Meetings Online"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].instructorsText",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "REINHARD",
+        "NIGRIN, ALBERT",
+        "MCELHINNEY",
+        "MOOMJY, THOMAS",
+        "COUTAVAS"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].minors",
+      "types": [
+        "array"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].examCodeText",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "By arrangement",
+        "During class hour",
+        "No final exam",
+        "U",
+        "T"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].campusCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "NB",
+        "OB",
+        "NK",
+        "CM",
+        "ON"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].sectionCampusLocations",
+      "types": [
+        "array"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].sectionCampusLocations[*]",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].sectionCampusLocations[*].code",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "O",
+        "3",
+        "S",
+        "2",
+        "NA"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].sectionCampusLocations[*].description",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "O",
+        "Livingston",
+        "Study Abroad",
+        "Busch",
+        "N/A"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].index",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "01314",
+        "06955",
+        "01012",
+        "00300",
+        "00350"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].unitMajors",
+      "types": [
+        "array"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].printed",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "Y"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].specialPermissionAddCodeDescription",
+      "types": [
+        "string",
+        "null"
+      ],
+      "null_rate": 0.7415948797142166,
+      "sample_values": [
+        "Department staff",
+        "Instructor",
+        "Department",
+        "Program Director",
+        "GSE-Office of Student Academic Services"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].courseFee",
+      "types": [
+        "string",
+        "null"
+      ],
+      "null_rate": 0.28445349626612354,
+      "sample_values": [
+        "0000.00",
+        "0030.00",
+        "0105.00",
+        "0050.00",
+        "0104.00"
+      ],
+      "sources_count": 18
+    },
+    {
+      "path": "sections[*].commentsText",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "Please contact the department offering this course to confirm technology requirements, Go to http://canvas.rutgers.edu, Online Course",
+        "Go to http://canvas.rutgers.edu",
+        "Course may require: Webcam, Microphone, Phone Camera or Scanner, Go to http://canvas.rutgers.edu, Online Course",
+        "Go to http://canvas.rutgers.edu, Course may require: Webcam, Microphone, Phone Camera or Scanner, Please contact the department offering this course to confirm technology requirements",
+        "Course may require: Webcam, Microphone, Phone Camera or Scanner, Go to http://canvas.rutgers.edu"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].subtitle",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "",
+        "CULT FILMS IN AMERICAN CULTURE          ",
+        "WINTER IN AIX-EN-PROVENCE               ",
+        "INTRO HANDS-ON TRAINING IN CRYO-EM      ",
+        "PATAGONIA                               "
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].crossListedSectionsText",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "",
+        "01:175:266:90 (06937)",
+        "01:050:266:90 (06955)",
+        "16:848:601:01 (06602)",
+        "01:840:369:90 (06569)"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].sectionCourseType",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "O",
+        "H",
+        "T"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].meetingTimes",
+      "types": [
+        "array"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].meetingTimes[*]",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].meetingTimes[*].campusLocation",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "O",
+        "3",
+        "S",
+        "2",
+        ""
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].meetingTimes[*].roomNumber",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "",
+        "051",
+        "050",
+        "120",
+        "1144"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].meetingTimes[*].campusAbbrev",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "**",
+        "LIV",
+        "BUS",
+        "",
+        "D/C"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].meetingTimes[*].campusName",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "** INVALID **",
+        "LIVINGSTON",
+        "STUDY ABROAD",
+        "BUSCH",
+        ""
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].meetingTimes[*].startTimeMilitary",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "",
+        "0900",
+        "1300",
+        "1730",
+        "0915"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].meetingTimes[*].buildingCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "",
+        "BE",
+        "CIP",
+        "BRR",
+        "ARC"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].meetingTimes[*].meetingModeDesc",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "ONLINE INSTRUCTION(INTERNET)",
+        "LEC",
+        "LAB",
+        "STUDY ABROAD",
+        "PROJ-IND"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].meetingTimes[*].endTimeMilitary",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "",
+        "1125",
+        "1200",
+        "1700",
+        "2045"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].meetingTimes[*].meetingModeCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "90",
+        "02",
+        "05",
+        "29",
+        "19"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].meetingTimes[*].baClassHours",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "B",
+        "",
+        "A"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].meetingTimes[*].pmCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "",
+        "A",
+        "P"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].meetingTimes[*].meetingDay",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "",
+        "M",
+        "T",
+        "W",
+        "H"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].meetingTimes[*].startTime",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "",
+        "0900",
+        "0100",
+        "0530",
+        "0915"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].meetingTimes[*].endTime",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "",
+        "1125",
+        "1200",
+        "0500",
+        "0845"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].legendKey",
+      "types": [
+        "string",
+        "null"
+      ],
+      "null_rate": 0.9999813943103801,
+      "sample_values": [
+        "*"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].honorPrograms",
+      "types": [
+        "array"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 39
+    },
+    {
+      "path": "supplementCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "  ",
+        "NB",
+        "DU",
+        "CM",
+        "LB"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "unitNotes",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "",
+        "For Special Permission -- http://bloustein.rutgers.edu/courses/special-permission-numbers/\r\n",
+        "For Special Permission -- http://bloustein.rutgers.edu/courses/special-permission-numbers/",
+        "COURSE MEETS: 12/23/22 & 1/3 - 1/13/23 "
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "courseNotes",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "",
+        "Our new waitlist link: https://secure.sas.rutgers.edu/apps/special_permission/biology",
+        "Student needs C or better in all prerequisites.",
+        "CREDIT NOT GIVEN FOR BOTH 01:355:302 and 01:355:303",
+        "SPN Waitlist Info Here: https://kines.rutgers.edu/advising/special-permission-numbers"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].crossListedSections[*]",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].crossListedSections[*].courseNumber",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "266",
+        "601",
+        "369",
+        "260",
+        "490"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].crossListedSections[*].supplementCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "  ",
+        "NB",
+        "DU",
+        "CM"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].crossListedSections[*].sectionNumber",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "90",
+        "01",
+        "Q1",
+        "E1",
+        "E6"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].crossListedSections[*].offeringUnitCampus",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "NB",
+        "NK",
+        "CM",
+        "OB",
+        "L"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].crossListedSections[*].primaryRegistrationIndex",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "06955",
+        "06937",
+        "07026",
+        "00651",
+        "06569"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].crossListedSections[*].offeringUnitCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "01",
+        "16",
+        "10",
+        "11",
+        "38"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].crossListedSections[*].registrationIndex",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "06937",
+        "06955",
+        "06602",
+        "06569",
+        "00651"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].crossListedSections[*].subjectCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "175",
+        "050",
+        "848",
+        "840",
+        "730"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].majors[*]",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].majors[*].code",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "14",
+        "377",
+        "955",
+        "192",
+        "33"
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].majors[*].isUnitCode",
+      "types": [
+        "boolean"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        true,
+        false
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].majors[*].isMajorCode",
+      "types": [
+        "boolean"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        false,
+        true
+      ],
+      "sources_count": 39
+    },
+    {
+      "path": "sections[*].unitMajors[*]",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 35
+    },
+    {
+      "path": "sections[*].unitMajors[*].unitCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "56",
+        "16",
+        "17",
+        "33",
+        "26"
+      ],
+      "sources_count": 35
+    },
+    {
+      "path": "sections[*].unitMajors[*].majorCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "196",
+        "137",
+        "345",
+        "194",
+        "610"
+      ],
+      "sources_count": 35
+    },
+    {
+      "path": "courseFeeDescr",
+      "types": [
+        "string",
+        "null"
+      ],
+      "null_rate": 0.006733182346820102,
+      "sample_values": [
+        "",
+        "LAB FEE",
+        "COURSE FEE",
+        "FIELD TRIPS",
+        "COURSE MATERIALS FEE"
+      ],
+      "sources_count": 12
+    },
+    {
+      "path": "sections[*].finalExam",
+      "types": [
+        "string",
+        "null"
+      ],
+      "null_rate": 0.6700572675211345,
+      "sample_values": [
+        "12/16/2025 12:00PM-03:00PM",
+        "12/21/2025 04:00PM-07:00PM",
+        "Multiple exam times. Please contact instructor.",
+        "12/18/2025 08:00AM-11:00AM",
+        "12/22/2025 08:00AM-11:00AM"
+      ],
+      "sources_count": 12
+    },
+    {
+      "path": "courseFee",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "0",
+        "1.10",
+        "105.00",
+        "52.00",
+        "54.00"
+      ],
+      "sources_count": 12
+    },
+    {
+      "path": "sections[*].minors[*]",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 27
+    },
+    {
+      "path": "sections[*].minors[*].code",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "204",
+        "219",
+        "135",
+        "955",
+        "501"
+      ],
+      "sources_count": 27
+    },
+    {
+      "path": "sections[*].honorPrograms[*]",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [],
+      "sources_count": 20
+    },
+    {
+      "path": "sections[*].honorPrograms[*].code",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "sample_values": [
+        "8",
+        "E",
+        "A",
+        "D",
+        "7"
+      ],
+      "sources_count": 20
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "base_url": "https://sis.rutgers.edu/soc/api",
+  "endpoints_found": {
+    "/courses.json": {
+      "status": "active",
+      "description": "Main course data endpoint",
+      "required_params": [
+        "year",
+        "term",
+        "campus"
+      ],
+      "returns": "Array of course objects with nested sections, instructors, meeting times",
+      "sample_record_count": 4486
+    },
+    "/openSections.json": {
+      "status": "active",
+      "description": "List of open section index numbers only",
+      "required_params": [
+        "year",
+        "term",
+        "campus"
+      ],
+      "returns": "Array of strings (index numbers)",
+      "sample_record_count": 8140,
+      "notes": "Useful for quick availability checks without full course data"
+    }
+  },
+  "endpoints_not_found": [
+    "/subjects.json",
+    "/buildings.json",
+    "/instructors.json",
+    "/schools.json",
+    "/campus.json",
+    "/terms.json"
+  ],
+  "server_info": {
+    "server": "Apache Tomcat/8.0.30",
+    "error_format": "HTML error page for 404s"
+  }
+}

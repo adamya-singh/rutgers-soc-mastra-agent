@@ -1,0 +1,10 @@
+##mastra stuff
+output.txt
+node_modules
+dist
+.mastra
+.env.development
+.env
+*.db
+*.db-*
+##mastra stuff (from the mastra-agent folder, prob not needed here)

@@ -1,0 +1,2364 @@
+{
+  "fetch_stats": {
+    "2025-1-NB": 4486,
+    "2025-1-NK": 1290,
+    "2025-1-CM": 918,
+    "2025-9-NB": 4421,
+    "2025-9-NK": 1287,
+    "2025-9-CM": 936,
+    "2024-1-NB": 4530,
+    "2024-1-NK": 1327,
+    "2024-1-CM": 905,
+    "2024-9-NB": 4367,
+    "2024-9-NK": 1286,
+    "2024-9-CM": 907
+  },
+  "statistics": {
+    "total_courses": 26660,
+    "total_sections": 64321,
+    "total_meeting_times": 91666,
+    "unique_instructors_count": 7978,
+    "unique_subjects_count": 301,
+    "unique_schools_count": 46,
+    "avg_sections_per_course": 2.4126406601650414,
+    "max_sections_per_course": 128,
+    "avg_instructors_per_section": 0.994371978047605,
+    "max_instructors_per_section": 2,
+    "avg_meeting_times_per_section": 1.4251333157133752,
+    "max_meeting_times_per_section": 5
+  },
+  "enumerations": {
+    "mainCampus": [
+      "NK",
+      "CM",
+      "NB"
+    ],
+    "level": [
+      "G",
+      "U"
+    ],
+    "campusCode": [
+      "NK",
+      "ON",
+      "OC",
+      "OB",
+      "CM",
+      "NB"
+    ],
+    "examCode": [
+      "T",
+      "G",
+      "C",
+      "D",
+      "O",
+      "M",
+      "U",
+      "F",
+      "Q",
+      "N",
+      "H",
+      "J",
+      "I",
+      "S",
+      "B",
+      "A"
+    ],
+    "crossListedSectionType": [
+      "1",
+      "6",
+      "4",
+      "5",
+      "2",
+      "0",
+      "3"
+    ],
+    "openStatusText": [
+      "OPEN",
+      "CLOSED"
+    ],
+    "sectionCourseType": [
+      "T",
+      "H",
+      "O"
+    ],
+    "meetingModeCode": [
+      "15",
+      "14",
+      "04",
+      "25",
+      "07",
+      "83",
+      "08",
+      "05",
+      "21",
+      "28",
+      "26",
+      "91",
+      "16",
+      "06",
+      "19",
+      "02",
+      "23",
+      "99",
+      "09",
+      "12",
+      "20",
+      "92",
+      "10",
+      "81",
+      "18",
+      "03",
+      "98",
+      "29",
+      "90",
+      "93",
+      "27",
+      "80",
+      "82"
+    ],
+    "baClassHours": [
+      "B",
+      "",
+      "A"
+    ],
+    "pmCode": [
+      "",
+      "P",
+      "A"
+    ],
+    "meetingDay": [
+      "",
+      "T",
+      "W",
+      "F",
+      "M",
+      "U",
+      "S",
+      "H"
+    ]
+  },
+  "prerequisite_analysis": {
+    "courses_with_prereqs": 7469,
+    "sample_prereqs": [
+      {
+        "courseString": "01:013:141",
+        "preReqNotes": "(01:013:140 ELEMENTARY ARABIC I )<em> OR </em>(01:074:140 ELEMENTARY ARABIC I )"
+      },
+      {
+        "courseString": "01:013:153",
+        "preReqNotes": "(01:563:101 ELEM MODERN HEBREW )<em> OR </em>(01:685:101 INTRODUCTION TO THE MODERN MIDDLE EAST )<em> OR </em>(01:013:152 ELEM MODERN HEBREW )"
+      },
+      {
+        "courseString": "01:013:161",
+        "preReqNotes": "(01:013:160 ELEMENTARY HINDI I )<em> OR </em>(01:505:160 ELEMENTARY HINDI I )"
+      },
+      {
+        "courseString": "01:013:163",
+        "preReqNotes": "(01:013:162 ELEMENTARY URDU I )"
+      },
+      {
+        "courseString": "01:013:177",
+        "preReqNotes": "(01:013:176 ELEMENTARY PERSIAN I )<em> OR </em>(01:723:176 ELEMENTARY PERSIAN I )"
+      },
+      {
+        "courseString": "01:013:191",
+        "preReqNotes": "(01:013:190 ELEMENTARY TURKISH I )<em> OR </em>(01:973:190 ELEMENTARY TURKISH I )"
+      },
+      {
+        "courseString": "01:013:195",
+        "preReqNotes": "(01:013:194 ELEMENTARY YORUBA )"
+      },
+      {
+        "courseString": "01:013:241",
+        "preReqNotes": "(01:013:240 INTERMEDIATE ARABIC I )<em> OR </em>(01:074:240 INTERMEDIATE ARABIC I )"
+      },
+      {
+        "courseString": "01:013:253",
+        "preReqNotes": "(01:013:156 HEBREW REVIEW&CONTIN )"
+      },
+      {
+        "courseString": "01:013:261",
+        "preReqNotes": "(01:013:260 INTERMEDIATE HINDI I )<em> OR </em>(01:505:201 INTERMEDIATE HINDI )<em> OR </em>(01:505:260 INTERMEDIATE HINDI I )"
+      }
+    ],
+    "patterns_found": {
+      "course_code": 7451,
+      "html_or": 3839,
+      "parentheses": 7451,
+      "html_and": 815
+    }
+  },
+  "fields": [
+    {
+      "path": "campusLocations",
+      "types": [
+        "array"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": true,
+      "sample_values": [],
+      "avg_array_length": 1.1005251312828208,
+      "max_array_length": 5
+    },
+    {
+      "path": "campusLocations[*]",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "campusLocations[*].code",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "O",
+        "3",
+        "1",
+        "5",
+        "NA"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "campusLocations[*].description",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "O",
+        "Livingston",
+        "College Avenue",
+        "Downtown New Brunswick",
+        "N/A"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "subject",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "013",
+        "014",
+        "016",
+        "050",
+        "070"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "openSections",
+      "types": [
+        "integer"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        1,
+        0,
+        2,
+        3,
+        7
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "synopsisUrl",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "https://www.amesall.rutgers.edu/academics/undergraduate-program/course-descriptions",
+        "https://africanastudies.rutgers.edu/academics/undergraduate/course-descriptions",
+        "http://ruafrica.rutgers.edu/academics/minor-program",
+        "https://amerstudies.rutgers.edu/academics/undergraduate/course-descriptions",
+        "https://anthro.rutgers.edu/academics/undergraduate/courses"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "title",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "INTRO TO ARAMAIC",
+        "ELEMENTARY ARABIC I",
+        "ELEMENTARY ARABIC II",
+        "ELEM MODERN HEBREW",
+        "ELEMENTARY HINDI I"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "preReqNotes",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "",
+        "(01:013:140 ELEMENTARY ARABIC I )<em> OR </em>(01:074:140 ELEMENTARY ARABIC I )",
+        "(01:563:101 ELEM MODERN HEBREW )<em> OR </em>(01:685:101 INTRODUCTION TO THE MODERN MIDDLE EAST )<em> OR </em>(01:013:152 ELEM MODERN HEBREW )",
+        "(01:013:160 ELEMENTARY HINDI I )<em> OR </em>(01:505:160 ELEMENTARY HINDI I )",
+        "(01:013:162 ELEMENTARY URDU I )"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "courseString",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "01:013:110",
+        "01:013:140",
+        "01:013:141",
+        "01:013:153",
+        "01:013:160"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "school",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "school.code",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "01",
+        "03",
+        "04",
+        "05",
+        "07"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "school.description",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "School of Arts and Sciences",
+        "Office of the Provost",
+        "School of Communication and Information  (Undergraduate)",
+        "Graduate School of Education (U)",
+        "Mason Gross School of the Arts (Undergrad)"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "credits",
+      "types": [
+        "integer",
+        "float",
+        "null"
+      ],
+      "null_rate": 0.10907726931732933,
+      "is_required": false,
+      "is_array": false,
+      "sample_values": [
+        3,
+        4,
+        1.5,
+        6,
+        1
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "subjectDescription",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "African, Middle Eastern, and South Asian Languages and Literatures",
+        "Africana Studies",
+        "African Studies",
+        "American Studies",
+        "Anthropology"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "coreCodes",
+      "types": [
+        "array"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": true,
+      "sample_values": [],
+      "avg_array_length": 0.29174793698424606,
+      "max_array_length": 6
+    },
+    {
+      "path": "coreCodes[*]",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "coreCodes[*].id",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "2025101013110  121",
+        "2025101013140  121",
+        "2025101013141  121",
+        "2025101013153  121",
+        "2025101013160  121"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "coreCodes[*].year",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "2025",
+        "2024"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "coreCodes[*].term",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "1",
+        "9"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "coreCodes[*].description",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "SOE Only: Approved Humanities/Social Science",
+        "Historical Analysis",
+        "Diversities and Social Inequalities",
+        "Nature of Languages",
+        "Philosophical and Theoretical Issues"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "coreCodes[*].code",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "SOEHS",
+        "HST",
+        "CCD",
+        "AHq",
+        "AHo"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "coreCodes[*].unit",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "01",
+        "03",
+        "04",
+        "05",
+        "07"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "coreCodes[*].course",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "110",
+        "140",
+        "141",
+        "153",
+        "160"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "coreCodes[*].subject",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "013",
+        "014",
+        "016",
+        "050",
+        "070"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "coreCodes[*].offeringUnitCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "01",
+        "50",
+        "21"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "coreCodes[*].offeringUnitCampus",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "NB",
+        "CM",
+        "NK"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "coreCodes[*].lastUpdated",
+      "types": [
+        "integer"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        1728323919000,
+        1468423759000,
+        1545063307000,
+        1468423741000,
+        1468423723000
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "coreCodes[*].effective",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "20251",
+        "20259",
+        "20241",
+        "20249"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "coreCodes[*].coreCodeReferenceId",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "121",
+        "20",
+        "78585",
+        "18",
+        "16"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "coreCodes[*].coreCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "SOEHS",
+        "HST",
+        "CCD",
+        "AHq",
+        "AHo"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "coreCodes[*].coreCodeDescription",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "SOE Only: Approved Humanities/Social Science",
+        "Historical Analysis",
+        "Diversities and Social Inequalities",
+        "Nature of Languages",
+        "Philosophical and Theoretical Issues"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "coreCodes[*].supplement",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "  "
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "expandedTitle",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "INTRODUCTION TO ARAMAIC                                                         ",
+        "ELEMENTARY ARABIC I                                                             ",
+        "ELEMENTARY ARABIC II                                                            ",
+        "",
+        "ELEMENTARY HINDI I                                                              "
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "courseFeeDescr",
+      "types": [
+        "string",
+        "null"
+      ],
+      "null_rate": 0.005248163142899985,
+      "is_required": false,
+      "is_array": false,
+      "sample_values": [
+        "",
+        "LAB FEE",
+        "COURSE FEE",
+        "LAB SUPPORT FEE",
+        "SUPPORT FEE"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "mainCampus",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "NB",
+        "NK",
+        "CM"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "subjectNotes",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "",
+        "CURRENT COURSE SYNOPSIS AND SYLLABI CAN BE FOUND ON THE AMERICAN STUDIES HOMEPAGE AT: http://amerstudies.rutgers.edu/courses-menu/course-offerings",
+        "NO SPECIAL PERMISSION NUMBERS ARE GIVEN FOR CLOSED OR RESTRICTED COURSES IN NON-MAJOR LABORATORY COURSES. COLLEGE RESTRICTIONS WILL BE LIFTED AT THE END OF THE REGISTRATION PERIOD.   ",
+        "NO SPECIAL PERMISSION NUMBERS ARE GIVEN FOR CLOSED SECTIONS. STUDENTS MAY REGISTER FOR OPEN SECTIONS ONLY.\r\n",
+        "MATHEMATICS INSTRUCTORS CANNOT ISSUE SPECIAL PERMISSION TO ENTER CLOSED COURSES. REQUESTS FOR SPECIAL PERMISSION MUST BE MADE BY APPLICATION TO THE MATHEMATICS DEPARTMENT."
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "courseNumber",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "110",
+        "140",
+        "141",
+        "153",
+        "160"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "creditsObject",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "creditsObject.code",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "3_0",
+        "4_0",
+        "1_5",
+        "BA",
+        "6_0"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "creditsObject.description",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "3.0 credits",
+        "4.0 credits",
+        "1.5 credits",
+        "Credits by arrangement",
+        "6.0 credits"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "level",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "U",
+        "G"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "campusCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "NB",
+        "OB",
+        "NK",
+        "ON",
+        "CM"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "subjectGroupNotes",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        ""
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "offeringUnitCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "01",
+        "03",
+        "04",
+        "05",
+        "07"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "offeringUnitTitle",
+      "types": [
+        "null"
+      ],
+      "null_rate": 1.0,
+      "is_required": false,
+      "is_array": false,
+      "sample_values": [],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "courseDescription",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        ""
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections",
+      "types": [
+        "array"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": true,
+      "sample_values": [],
+      "avg_array_length": 2.4126406601650414,
+      "max_array_length": 128
+    },
+    {
+      "path": "sections[*]",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].sectionEligibility",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "",
+        "JUNIORS AND SENIORS",
+        "ALL EXCEPT 1ST YEAR",
+        "1ST YEAR AND SOPHOMORES",
+        "1ST YEAR ONLY"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].sessionDatePrintIndicator",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "N",
+        "Y"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].examCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "T",
+        "D",
+        "U",
+        "C",
+        "O"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].specialPermissionAddCode",
+      "types": [
+        "string",
+        "null"
+      ],
+      "null_rate": 0.7409088789042458,
+      "is_required": false,
+      "is_array": false,
+      "sample_values": [
+        "04",
+        "03",
+        "16",
+        "20",
+        "17"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].crossListedSections",
+      "types": [
+        "array"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": true,
+      "sample_values": [],
+      "avg_array_length": 0.08431150013214969,
+      "max_array_length": 4
+    },
+    {
+      "path": "sections[*].sectionNotes",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "",
+        "PREREQ: 01:013:140 OR 01:074:140 OR PLACEMENT TEST  ",
+        "UNIVERSITY OF MINNESOTA HOST",
+        "PREREQ: 01:013:160 OR 01:505:101 OR 01:505:160 OR PLACEMENT TEST  ",
+        "PREREQ: 01:013:162"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].specialPermissionDropCode",
+      "types": [
+        "string",
+        "null"
+      ],
+      "null_rate": 0.9423671895648389,
+      "is_required": false,
+      "is_array": false,
+      "sample_values": [
+        "3",
+        "2",
+        "1",
+        "5",
+        "4"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].crossListedSectionType",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "5"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].instructors",
+      "types": [
+        "array"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": true,
+      "sample_values": [],
+      "avg_array_length": 0.994371978047605,
+      "max_array_length": 2
+    },
+    {
+      "path": "sections[*].instructors[*]",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].instructors[*].name",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "HABERL, CHARLES",
+        "HABBAL, MANAR",
+        "ALI, JAMAL",
+        "MOHAMED, JEHAN",
+        "RAUCHER, MICHAL"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].number",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "90",
+        "01",
+        "02",
+        "M1",
+        "M2"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].finalExam",
+      "types": [
+        "string",
+        "null"
+      ],
+      "null_rate": 0.6227550511349463,
+      "is_required": false,
+      "is_array": false,
+      "sample_values": [
+        "12/16/2025 12:00PM-03:00PM",
+        "12/21/2025 04:00PM-07:00PM",
+        "Multiple exam times. Please contact instructor.",
+        "12/18/2025 08:00AM-11:00AM",
+        "12/22/2025 08:00AM-11:00AM"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].majors",
+      "types": [
+        "array"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": true,
+      "sample_values": [],
+      "avg_array_length": 0.4250555806035354,
+      "max_array_length": 7
+    },
+    {
+      "path": "sections[*].openToText",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "",
+        "MAJ: 014 (Africana/Afro-American and African Studies); MINOR: 014 (Africana Studies)",
+        "MAJ: 082 (Art History - Liberal Arts)",
+        "UNIT: 01 (School of Arts and Sciences)",
+        "UNIT: 77 (School of Nursing - New Brunswick (UG)), MAJ: 709 (Nutritional Sciences)"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].openStatusText",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "OPEN",
+        "CLOSED"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].sessionDates",
+      "types": [
+        "null"
+      ],
+      "null_rate": 1.0,
+      "is_required": false,
+      "is_array": false,
+      "sample_values": [],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].specialPermissionDropCodeDescription",
+      "types": [
+        "string",
+        "null"
+      ],
+      "null_rate": 0.9423671895648389,
+      "is_required": false,
+      "is_array": false,
+      "sample_values": [
+        "3",
+        "2",
+        "1",
+        "5",
+        "4"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].subtopic",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        ""
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].openStatus",
+      "types": [
+        "boolean"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        true,
+        false
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].comments",
+      "types": [
+        "array"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": true,
+      "sample_values": [],
+      "avg_array_length": 0.638935961816514,
+      "max_array_length": 4
+    },
+    {
+      "path": "sections[*].comments[*]",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].comments[*].code",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "56",
+        "05",
+        "AU",
+        "23",
+        "AQ"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].comments[*].description",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "Online Course",
+        "Go to http://canvas.rutgers.edu",
+        "First-year students welcome",
+        "Hybrid Section - Some Meetings Online",
+        "Big Ten Academic Alliance CourseShare offering received from a Big Ten university"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].instructorsText",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "HABERL, CHARLES",
+        "HABBAL, MANAR",
+        "ALI, JAMAL",
+        "MOHAMED, JEHAN",
+        "RAUCHER, MICHAL"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].minors",
+      "types": [
+        "array"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": true,
+      "sample_values": [],
+      "avg_array_length": 0.015438192814166446,
+      "max_array_length": 2
+    },
+    {
+      "path": "sections[*].examCodeText",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "T",
+        "Spanish",
+        "U",
+        "During class hour",
+        "No final exam"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].campusCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "NB",
+        "OB",
+        "NK",
+        "ON",
+        "CM"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].sectionCampusLocations",
+      "types": [
+        "array"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": true,
+      "sample_values": [],
+      "avg_array_length": 1.0452418339267113,
+      "max_array_length": 3
+    },
+    {
+      "path": "sections[*].sectionCampusLocations[*]",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].sectionCampusLocations[*].code",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "O",
+        "3",
+        "1",
+        "5",
+        "NA"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].sectionCampusLocations[*].description",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "O",
+        "Livingston",
+        "College Avenue",
+        "Downtown New Brunswick",
+        "N/A"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].index",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "09212",
+        "09214",
+        "09216",
+        "09218",
+        "09220"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].unitMajors",
+      "types": [
+        "array"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": true,
+      "sample_values": [],
+      "avg_array_length": 0.14135352373252905,
+      "max_array_length": 4
+    },
+    {
+      "path": "sections[*].printed",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "Y"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].specialPermissionAddCodeDescription",
+      "types": [
+        "string",
+        "null"
+      ],
+      "null_rate": 0.7409088789042458,
+      "is_required": false,
+      "is_array": false,
+      "sample_values": [
+        "Instructor",
+        "Department staff",
+        "Department",
+        "Program",
+        "Honors Program, call 932-7964."
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].commentsText",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "Online Course, Go to http://canvas.rutgers.edu",
+        "First-year students welcome, Hybrid Section - Some Meetings Online, Go to http://canvas.rutgers.edu",
+        "Go to http://canvas.rutgers.edu, Hybrid Section - Some Meetings Online, First-year students welcome",
+        "Big Ten Academic Alliance CourseShare offering received from a Big Ten university",
+        "Go to http://canvas.rutgers.edu, First-year students welcome"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].subtitle",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "",
+        "ELEMENTARY PERSIAN II                   ",
+        "ISLAM AND AFRICAN LITERATURE            ",
+        "CONVERSATIONAL HINDI/URDU               ",
+        "HINDI SCRIPT READING AND WRITING        "
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].crossListedSectionsText",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "",
+        "01:074:140:01 (09215)",
+        "01:074:140:02 (09217)",
+        "01:074:141:01 (09219)",
+        "01:074:141:02 (09221)"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].sectionCourseType",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "O",
+        "H",
+        "T"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].meetingTimes",
+      "types": [
+        "array"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": true,
+      "sample_values": [],
+      "avg_array_length": 1.4251333157133752,
+      "max_array_length": 5
+    },
+    {
+      "path": "sections[*].meetingTimes[*]",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].meetingTimes[*].campusLocation",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "O",
+        "3",
+        "1",
+        "5",
+        ""
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].meetingTimes[*].roomNumber",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "",
+        "103D",
+        "216",
+        "A4",
+        "2100"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].meetingTimes[*].campusAbbrev",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "**",
+        "LIV",
+        "CAC",
+        "DNB",
+        ""
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].meetingTimes[*].campusName",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "** INVALID **",
+        "LIVINGSTON",
+        "COLLEGE AVENUE",
+        "DOWNTOWN NB",
+        ""
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].meetingTimes[*].startTimeMilitary",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "",
+        "1740",
+        "1550",
+        "1020",
+        "1215"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].meetingTimes[*].buildingCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "",
+        "TIL",
+        "SC",
+        "HH",
+        "ABW"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].meetingTimes[*].meetingModeDesc",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "ONLINE INSTRUCTION(INTERNET)",
+        "LEC",
+        "PROJ-IND",
+        "INTERNSP",
+        "FILM"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].meetingTimes[*].endTimeMilitary",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "",
+        "1900",
+        "1710",
+        "1140",
+        "1305"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].meetingTimes[*].meetingModeCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "90",
+        "02",
+        "19",
+        "15",
+        "28"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].meetingTimes[*].baClassHours",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "B",
+        "",
+        "A"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].meetingTimes[*].pmCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "",
+        "P",
+        "A"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].meetingTimes[*].meetingDay",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "",
+        "M",
+        "W",
+        "T",
+        "H"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].meetingTimes[*].startTime",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "",
+        "0540",
+        "0350",
+        "1020",
+        "1215"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].meetingTimes[*].endTime",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "",
+        "0700",
+        "0510",
+        "1140",
+        "0105"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].legendKey",
+      "types": [
+        "string",
+        "null"
+      ],
+      "null_rate": 0.9999844529780321,
+      "is_required": false,
+      "is_array": false,
+      "sample_values": [
+        "*"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].honorPrograms",
+      "types": [
+        "array"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": true,
+      "sample_values": [],
+      "avg_array_length": 0.015422645792198505,
+      "max_array_length": 5
+    },
+    {
+      "path": "supplementCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "  ",
+        "LB",
+        "NB",
+        "RK",
+        "NC"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "courseFee",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "0",
+        "7.00",
+        "1.10",
+        "105.00",
+        "54.00"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "unitNotes",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "",
+        "For Special Permission -- http://bloustein.rutgers.edu/courses/special-permission-numbers/\r\n",
+        "For Special Permission -- http://bloustein.rutgers.edu/courses/special-permission-numbers/"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "courseNotes",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "",
+        "Register in person at any SAS Advising Center",
+        "FOR COURSE SYNOPSIS, GO TO:https://sashonors.rutgers.edu/academics/curriculum/interdisciplinary-seminars.",
+        "Prerequisite has two parts: writing (prerequisite of 01:355:101, 01:355:103, or 01:355:104, or placement into 355:101 or 355:104) and math (prerequisite of 01:640:026 or placement into 640:CMA, 640:CMA, 640:PCA, 640:CLG, or 640:CLS). Common Hour Exams will be given on two (2) Tuesday nights, 7:45-9:05PM, dates TBD.\r\nNO SPECIAL PERMISSION NUMBERS ARE GIVEN FOR CLOSED SECTIONS \r\n",
+        " GENERAL BIOLOGY WORKSHOPS BEGIN THE WEEK OF 1/27. ALL STUDENTS MUST ATTEND THE 1ST MEETING OF THEIR LECTURE SECTION THE WEEK OF 1/21.  TUESDAY EVENING EXAMS.                STUDENTS MAY REGISTER FOR OPEN SECTIONS ONLY.          SPECIAL PERMISSION NUMBERS ARE NOT GIVEN FOR CLOSED SECTIONS.\r\n\r\n"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].crossListedSections[*]",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].crossListedSections[*].courseNumber",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "140",
+        "141",
+        "102",
+        "160",
+        "161"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].crossListedSections[*].supplementCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "  ",
+        "NB",
+        "DU"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].crossListedSections[*].sectionNumber",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "01",
+        "02",
+        "90",
+        "M1",
+        "03"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].crossListedSections[*].offeringUnitCampus",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "NB",
+        "OB",
+        "NK",
+        "CM"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].crossListedSections[*].primaryRegistrationIndex",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "09214",
+        "09216",
+        "09218",
+        "09220",
+        "09222"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].crossListedSections[*].offeringUnitCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "01",
+        "11",
+        "16",
+        "10",
+        "34"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].crossListedSections[*].registrationIndex",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "09215",
+        "09217",
+        "09219",
+        "09221",
+        "09223"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].crossListedSections[*].subjectCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "074",
+        "563",
+        "505",
+        "723",
+        "973"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].majors[*]",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].majors[*].code",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "014",
+        "082",
+        "01",
+        "709",
+        "77"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].majors[*].isUnitCode",
+      "types": [
+        "boolean"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        false,
+        true
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].majors[*].isMajorCode",
+      "types": [
+        "boolean"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        true,
+        false
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].minors[*]",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].minors[*].code",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "014",
+        "198",
+        "204",
+        "450",
+        "381"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].honorPrograms[*]",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].honorPrograms[*].code",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "A",
+        "8",
+        "E",
+        "D",
+        "7"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].unitMajors[*]",
+      "types": [
+        "object"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].unitMajors[*].unitCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "01",
+        "15",
+        "07",
+        "08",
+        "11"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].unitMajors[*].majorCode",
+      "types": [
+        "string"
+      ],
+      "null_rate": 0.0,
+      "is_required": true,
+      "is_array": false,
+      "sample_values": [
+        "198",
+        "202",
+        "460",
+        "750",
+        "830"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].courseFeeDescr",
+      "types": [
+        "string",
+        "null"
+      ],
+      "null_rate": 0.9538900431021117,
+      "is_required": false,
+      "is_array": false,
+      "sample_values": [
+        "COURSE FEE",
+        "LAB FEE",
+        "COVERS SUPPLIES AND MATERIALS",
+        "COURSE FEES $25",
+        "EQUIP. USE, MAINT., REPAIR"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    },
+    {
+      "path": "sections[*].courseFee",
+      "types": [
+        "string",
+        "null"
+      ],
+      "null_rate": 0.02626438029086173,
+      "is_required": false,
+      "is_array": false,
+      "sample_values": [
+        "0000.00",
+        "0001.75",
+        "0105.00",
+        "0054.00",
+        "0104.00"
+      ],
+      "avg_array_length": null,
+      "max_array_length": null
+    }
+  ]
+}

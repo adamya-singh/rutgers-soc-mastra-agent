@@ -1,0 +1,88 @@
+{
+  "confirmed_parameters": {
+    "year": {
+      "type": "string",
+      "required": true,
+      "valid_values": [
+        "2020",
+        "2021",
+        "2022",
+        "2023",
+        "2024",
+        "2025",
+        "2026"
+      ],
+      "notes": "Academic year. Invalid values return empty array."
+    },
+    "term": {
+      "type": "string",
+      "required": true,
+      "valid_values": [
+        "0",
+        "1",
+        "7",
+        "9"
+      ],
+      "value_meanings": {
+        "0": "Winter",
+        "1": "Spring",
+        "7": "Summer",
+        "9": "Fall"
+      },
+      "notes": "Semester code. Invalid values return empty array."
+    },
+    "campus": {
+      "type": "string",
+      "required": true,
+      "valid_values": [
+        "NB",
+        "NK",
+        "CM",
+        "ONLINE_NB",
+        "ONLINE_NK",
+        "ONLINE_CM"
+      ],
+      "value_meanings": {
+        "NB": "New Brunswick",
+        "NK": "Newark",
+        "CM": "Camden",
+        "ONLINE_NB": "New Brunswick Online",
+        "ONLINE_NK": "Newark Online",
+        "ONLINE_CM": "Camden Online"
+      },
+      "notes": "Campus code. Invalid values return empty array."
+    }
+  },
+  "parameters_that_exist_but_dont_filter": {
+    "level": {
+      "values_tested": [
+        "U",
+        "G"
+      ],
+      "effect": "Returns same data regardless of value",
+      "notes": "Appears to be accepted but not used for filtering"
+    },
+    "subject": {
+      "values_tested": [
+        "198",
+        "640",
+        "750"
+      ],
+      "effect": "Returns same data regardless of value",
+      "notes": "Appears to be accepted but not used for filtering"
+    }
+  },
+  "parameters_tested_that_have_no_effect": [
+    "openOnly",
+    "open",
+    "instructor",
+    "building",
+    "day",
+    "credits"
+  ],
+  "error_behavior": {
+    "missing_required_params": "Returns 400 Bad Request",
+    "invalid_param_values": "Returns 200 with empty array []",
+    "non_numeric_year": "Returns 400 Bad Request"
+  }
+}
