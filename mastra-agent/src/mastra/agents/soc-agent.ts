@@ -1,4 +1,5 @@
 import { Agent } from '@mastra/core/agent';
+import { createVertex } from '@ai-sdk/google-vertex';
 
 import {
   searchCourses,
@@ -9,6 +10,20 @@ import {
   checkScheduleConflicts,
   getPrerequisites,
 } from '../tools/index.js';
+
+/**
+ * Google Vertex AI provider configuration
+ * 
+ * Uses service account credentials from GOOGLE_APPLICATION_CREDENTIALS env var.
+ * Project and location are read from env vars for flexibility.
+ */
+const vertex = createVertex({
+  project: process.env.GOOGLE_VERTEX_PROJECT || 'concise-foundry-465822-d7',
+  location: process.env.GOOGLE_VERTEX_LOCATION || 'us-central1',
+  googleAuthOptions: {
+    keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+  },
+});
 
 /**
  * System prompt for the Rutgers SOC Agent
@@ -116,7 +131,10 @@ When conflicts are found:
 export const socAgent = new Agent({
   name: 'Rutgers SOC Agent',
   instructions: SYSTEM_PROMPT,
-  model: 'anthropic/claude-sonnet-4-20250514',
+  // Anthropic (commented out - using Vertex AI instead):
+  // model: 'anthropic/claude-sonnet-4-20250514',
+  // Google Vertex AI (uses service account from GOOGLE_APPLICATION_CREDENTIALS):
+  model: vertex('gemini-2.5-flash'),
   tools: {
     searchCourses,
     getCourseDetails,
