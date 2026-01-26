@@ -407,6 +407,42 @@ export type Database = {
           },
         ]
       }
+      schedules: {
+        Row: {
+          campus: string | null
+          created_at: string
+          id: string
+          name: string
+          snapshot: Json
+          term_code: string | null
+          term_year: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          campus?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          snapshot: Json
+          term_code?: string | null
+          term_year?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          campus?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          snapshot?: Json
+          term_code?: string | null
+          term_year?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       schools: {
         Row: {
           code: string
@@ -947,6 +983,27 @@ export type Database = {
       }
     }
     Views: {
+      core_codes_distinct: {
+        Row: {
+          core_code: string | null
+          core_code_description: string | null
+        }
+        Relationships: []
+      }
+      instructors_distinct: {
+        Row: {
+          name: string | null
+        }
+        Relationships: []
+      }
+      subjects_distinct: {
+        Row: {
+          code: string | null
+          description: string | null
+          notes: string | null
+        }
+        Relationships: []
+      }
       v_course_search: {
         Row: {
           campus: string | null

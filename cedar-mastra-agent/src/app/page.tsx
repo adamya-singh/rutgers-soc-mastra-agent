@@ -10,7 +10,6 @@ import {
   useCedarStore,
 } from 'cedar-os';
 
-import { ChatModeSelector } from '@/components/ChatModeSelector';
 import {
   SearchResults,
   type SearchResultItem,
@@ -331,7 +330,6 @@ export default function HomePage() {
           Sign in
         </Link>
       </div>
-      <ChatModeSelector currentMode={chatMode} onModeChange={setChatMode} />
 
       {/* Main interactive content area */}
       <div className="flex flex-col items-start justify-center min-h-[60vh] p-8 space-y-8">

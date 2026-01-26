@@ -1,14 +1,28 @@
 'use client';
 
 import React from 'react';
+import { supabaseClient } from '@/lib/supabaseClient';
 import {
   DEFAULT_SCHEDULE,
   SCHEDULE_UPDATED_EVENT,
-  loadSchedule,
+  createSchedule,
+  deleteSchedule,
+  duplicateSchedule,
+  getActiveScheduleEntry,
+  getScheduleSyncStatus,
+  listSchedules,
+  renameSchedule,
   saveSchedule,
+  setActiveScheduleId,
   type MeetingTime,
+  type ScheduleEntry,
   type ScheduleSnapshot,
 } from '@/lib/scheduleStorage';
+import {
+  deleteRemoteSchedule,
+  hydrateFromRemote,
+  upsertRemoteSchedule,
+} from '@/lib/scheduleSync';
 
 const START_HOUR = 8;
 const END_HOUR = 22;
@@ -107,12 +121,27 @@ const buildMeetingLabel = (meeting: MeetingTime) => {
 
 export const ScheduleGrid: React.FC = () => {
   const [schedule, setSchedule] = React.useState<ScheduleSnapshot>({ ...DEFAULT_SCHEDULE });
+  const [schedules, setSchedules] = React.useState<ScheduleEntry[]>([]);
+  const [activeScheduleId, setActiveScheduleIdState] = React.useState<string | null>(null);
+  const [scheduleName, setScheduleName] = React.useState('');
   const [isLoaded, setIsLoaded] = React.useState(false);
+  const [isEditingName, setIsEditingName] = React.useState(false);
+  const [userId, setUserId] = React.useState<string | null>(null);
+  const [syncState, setSyncState] = React.useState<'idle' | 'saving' | 'error'>('idle');
+  const [syncError, setSyncError] = React.useState<string | null>(null);
+  const [isHydrating, setIsHydrating] = React.useState(false);
+
+  const refreshWorkspace = React.useCallback(() => {
+    const activeEntry = getActiveScheduleEntry();
+    setSchedule(activeEntry.snapshot);
+    setSchedules(listSchedules());
+    setActiveScheduleIdState(activeEntry.id);
+  }, []);
 
   React.useEffect(() => {
-    setSchedule(loadSchedule());
+    refreshWorkspace();
     setIsLoaded(true);
-  }, []);
+  }, [refreshWorkspace]);
 
   React.useEffect(() => {
     if (!isLoaded) return;
@@ -121,10 +150,167 @@ export const ScheduleGrid: React.FC = () => {
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
-    const handleUpdate = () => setSchedule(loadSchedule());
+    const handleUpdate = () => refreshWorkspace();
     window.addEventListener(SCHEDULE_UPDATED_EVENT, handleUpdate);
     return () => window.removeEventListener(SCHEDULE_UPDATED_EVENT, handleUpdate);
+  }, [refreshWorkspace]);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    supabaseClient.auth.getUser().then(({ data, error }) => {
+      if (!isMounted) return;
+      if (error) {
+        console.warn('Failed to read auth state', error);
+        setUserId(null);
+        return;
+      }
+      setUserId(data.user?.id ?? null);
+    });
+    const { data: authListener } = supabaseClient.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.user?.id ?? null);
+    });
+
+    return () => {
+      isMounted = false;
+      authListener?.subscription.unsubscribe();
+    };
   }, []);
+
+  React.useEffect(() => {
+    if (!userId) {
+      setIsHydrating(false);
+      setSyncError(null);
+      return;
+    }
+    setIsHydrating(true);
+    setSyncError(null);
+    hydrateFromRemote()
+      .then(() => {
+        refreshWorkspace();
+      })
+      .catch((error) => {
+        console.error('Failed to load saved schedules', error);
+        setSyncError('Could not load saved schedules.');
+      })
+      .finally(() => {
+        setIsHydrating(false);
+      });
+  }, [userId, refreshWorkspace]);
+
+  const activeEntry = React.useMemo(
+    () => schedules.find((entry) => entry.id === activeScheduleId) ?? null,
+    [schedules, activeScheduleId],
+  );
+
+  React.useEffect(() => {
+    if (!activeEntry || isEditingName) return;
+    setScheduleName(activeEntry.name);
+  }, [activeEntry, isEditingName]);
+
+  const syncStatus = activeEntry ? getScheduleSyncStatus(activeEntry.id) : 'dirty';
+  const isLoggedIn = Boolean(userId);
+
+  const syncActiveSchedule = React.useCallback(async () => {
+    if (!isLoggedIn || !activeEntry || !userId) return;
+    try {
+      setSyncState('saving');
+      await upsertRemoteSchedule(activeEntry, userId);
+      setSyncState('idle');
+      setSyncError(null);
+    } catch (error) {
+      console.error('Failed to sync schedule', error);
+      setSyncState('error');
+      setSyncError('Sync failed. Try again.');
+    }
+  }, [activeEntry, isLoggedIn, userId]);
+
+  React.useEffect(() => {
+    if (!isLoggedIn || !activeEntry) return;
+    if (isHydrating) return;
+    if (syncState === 'saving') return;
+    if (syncStatus === 'saved') return;
+    const timer = window.setTimeout(() => {
+      void syncActiveSchedule();
+    }, 1200);
+
+    return () => window.clearTimeout(timer);
+  }, [activeEntry, isLoggedIn, isHydrating, syncState, syncStatus, syncActiveSchedule]);
+
+  const handleScheduleSelect = React.useCallback(
+    (event: React.ChangeEvent<HTMLSelectElement>) => {
+      const nextId = event.target.value;
+      if (!nextId) return;
+      const changed = setActiveScheduleId(nextId);
+      if (changed) {
+        setIsEditingName(false);
+      }
+    },
+    [],
+  );
+
+  const handleCreateSchedule = React.useCallback(() => {
+    createSchedule({ setActive: true });
+    setIsEditingName(false);
+  }, []);
+
+  const handleDuplicateSchedule = React.useCallback(() => {
+    duplicateSchedule(activeScheduleId ?? undefined);
+    setIsEditingName(false);
+  }, [activeScheduleId]);
+
+  const handleDeleteSchedule = React.useCallback(async () => {
+    if (!activeEntry) return;
+    const confirmed = window.confirm(`Delete \"${activeEntry.name}\"? This cannot be undone.`);
+    if (!confirmed) return;
+    const scheduleId = activeEntry.id;
+    const deleted = deleteSchedule(scheduleId);
+    if (!deleted) return;
+
+    if (isLoggedIn) {
+      try {
+        await deleteRemoteSchedule(scheduleId);
+        setSyncError(null);
+      } catch (error) {
+        console.error('Failed to delete remote schedule', error);
+        setSyncError('Remote delete failed.');
+      }
+    }
+  }, [activeEntry, isLoggedIn]);
+
+  const commitScheduleName = React.useCallback(() => {
+    if (!activeEntry) return;
+    const trimmed = scheduleName.trim();
+    if (!trimmed) {
+      setScheduleName(activeEntry.name);
+      return;
+    }
+    if (trimmed === activeEntry.name) return;
+    renameSchedule(activeEntry.id, trimmed);
+  }, [activeEntry, scheduleName]);
+
+  const scheduleStatusLabel = !isLoggedIn
+    ? 'Sign in to sync'
+    : isHydrating
+      ? 'Loading saved schedules...'
+      : syncState === 'saving'
+        ? 'Saving...'
+        : syncState === 'error' || syncError
+          ? 'Sync issue'
+          : syncStatus === 'saved'
+            ? 'Saved'
+            : 'Not saved';
+
+  const scheduleStatusTone = !isLoggedIn
+    ? 'text-muted-foreground'
+    : syncState === 'error' || syncError
+      ? 'text-red-500'
+      : syncStatus === 'saved'
+        ? 'text-emerald-600'
+        : 'text-amber-600';
+
+  const sortedSchedules = React.useMemo(() => {
+    return [...schedules].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }, [schedules]);
 
   const { blocks, sidebarItems } = React.useMemo(() => {
     const nextBlocks: GridBlock[] = [];
@@ -237,11 +423,87 @@ export const ScheduleGrid: React.FC = () => {
   return (
     <section className="w-full">
       <div className="rounded-2xl border border-border bg-card shadow-sm">
-        <div className="flex flex-col gap-1 border-b border-border px-4 py-3">
-          <h2 className="text-lg font-semibold text-foreground">Schedule Builder</h2>
-          <p className="text-sm text-muted-foreground">
-            Spring {schedule.termYear} - {schedule.campus}
-          </p>
+        <div className="border-b border-border px-4 py-3">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={activeScheduleId ?? ''}
+                  onChange={handleScheduleSelect}
+                  className="h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                >
+                  {sortedSchedules.length === 0 ? (
+                    <option value="">No schedules</option>
+                  ) : (
+                    sortedSchedules.map((entry) => (
+                      <option key={entry.id} value={entry.id}>
+                        {entry.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+                <input
+                  value={scheduleName}
+                  onChange={(event) => setScheduleName(event.target.value)}
+                  onFocus={() => setIsEditingName(true)}
+                  onBlur={() => {
+                    setIsEditingName(false);
+                    commitScheduleName();
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.currentTarget.blur();
+                    }
+                  }}
+                  placeholder="Schedule name"
+                  disabled={!activeEntry}
+                  className="h-10 min-w-[220px] flex-1 rounded-xl border border-border bg-background px-3 text-sm text-foreground shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Spring {schedule.termYear} - {schedule.campus}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleCreateSchedule}
+                className="h-10 rounded-full border border-border bg-background px-4 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:border-slate-300"
+              >
+                New
+              </button>
+              <button
+                type="button"
+                onClick={handleDuplicateSchedule}
+                disabled={!activeEntry}
+                className="h-10 rounded-full border border-border bg-background px-4 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Duplicate
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteSchedule}
+                disabled={!activeEntry}
+                className="h-10 rounded-full border border-border bg-background px-4 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Delete
+              </button>
+              <button
+                type="button"
+                onClick={() => void syncActiveSchedule()}
+                disabled={!isLoggedIn || !activeEntry || syncState === 'saving'}
+                className="h-10 rounded-full bg-slate-900 px-4 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Save
+              </button>
+              <span className={`text-xs font-semibold uppercase tracking-[0.2em] ${scheduleStatusTone}`}>
+                {scheduleStatusLabel}
+              </span>
+            </div>
+          </div>
+          {syncError && (
+            <div className="mt-2 text-xs font-medium text-red-500">{syncError}</div>
+          )}
         </div>
 
         <div className="flex flex-col lg:flex-row">
