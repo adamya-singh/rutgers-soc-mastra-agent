@@ -11,6 +11,7 @@ import {
 } from 'cedar-os';
 
 import { ChatModeSelector } from '@/components/ChatModeSelector';
+import { SearchResults, type SearchResultItem } from '@/components/search/SearchResults';
 import { ScheduleGrid } from '@/components/schedule/ScheduleGrid';
 import { CedarCaptionChat } from '@/cedar/components/chatComponents/CedarCaptionChat';
 import { FloatingCedarChat } from '@/cedar/components/chatComponents/FloatingCedarChat';
@@ -36,6 +37,7 @@ export default function HomePage() {
 
   // Cedar state for dynamically added text lines
   const [textLines, setTextLines] = React.useState<string[]>([]);
+  const [searchResults, setSearchResults] = React.useState<SearchResultItem[]>([]);
 
   // Get setShowChat from Cedar store to open chat by default
   const setShowChat = useCedarStore((state) => state.setShowChat);
@@ -64,6 +66,70 @@ export default function HomePage() {
           args: { newText: string },
         ) => {
           setValue(args.newText);
+        },
+      },
+    },
+  });
+
+  const SearchResultItemSchema = z.object({
+    id: z.string().min(1, 'ID is required'),
+    title: z.string().min(1, 'Title is required'),
+    subtitle: z.string().optional(),
+    summary: z.string().optional(),
+    badges: z.array(z.string()).optional(),
+    details: z
+      .array(
+        z.object({
+          label: z.string(),
+          value: z.string(),
+        }),
+      )
+      .optional(),
+  });
+
+  useRegisterState({
+    key: 'searchResults',
+    description: 'Search results panel controlled by the agent',
+    value: searchResults,
+    setValue: setSearchResults,
+    stateSetters: {
+      clearSearchResults: {
+        name: 'clearSearchResults',
+        description: 'Clear all search results from the panel',
+        argsSchema: z.object({}),
+        execute: (
+          _currentValue: SearchResultItem[],
+          setValue: (newValue: SearchResultItem[]) => void,
+        ) => {
+          setValue([]);
+        },
+      },
+      setSearchResults: {
+        name: 'setSearchResults',
+        description: 'Replace search results with a new list of result cards',
+        argsSchema: z.object({
+          results: z.array(SearchResultItemSchema),
+        }),
+        execute: (
+          _currentValue: SearchResultItem[],
+          setValue: (newValue: SearchResultItem[]) => void,
+          args: { results: SearchResultItem[] },
+        ) => {
+          setValue(args.results);
+        },
+      },
+      appendSearchResults: {
+        name: 'appendSearchResults',
+        description: 'Append one or more result cards to the search results panel',
+        argsSchema: z.object({
+          results: z.array(SearchResultItemSchema),
+        }),
+        execute: (
+          currentValue: SearchResultItem[],
+          setValue: (newValue: SearchResultItem[]) => void,
+          args: { results: SearchResultItem[] },
+        ) => {
+          setValue([...currentValue, ...args.results]);
         },
       },
     },
@@ -199,6 +265,10 @@ export default function HomePage() {
       <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 space-y-8">
         <div className="w-full max-w-6xl">
           <ScheduleGrid />
+        </div>
+
+        <div className="w-full max-w-4xl">
+          <SearchResults results={searchResults} />
         </div>
 
         {/* Big text that Cedar can change */}

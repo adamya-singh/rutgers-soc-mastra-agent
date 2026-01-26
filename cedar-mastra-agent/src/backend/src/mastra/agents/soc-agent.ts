@@ -15,6 +15,9 @@ import {
   changeTextTool,
   addSectionToScheduleTool,
   removeSectionFromScheduleTool,
+  clearSearchResultsTool,
+  setSearchResultsTool,
+  appendSearchResultsTool,
 } from '../tools/toolDefinitions.js';
 import { memory } from '../memory';
 
@@ -104,6 +107,7 @@ and explore the Schedule of Classes (SOC) database.
 8. **Technical errors**: Show exact error messages, not vague "something went wrong".
 9. **Credit warnings**: Only warn at extremes (<12 or >21 credits).
 10. **No cross-campus suggestions**: Only search the user's campus, don't suggest other campuses.
+11. **Update searchResults**: After any SOC search or database lookup tool, call clearSearchResults, then setSearchResults or appendSearchResults with one card per result.
 
 ## Response Format
 
@@ -155,5 +159,8 @@ export const socAgent = new Agent({
     addNewTextLine: addNewTextLineTool,
     addSectionToSchedule: addSectionToScheduleTool,
     removeSectionFromSchedule: removeSectionFromScheduleTool,
+    clearSearchResults: clearSearchResultsTool,
+    setSearchResults: setSearchResultsTool,
+    appendSearchResults: appendSearchResultsTool,
   },
 });

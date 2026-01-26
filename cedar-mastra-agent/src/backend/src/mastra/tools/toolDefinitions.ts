@@ -72,6 +72,24 @@ export const RemoveSectionFromScheduleSchema = z.object({
   indexNumber: z.string().min(1, 'Index number is required'),
 });
 
+const SearchResultDetailSchema = z.object({
+  label: z.string(),
+  value: z.string(),
+});
+
+const SearchResultItemSchema = z.object({
+  id: z.string().min(1, 'ID is required'),
+  title: z.string().min(1, 'Title is required'),
+  subtitle: z.string().optional(),
+  summary: z.string().optional(),
+  badges: z.array(z.string()).optional(),
+  details: z.array(SearchResultDetailSchema).optional(),
+});
+
+export const SetSearchResultsSchema = z.object({
+  results: z.array(SearchResultItemSchema),
+});
+
 // Error response schema
 export const ErrorResponseSchema = z.object({
   error: z.string(),
@@ -129,6 +147,42 @@ export const removeSectionFromScheduleTool = createMastraToolForFrontendTool(
   },
 );
 
+export const clearSearchResultsTool = createMastraToolForStateSetter(
+  'searchResults',
+  'clearSearchResults',
+  z.object({}),
+  {
+    description: 'Clear all cards from the search results panel.',
+    toolId: 'clearSearchResults',
+    streamEventFn: streamJSONEvent,
+    errorSchema: ErrorResponseSchema,
+  },
+);
+
+export const setSearchResultsTool = createMastraToolForStateSetter(
+  'searchResults',
+  'setSearchResults',
+  SetSearchResultsSchema,
+  {
+    description: 'Replace the search results panel with a new list of result cards.',
+    toolId: 'setSearchResults',
+    streamEventFn: streamJSONEvent,
+    errorSchema: ErrorResponseSchema,
+  },
+);
+
+export const appendSearchResultsTool = createMastraToolForStateSetter(
+  'searchResults',
+  'appendSearchResults',
+  SetSearchResultsSchema,
+  {
+    description: 'Append result cards to the existing search results panel.',
+    toolId: 'appendSearchResults',
+    streamEventFn: streamJSONEvent,
+    errorSchema: ErrorResponseSchema,
+  },
+);
+
 export const requestAdditionalContextTool = createRequestAdditionalContextTool();
 
 /**
@@ -151,6 +205,11 @@ export const TOOL_REGISTRY = {
     addSectionToScheduleTool,
     removeSectionFromScheduleTool,
   },
+  searchResults: {
+    clearSearchResultsTool,
+    setSearchResultsTool,
+    appendSearchResultsTool,
+  },
   docs: {
     mastraDocsSearchTool,
   },
@@ -172,6 +231,9 @@ export const ALL_TOOLS = [
   addNewTextLineTool,
   addSectionToScheduleTool,
   removeSectionFromScheduleTool,
+  clearSearchResultsTool,
+  setSearchResultsTool,
+  appendSearchResultsTool,
   mastraDocsSearchTool,
   ...SOC_TOOLS,
 ];
