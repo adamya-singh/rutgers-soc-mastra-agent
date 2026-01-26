@@ -1,8 +1,15 @@
 'use client';
 
 import React from 'react';
+import {
+  DEFAULT_SCHEDULE,
+  SCHEDULE_UPDATED_EVENT,
+  loadSchedule,
+  saveSchedule,
+  type MeetingTime,
+  type ScheduleSnapshot,
+} from '@/lib/scheduleStorage';
 
-const STORAGE_KEY = 'rutgers-soc-schedule';
 const START_HOUR = 8;
 const END_HOUR = 22;
 const SLOT_MINUTES = 30;
@@ -10,51 +17,6 @@ const TOTAL_SLOTS = ((END_HOUR - START_HOUR) * 60) / SLOT_MINUTES;
 
 const DAY_ORDER = ['M', 'T', 'W', 'H', 'F', 'S'] as const;
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-const DEFAULT_SCHEDULE = {
-  version: 1,
-  termYear: 2026,
-  termCode: '1',
-  campus: 'NB',
-  lastUpdated: new Date().toISOString(),
-  sections: [],
-} as const;
-
-type MeetingTime = {
-  day?: string | null;
-  startTimeMilitary?: string | null;
-  endTimeMilitary?: string | null;
-  startTime?: string | null;
-  endTime?: string | null;
-  building?: string | null;
-  room?: string | null;
-  campus?: string | null;
-  mode?: string | null;
-  isOnline?: boolean | null;
-};
-
-type ScheduleSection = {
-  indexNumber: string;
-  sectionId?: number | null;
-  courseString?: string | null;
-  courseTitle?: string | null;
-  credits?: number | null;
-  sectionNumber?: string | null;
-  instructors?: string[] | null;
-  isOpen?: boolean | null;
-  meetingTimes?: MeetingTime[] | null;
-  isOnline?: boolean | null;
-  sessionDates?: string | null;
-};
-
-type ScheduleSnapshot = {
-  version: number;
-  termYear: number;
-  termCode: string;
-  campus: string;
-  lastUpdated?: string;
-  sections: ScheduleSection[];
-};
 
 type GridBlock = {
   key: string;
@@ -87,19 +49,6 @@ const campusColors: Record<string, string> = {
   online: '#6B7280',
   newark: '#14B8A6',
   camden: '#EC4899',
-};
-
-const normalizeSchedule = (raw: unknown): ScheduleSnapshot => {
-  if (!raw || typeof raw !== 'object') return { ...DEFAULT_SCHEDULE };
-  const data = raw as Partial<ScheduleSnapshot>;
-  return {
-    version: typeof data.version === 'number' ? data.version : DEFAULT_SCHEDULE.version,
-    termYear: typeof data.termYear === 'number' ? data.termYear : DEFAULT_SCHEDULE.termYear,
-    termCode: typeof data.termCode === 'string' ? data.termCode : DEFAULT_SCHEDULE.termCode,
-    campus: typeof data.campus === 'string' ? data.campus : DEFAULT_SCHEDULE.campus,
-    lastUpdated: typeof data.lastUpdated === 'string' ? data.lastUpdated : DEFAULT_SCHEDULE.lastUpdated,
-    sections: Array.isArray(data.sections) ? (data.sections as ScheduleSection[]) : [],
-  };
 };
 
 const parseMilitaryTime = (time?: string | null): number | null => {
@@ -159,25 +108,21 @@ export const ScheduleGrid: React.FC = () => {
   const [isLoaded, setIsLoaded] = React.useState(false);
 
   React.useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw) as unknown;
-        setSchedule(normalizeSchedule(parsed));
-      } catch {
-        setSchedule({ ...DEFAULT_SCHEDULE });
-      }
-    } else {
-      setSchedule({ ...DEFAULT_SCHEDULE });
-    }
+    setSchedule(loadSchedule());
     setIsLoaded(true);
   }, []);
 
   React.useEffect(() => {
     if (!isLoaded) return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(schedule));
+    saveSchedule(schedule);
   }, [schedule, isLoaded]);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleUpdate = () => setSchedule(loadSchedule());
+    window.addEventListener(SCHEDULE_UPDATED_EVENT, handleUpdate);
+    return () => window.removeEventListener(SCHEDULE_UPDATED_EVENT, handleUpdate);
+  }, []);
 
   const { blocks, sidebarItems } = React.useMemo(() => {
     const nextBlocks: GridBlock[] = [];

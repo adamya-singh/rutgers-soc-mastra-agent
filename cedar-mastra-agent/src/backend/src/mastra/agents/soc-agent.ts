@@ -10,6 +10,12 @@ import {
   checkScheduleConflicts,
   getPrerequisites,
 } from '../tools/index.js';
+import {
+  addNewTextLineTool,
+  changeTextTool,
+  addSectionToScheduleTool,
+  removeSectionFromScheduleTool,
+} from '../tools/toolDefinitions.js';
 
 /**
  * Google Vertex AI provider configuration
@@ -143,5 +149,9 @@ export const socAgent = new Agent({
     getSectionByIndex,
     checkScheduleConflicts,
     getPrerequisites,
+    changeText: changeTextTool,
+    addNewTextLine: addNewTextLineTool,
+    addSectionToSchedule: addSectionToScheduleTool,
+    removeSectionFromSchedule: removeSectionFromScheduleTool,
   },
 });

@@ -32,6 +32,46 @@ export const ChangeTextSchema = z.object({
   newText: z.string().min(1, 'Text cannot be empty').describe('The new text to display'),
 });
 
+// Schema for the addSectionToSchedule frontend tool
+export const AddSectionToScheduleSchema = z.object({
+  section: z.object({
+    indexNumber: z.string().min(1, 'Index number is required'),
+    sectionId: z.number().optional(),
+    courseString: z.string().optional(),
+    courseTitle: z.string().optional(),
+    credits: z.number().optional(),
+    sectionNumber: z.string().optional(),
+    instructors: z.array(z.string()).optional(),
+    isOpen: z.boolean().optional(),
+    meetingTimes: z
+      .array(
+        z.object({
+          day: z.string().optional(),
+          startTimeMilitary: z.string().optional(),
+          endTimeMilitary: z.string().optional(),
+          startTime: z.string().optional(),
+          endTime: z.string().optional(),
+          building: z.string().optional(),
+          room: z.string().optional(),
+          campus: z.string().optional(),
+          mode: z.string().optional(),
+          isOnline: z.boolean().optional(),
+        }),
+      )
+      .optional(),
+    isOnline: z.boolean().optional(),
+    sessionDates: z.string().optional(),
+  }),
+  termYear: z.number().optional(),
+  termCode: z.string().optional(),
+  campus: z.string().optional(),
+});
+
+// Schema for the removeSectionFromSchedule frontend tool
+export const RemoveSectionFromScheduleSchema = z.object({
+  indexNumber: z.string().min(1, 'Index number is required'),
+});
+
 // Error response schema
 export const ErrorResponseSchema = z.object({
   error: z.string(),
@@ -65,6 +105,30 @@ export const changeTextTool = createMastraToolForStateSetter(
   },
 );
 
+export const addSectionToScheduleTool = createMastraToolForFrontendTool(
+  'addSectionToSchedule',
+  AddSectionToScheduleSchema,
+  {
+    description:
+      'Add a course section to the current schedule. This tool updates the in-browser schedule state using the provided section details and optional term metadata.',
+    toolId: 'addSectionToSchedule',
+    streamEventFn: streamJSONEvent,
+    errorSchema: ErrorResponseSchema,
+  },
+);
+
+export const removeSectionFromScheduleTool = createMastraToolForFrontendTool(
+  'removeSectionFromSchedule',
+  RemoveSectionFromScheduleSchema,
+  {
+    description:
+      'Remove a course section from the current schedule by index number. This tool updates the in-browser schedule state.',
+    toolId: 'removeSectionFromSchedule',
+    streamEventFn: streamJSONEvent,
+    errorSchema: ErrorResponseSchema,
+  },
+);
+
 export const requestAdditionalContextTool = createRequestAdditionalContextTool();
 
 /**
@@ -84,6 +148,8 @@ export const TOOL_REGISTRY = {
   textManipulation: {
     changeTextTool,
     addNewTextLineTool,
+    addSectionToScheduleTool,
+    removeSectionFromScheduleTool,
   },
   docs: {
     mastraDocsSearchTool,
@@ -101,4 +167,11 @@ export const SOC_TOOLS = [
   getPrerequisites,
 ];
 
-export const ALL_TOOLS = [changeTextTool, addNewTextLineTool, mastraDocsSearchTool, ...SOC_TOOLS];
+export const ALL_TOOLS = [
+  changeTextTool,
+  addNewTextLineTool,
+  addSectionToScheduleTool,
+  removeSectionFromScheduleTool,
+  mastraDocsSearchTool,
+  ...SOC_TOOLS,
+];

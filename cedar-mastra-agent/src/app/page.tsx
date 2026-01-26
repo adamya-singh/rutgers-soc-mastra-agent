@@ -14,6 +14,13 @@ import { CedarCaptionChat } from '@/cedar/components/chatComponents/CedarCaption
 import { FloatingCedarChat } from '@/cedar/components/chatComponents/FloatingCedarChat';
 import { SidePanelCedarChat } from '@/cedar/components/chatComponents/SidePanelCedarChat';
 import { DebuggerPanel } from '@/cedar/components/debugger';
+import {
+  addSectionToSchedule,
+  dispatchScheduleUpdated,
+  loadSchedule,
+  removeSectionFromSchedule,
+  saveSchedule,
+} from '@/lib/scheduleStorage';
 
 type ChatMode = 'floating' | 'sidepanel' | 'caption';
 
@@ -79,6 +86,89 @@ export default function HomePage() {
               ? `🌟 ${args.text} 🌟`
               : args.text;
       setTextLines((prev) => [...prev, styledText]);
+    },
+  });
+
+  useRegisterFrontendTool({
+    name: 'addSectionToSchedule',
+    description: 'Add a course section to the current schedule',
+    argsSchema: z.object({
+      section: z.object({
+        indexNumber: z.string().min(1, 'Index number is required'),
+        sectionId: z.number().optional(),
+        courseString: z.string().optional(),
+        courseTitle: z.string().optional(),
+        credits: z.number().optional(),
+        sectionNumber: z.string().optional(),
+        instructors: z.array(z.string()).optional(),
+        isOpen: z.boolean().optional(),
+        meetingTimes: z
+          .array(
+            z.object({
+              day: z.string().optional(),
+              startTimeMilitary: z.string().optional(),
+              endTimeMilitary: z.string().optional(),
+              startTime: z.string().optional(),
+              endTime: z.string().optional(),
+              building: z.string().optional(),
+              room: z.string().optional(),
+              campus: z.string().optional(),
+              mode: z.string().optional(),
+              isOnline: z.boolean().optional(),
+            }),
+          )
+          .optional(),
+        isOnline: z.boolean().optional(),
+        sessionDates: z.string().optional(),
+      }),
+      termYear: z.number().optional(),
+      termCode: z.string().optional(),
+      campus: z.string().optional(),
+    }),
+    execute: async (args) => {
+      const schedule = loadSchedule();
+      const hasSections = schedule.sections.length > 0;
+
+      if (args.termYear && args.termYear !== schedule.termYear && hasSections) {
+        throw new Error(`Schedule is for ${schedule.termYear}. Clear it before adding a new term.`);
+      }
+      if (args.termCode && args.termCode !== schedule.termCode && hasSections) {
+        throw new Error(`Schedule is for term ${schedule.termCode}. Clear it before adding a new term.`);
+      }
+      if (args.campus && args.campus !== schedule.campus && hasSections) {
+        throw new Error(`Schedule is for campus ${schedule.campus}. Clear it before adding a new campus.`);
+      }
+
+      const nextSchedule = {
+        ...schedule,
+        termYear: args.termYear ?? schedule.termYear,
+        termCode: args.termCode ?? schedule.termCode,
+        campus: args.campus ?? schedule.campus,
+      };
+
+      const { schedule: updated, added } = addSectionToSchedule(nextSchedule, args.section);
+      saveSchedule(updated);
+      dispatchScheduleUpdated();
+
+      return { added, totalSections: updated.sections.length };
+    },
+  });
+
+  useRegisterFrontendTool({
+    name: 'removeSectionFromSchedule',
+    description: 'Remove a course section from the current schedule by index number',
+    argsSchema: z.object({
+      indexNumber: z.string().min(1, 'Index number is required'),
+    }),
+    execute: async (args) => {
+      const schedule = loadSchedule();
+      const { schedule: updated, removed } = removeSectionFromSchedule(
+        schedule,
+        args.indexNumber,
+      );
+      saveSchedule(updated);
+      dispatchScheduleUpdated();
+      return { removed, totalSections: updated.sections.length };
     },
   });
 
