@@ -7,6 +7,7 @@ import {
   useRegisterState,
   useRegisterFrontendTool,
   useSubscribeStateToAgentContext,
+  useCedarStore,
 } from 'cedar-os';
 
 import { ChatModeSelector } from '@/components/ChatModeSelector';
@@ -35,6 +36,14 @@ export default function HomePage() {
 
   // Cedar state for dynamically added text lines
   const [textLines, setTextLines] = React.useState<string[]>([]);
+
+  // Get setShowChat from Cedar store to open chat by default
+  const setShowChat = useCedarStore((state) => state.setShowChat);
+
+  // Open chat by default when page loads
+  React.useEffect(() => {
+    setShowChat(true);
+  }, [setShowChat]);
 
   // Register the main text as Cedar state with a state setter
   useRegisterState({

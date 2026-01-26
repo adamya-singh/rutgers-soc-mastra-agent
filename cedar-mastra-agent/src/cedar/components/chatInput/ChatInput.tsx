@@ -1,9 +1,9 @@
-import { useVoice, cn, useCedarStore, HumanInTheLoopMessage } from 'cedar-os';
+import { useVoice, cn, useCedarStore, HumanInTheLoopMessage, useThreadMessages } from 'cedar-os';
 
 import { CedarEditorContent as EditorContent } from 'cedar-os';
 import { Code, Image, Mic, SendHorizonal } from 'lucide-react';
 import { motion } from 'motion/react';
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 
 import './ChatInput.css';
 import { ContextBadgeRow } from '@/cedar/components/chatInput/ContextBadgeRow';
@@ -12,6 +12,8 @@ import Container3DButton from '@/cedar/components/containers/Container3DButton';
 import { VoiceIndicator } from '@/cedar/components/voice/VoiceIndicator';
 import { KeyboardShortcut } from '@/cedar/components/ui/KeyboardShortcut';
 import { HumanInTheLoopIndicator } from '@/cedar/components/chatInput/HumanInTheLoopIndicator';
+import { PromptSuggestions } from '@/cedar/components/chatInput/PromptSuggestions';
+import { EXAMPLE_PROMPTS } from '@/cedar/config/examplePrompts';
 
 // ChatContainer component with position options
 export type ChatContainerPosition = 'bottom-center' | 'embedded' | 'custom';
@@ -48,6 +50,10 @@ export const ChatInput: React.FC<{
   const isHumanInTheLoopSuspended =
     latestMessage?.type === 'humanInTheLoop' &&
     (latestMessage as HumanInTheLoopMessage).state === 'suspended';
+
+  // Thread messages for empty-state suggestions
+  const { messages: threadMessages } = useThreadMessages();
+  const shouldShowPromptSuggestions = threadMessages.length === 0;
 
   // Handle voice toggle
   const handleVoiceToggle = useCallback(async () => {
@@ -147,6 +153,44 @@ export const ChatInput: React.FC<{
     };
   }, [handleVoiceToggle]);
 
+  const handleSubmitRef = useRef(handleSubmit);
+  useEffect(() => {
+    handleSubmitRef.current = handleSubmit;
+  }, [handleSubmit]);
+
+  const pendingPromptRef = useRef<string | null>(null);
+  const forceUpdateRef = useRef(false);
+
+  useEffect(() => {
+    if (!pendingPromptRef.current) return;
+    if (!editor) return;
+    if (isEditorEmpty) {
+      const currentText = editor.getText().trim();
+      if (!forceUpdateRef.current && currentText === pendingPromptRef.current.trim()) {
+        forceUpdateRef.current = true;
+        editor.commands.setContent(pendingPromptRef.current, true);
+      }
+      return;
+    }
+    const currentText = editor.getText().trim();
+    if (currentText !== pendingPromptRef.current.trim()) return;
+    requestAnimationFrame(() => {
+      handleSubmitRef.current?.();
+      pendingPromptRef.current = null;
+      forceUpdateRef.current = false;
+    });
+  }, [editor, isEditorEmpty]);
+
+  const handlePromptSelect = useCallback(
+    (prompt: string) => {
+      if (!editor) return;
+      pendingPromptRef.current = prompt;
+      editor.commands.setContent(prompt, true);
+      editor.commands.focus();
+    },
+    [editor],
+  );
+
   return (
     <div className={cn('bg-gray-800/10 dark:bg-gray-600/80 rounded-lg p-3 text-sm', className)}>
       {/* Input context row showing selected context nodes */}
@@ -170,23 +214,33 @@ export const ChatInput: React.FC<{
             <HumanInTheLoopIndicator state={(latestMessage as HumanInTheLoopMessage).state} />
           </div>
         ) : (
-          <div className="flex items-center gap-2">
-            {!isFocused && (
-              <KeyboardShortcut
-                shortcut="⇥"
-                className="text-muted-foreground border-muted-foreground/30 flex-shrink-0"
+          <div className="flex flex-col gap-2">
+            {shouldShowPromptSuggestions && (
+              <PromptSuggestions
+                prompts={EXAMPLE_PROMPTS}
+                count={2}
+                onSelect={handlePromptSelect}
+                isVisible={shouldShowPromptSuggestions}
               />
             )}
-            <motion.div
-              layoutId="chatInput"
-              className="flex-1 justify-center py-3"
-              aria-label="Message input"
-            >
-              <EditorContent
-                editor={editor}
-                className="prose prose-sm max-w-none focus:outline-none outline-none focus:ring-0 ring-0 [&_*]:focus:outline-none [&_*]:outline-none [&_*]:focus:ring-0 [&_*]:ring-0 placeholder-gray-500 dark:placeholder-gray-400 [&_.ProseMirror]:p-0 [&_.ProseMirror]:outline-none [&_.ProseMirror]:break-words [&_.ProseMirror]:overflow-wrap-anywhere [&_.ProseMirror]:word-break-break-word"
-              />
-            </motion.div>
+            <div className="flex items-center gap-2">
+              {!isFocused && (
+                <KeyboardShortcut
+                  shortcut="⇥"
+                  className="text-muted-foreground border-muted-foreground/30 flex-shrink-0"
+                />
+              )}
+              <motion.div
+                layoutId="chatInput"
+                className="flex-1 justify-center py-3"
+                aria-label="Message input"
+              >
+                <EditorContent
+                  editor={editor}
+                  className="prose prose-sm max-w-none focus:outline-none outline-none focus:ring-0 ring-0 [&_*]:focus:outline-none [&_*]:outline-none [&_*]:focus:ring-0 [&_*]:ring-0 placeholder-gray-500 dark:placeholder-gray-400 [&_.ProseMirror]:p-0 [&_.ProseMirror]:outline-none [&_.ProseMirror]:break-words [&_.ProseMirror]:overflow-wrap-anywhere [&_.ProseMirror]:word-break-break-word"
+                />
+              </motion.div>
+            </div>
           </div>
         )}
       </div>

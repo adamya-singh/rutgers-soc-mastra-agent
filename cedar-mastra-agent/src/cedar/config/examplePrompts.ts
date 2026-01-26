@@ -1,0 +1,17 @@
+export const EXAMPLE_PROMPTS = [
+  "Show me CS courses.",
+  "Find 'machine learning' courses in Engineering.",
+  'List courses fulfilling the QQ requirement.',
+  'What are the prerequisites for 01:198:211?',
+  'What can I take after 01:640:151?',
+  'Are there open sections for 01:198:111?',
+  'Find Monday/Wednesday morning sections for Calculus I.',
+  'Show online sections for Expos.',
+  'Details for index 09214.',
+  'Do 09214 and 12345 conflict?',
+  'Add 09214 to my schedule.',
+  'Newark campus courses, Fall 2025.',
+  'Summer Physics courses.',
+  'List all subjects.',
+  'What schools are at Rutgers?',
+];
