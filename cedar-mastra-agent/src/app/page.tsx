@@ -9,6 +9,7 @@ import {
 } from 'cedar-os';
 
 import { ChatModeSelector } from '@/components/ChatModeSelector';
+import { ScheduleGrid } from '@/components/schedule/ScheduleGrid';
 import { CedarCaptionChat } from '@/cedar/components/chatComponents/CedarCaptionChat';
 import { FloatingCedarChat } from '@/cedar/components/chatComponents/FloatingCedarChat';
 import { SidePanelCedarChat } from '@/cedar/components/chatComponents/SidePanelCedarChat';
@@ -87,6 +88,10 @@ export default function HomePage() {
 
       {/* Main interactive content area */}
       <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 space-y-8">
+        <div className="w-full max-w-6xl">
+          <ScheduleGrid />
+        </div>
+
         {/* Big text that Cedar can change */}
         <div className="text-center">
           <h1 className="text-6xl font-bold text-gray-800 mb-4">{mainText}</h1>

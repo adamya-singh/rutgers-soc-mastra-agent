@@ -135,6 +135,7 @@ npm run dev:mastra
 - [Cedar-OS Documentation](https://docs.cedarcopilot.com/)
 - [Mastra Documentation](https://mastra.ai/docs)
 - [Next.js Documentation](https://nextjs.org/docs)
+- [Rutgers SOC Tools Spec](./TOOLS-SPEC.md)
 
 ## License
 
