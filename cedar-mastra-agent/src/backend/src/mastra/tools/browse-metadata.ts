@@ -102,7 +102,7 @@ Examples: "What terms are available?", "List all CS subjects", "What core codes 
         case 'subjects': {
           // Get subjects with course counts
           let query = supabase
-            .from('subjects')
+            .from('subjects_distinct')
             .select('code, description')
             .order('code');
 
@@ -235,7 +235,7 @@ Examples: "What terms are available?", "List all CS subjects", "What core codes 
 
         case 'instructors': {
           let query = supabase
-            .from('instructors')
+            .from('instructors_distinct')
             .select('name')
             .order('name');
 
