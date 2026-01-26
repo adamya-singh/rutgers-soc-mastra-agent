@@ -27,7 +27,7 @@ Examples: "What terms are available?", "List all CS subjects", "What core codes 
     year: z.number().optional()
       .describe('Filter by year (for terms)'),
     
-    limit: z.number().min(1).max(500).default(100)
+    limit: z.number().min(1).max(10000).default(100)
       .describe('Maximum results'),
   }),
   outputSchema: z.object({
@@ -188,9 +188,9 @@ Examples: "What terms are available?", "List all CS subjects", "What core codes 
         }
 
         case 'coreCodes': {
-          // Get distinct core codes
+          // Get distinct core codes from a dedicated view to avoid PostgREST row caps
           const { data, error } = await supabase
-            .from('course_core_codes')
+            .from('core_codes_distinct')
             .select('core_code, core_code_description')
             .order('core_code');
 
