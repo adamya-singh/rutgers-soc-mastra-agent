@@ -7,15 +7,40 @@ import { supabaseClient } from '@/lib/supabaseClient';
 
 export default function LoginPage() {
   const router = useRouter();
+  const [mode, setMode] = React.useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
+  const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
+    setSuccessMessage(null);
     setLoading(true);
+
+    if (mode === 'signup') {
+      const { data, error: signUpError } = await supabaseClient.auth.signUp({
+        email,
+        password,
+      });
+
+      if (signUpError) {
+        setError(signUpError.message);
+        setLoading(false);
+        return;
+      }
+
+      if (data.user && !data.session) {
+        setSuccessMessage('Check your email to confirm your account, then return here to sign in.');
+        setLoading(false);
+        return;
+      }
+
+      router.push('/');
+      return;
+    }
 
     const { error: signInError } = await supabaseClient.auth.signInWithPassword({
       email,
@@ -53,6 +78,31 @@ export default function LoginPage() {
 
           <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="rounded-2xl border border-slate-200 bg-white/80 p-8 shadow-[0_25px_60px_-40px_rgba(15,23,42,0.35)] backdrop-blur">
+              <div className="flex rounded-full border border-slate-200 bg-slate-50 p-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('signin');
+                    setError(null);
+                    setSuccessMessage(null);
+                  }}
+                  className={`flex-1 rounded-full px-3 py-2 transition ${mode === 'signin' ? 'bg-white text-slate-900 shadow-sm' : ''}`}
+                >
+                  Sign in
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('signup');
+                    setError(null);
+                    setSuccessMessage(null);
+                  }}
+                  className={`flex-1 rounded-full px-3 py-2 transition ${mode === 'signup' ? 'bg-white text-slate-900 shadow-sm' : ''}`}
+                >
+                  Sign up
+                </button>
+              </div>
+
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                   <label className="text-sm font-medium text-slate-700" htmlFor="email">
@@ -86,6 +136,12 @@ export default function LoginPage() {
                   />
                 </div>
 
+                {successMessage && (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                    {successMessage}
+                  </div>
+                )}
+
                 {error && (
                   <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                     {error}
@@ -97,7 +153,13 @@ export default function LoginPage() {
                   disabled={loading}
                   className="flex w-full items-center justify-center rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {loading ? 'Signing in...' : 'Sign in'}
+                  {loading
+                    ? mode === 'signup'
+                      ? 'Creating account...'
+                      : 'Signing in...'
+                    : mode === 'signup'
+                      ? 'Create account'
+                      : 'Sign in'}
                 </button>
               </form>
             </div>
