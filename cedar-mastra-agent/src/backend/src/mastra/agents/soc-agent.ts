@@ -16,6 +16,7 @@ import {
   addSectionToScheduleTool,
   removeSectionFromScheduleTool,
 } from '../tools/toolDefinitions.js';
+import { memory } from '../memory';
 
 /**
  * Google Vertex AI provider configuration
@@ -137,6 +138,7 @@ When conflicts are found:
 export const socAgent = new Agent({
   name: 'Rutgers SOC Agent',
   instructions: SYSTEM_PROMPT,
+  memory,
   // Anthropic (commented out - using Vertex AI instead):
   // model: 'anthropic/claude-sonnet-4-20250514',
   // Google Vertex AI (uses service account from GOOGLE_APPLICATION_CREDENTIALS):

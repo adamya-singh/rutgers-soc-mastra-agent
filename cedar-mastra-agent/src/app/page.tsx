@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { z } from 'zod';
 import {
   useRegisterState,
@@ -174,6 +175,15 @@ export default function HomePage() {
 
   const renderContent = () => (
     <div className="relative h-screen w-full">
+      <div className="pointer-events-none absolute left-6 right-6 top-6 z-10 flex items-center justify-between">
+        <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Rutgers SOC</div>
+        <Link
+          href="/login"
+          className="pointer-events-auto rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-700 shadow-sm backdrop-blur transition hover:border-slate-300 hover:text-slate-900"
+        >
+          Sign in
+        </Link>
+      </div>
       <ChatModeSelector currentMode={chatMode} onModeChange={setChatMode} />
 
       {/* Main interactive content area */}

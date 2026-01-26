@@ -2,7 +2,8 @@ import { Memory } from '@mastra/memory';
 import { LibSQLStore } from '@mastra/libsql';
 
 const storage = new LibSQLStore({
-  url: 'file:./storage.db', // Local SQLite database file
+  // Use in-memory storage for ephemeral memory (cleared on process exit)
+  url: ':memory:',
 });
 
 export const memory = new Memory({
