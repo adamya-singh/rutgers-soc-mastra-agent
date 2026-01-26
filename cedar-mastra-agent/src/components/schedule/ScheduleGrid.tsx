@@ -30,6 +30,7 @@ type GridBlock = {
   meta: string;
   color: string;
   tooltip: string;
+  isClosed: boolean;
 };
 
 type SidebarItem = {
@@ -38,6 +39,7 @@ type SidebarItem = {
   subtitle: string;
   detail: string;
   muted?: boolean;
+  isClosed?: boolean;
 };
 
 const campusColors: Record<string, string> = {
@@ -135,6 +137,7 @@ export const ScheduleGrid: React.FC = () => {
       const sectionLabel = section.sectionNumber ? `Sec ${section.sectionNumber}` : '';
       const instructor = section.instructors && section.instructors.length > 0 ? section.instructors[0] : '';
       const sectionOnline = Boolean(section.isOnline);
+      const isClosed = section.isOpen === false;
 
       if (meetings.length === 0) {
         if (sectionOnline) {
@@ -143,6 +146,7 @@ export const ScheduleGrid: React.FC = () => {
             label: courseLabel,
             subtitle: title,
             detail: 'Online or async',
+            isClosed,
           });
         }
         return;
@@ -173,6 +177,7 @@ export const ScheduleGrid: React.FC = () => {
             subtitle: title,
             detail,
             muted: meetingOnline,
+            isClosed,
           });
           return;
         }
@@ -208,6 +213,7 @@ export const ScheduleGrid: React.FC = () => {
           meta: instructor || title,
           color: resolveCampusColor(meeting.campus, meetingOnline),
           tooltip,
+          isClosed,
         });
       });
     });
@@ -294,6 +300,11 @@ export const ScheduleGrid: React.FC = () => {
                       backgroundColor: block.color,
                     }}
                   >
+                    {block.isClosed && (
+                      <span className="absolute right-1 top-1 rounded-full bg-white/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-red-600">
+                        FULL
+                      </span>
+                    )}
                     {block.overflowTop && (
                       <span className="absolute left-0 right-0 top-0 h-2 bg-white/30" />
                     )}
@@ -335,7 +346,14 @@ export const ScheduleGrid: React.FC = () => {
                       key={item.key}
                       className="rounded-lg border border-border bg-background px-3 py-2"
                     >
-                      <div className="text-xs font-semibold text-foreground">{item.label}</div>
+                      <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                        <span>{item.label}</span>
+                        {item.isClosed && (
+                          <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-semibold uppercase text-red-600">
+                            FULL
+                          </span>
+                        )}
+                      </div>
                       {item.subtitle && (
                         <div className="text-[11px] text-muted-foreground">{item.subtitle}</div>
                       )}

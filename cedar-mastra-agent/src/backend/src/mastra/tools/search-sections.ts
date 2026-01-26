@@ -20,7 +20,8 @@ export const searchSections = createTool({
   id: 'searchSections',
   description: `Find course sections based on schedule criteria like day, time, instructor, or availability.
 Use this tool to find sections that fit specific schedule requirements.
-Examples: "Find open sections on Monday and Wednesday", "Evening classes after 5 PM", "Online sections for CS courses"`,
+Set openOnly=false to include CLOSED sections.
+Examples: "Find open sections on Monday and Wednesday", "Evening classes after 5 PM", "Online sections for CS courses", "Include closed sections for 01:198:111"`,
   inputSchema: z.object({
     courseString: z.string().optional()
       .describe('Limit to specific course (e.g., "01:198:111")'),

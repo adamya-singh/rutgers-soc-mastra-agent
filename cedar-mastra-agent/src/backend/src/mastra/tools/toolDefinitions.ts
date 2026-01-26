@@ -32,36 +32,36 @@ export const ChangeTextSchema = z.object({
   newText: z.string().min(1, 'Text cannot be empty').describe('The new text to display'),
 });
 
+const SectionMeetingTimeSchema = z.object({
+  day: z.string().optional(),
+  startTimeMilitary: z.string().optional(),
+  endTimeMilitary: z.string().optional(),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
+  building: z.string().optional(),
+  room: z.string().optional(),
+  campus: z.string().optional(),
+  mode: z.string().optional(),
+  isOnline: z.boolean().optional(),
+});
+
+const SectionSchema = z.object({
+  indexNumber: z.string().min(1, 'Index number is required'),
+  sectionId: z.number().optional(),
+  courseString: z.string().optional(),
+  courseTitle: z.string().optional(),
+  credits: z.number().optional(),
+  sectionNumber: z.string().optional(),
+  instructors: z.array(z.string()).optional(),
+  isOpen: z.boolean().optional(),
+  meetingTimes: z.array(SectionMeetingTimeSchema).optional(),
+  isOnline: z.boolean().optional(),
+  sessionDates: z.string().optional(),
+});
+
 // Schema for the addSectionToSchedule frontend tool
 export const AddSectionToScheduleSchema = z.object({
-  section: z.object({
-    indexNumber: z.string().min(1, 'Index number is required'),
-    sectionId: z.number().optional(),
-    courseString: z.string().optional(),
-    courseTitle: z.string().optional(),
-    credits: z.number().optional(),
-    sectionNumber: z.string().optional(),
-    instructors: z.array(z.string()).optional(),
-    isOpen: z.boolean().optional(),
-    meetingTimes: z
-      .array(
-        z.object({
-          day: z.string().optional(),
-          startTimeMilitary: z.string().optional(),
-          endTimeMilitary: z.string().optional(),
-          startTime: z.string().optional(),
-          endTime: z.string().optional(),
-          building: z.string().optional(),
-          room: z.string().optional(),
-          campus: z.string().optional(),
-          mode: z.string().optional(),
-          isOnline: z.boolean().optional(),
-        }),
-      )
-      .optional(),
-    isOnline: z.boolean().optional(),
-    sessionDates: z.string().optional(),
-  }),
+  section: SectionSchema,
   termYear: z.number().optional(),
   termCode: z.string().optional(),
   campus: z.string().optional(),
@@ -79,11 +79,23 @@ const SearchResultDetailSchema = z.object({
 
 const SearchResultItemSchema = z.object({
   id: z.string().min(1, 'ID is required'),
+  type: z.enum(['section', 'course', 'misc']).optional(),
   title: z.string().min(1, 'Title is required'),
   subtitle: z.string().optional(),
   summary: z.string().optional(),
   badges: z.array(z.string()).optional(),
   details: z.array(SearchResultDetailSchema).optional(),
+  section: SectionSchema.optional(),
+  misc: z
+    .object({
+      body: z.string().optional(),
+      fields: z.array(SearchResultDetailSchema).optional(),
+      href: z.string().optional(),
+    })
+    .optional(),
+  termYear: z.number().optional(),
+  termCode: z.string().optional(),
+  campus: z.string().optional(),
 });
 
 export const SetSearchResultsSchema = z.object({

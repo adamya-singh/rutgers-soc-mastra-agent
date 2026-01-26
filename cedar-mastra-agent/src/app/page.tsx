@@ -11,10 +11,14 @@ import {
 } from 'cedar-os';
 
 import { ChatModeSelector } from '@/components/ChatModeSelector';
-import { SearchResults, type SearchResultItem } from '@/components/search/SearchResults';
+import {
+  SearchResults,
+  type SearchResultItem,
+  type SearchResultSection,
+} from '@/components/search/SearchResults';
 import { ScheduleGrid } from '@/components/schedule/ScheduleGrid';
 import { CedarCaptionChat } from '@/cedar/components/chatComponents/CedarCaptionChat';
-import { FloatingCedarChat } from '@/cedar/components/chatComponents/FloatingCedarChat';
+import { EmbeddedCedarChat } from '@/cedar/components/chatComponents/EmbeddedCedarChat';
 import { SidePanelCedarChat } from '@/cedar/components/chatComponents/SidePanelCedarChat';
 import { DebuggerPanel } from '@/cedar/components/debugger';
 import {
@@ -30,7 +34,7 @@ type ChatMode = 'floating' | 'sidepanel' | 'caption';
 export default function HomePage() {
   // Cedar-OS chat components with mode selector
   // Choose between caption, floating, or side panel chat modes
-  const [chatMode, setChatMode] = React.useState<ChatMode>('sidepanel');
+  const [chatMode, setChatMode] = React.useState<ChatMode>('floating');
 
   // Cedar state for the main text that can be changed by the agent
   const [mainText, setMainText] = React.useState('tell Cedar to change me');
@@ -71,8 +75,49 @@ export default function HomePage() {
     },
   });
 
+  const SearchResultMeetingTimeSchema = z.object({
+    day: z.string().optional(),
+    startTimeMilitary: z.string().optional(),
+    endTimeMilitary: z.string().optional(),
+    startTime: z.string().optional(),
+    endTime: z.string().optional(),
+    building: z.string().optional(),
+    room: z.string().optional(),
+    campus: z.string().optional(),
+    mode: z.string().optional(),
+    isOnline: z.boolean().optional(),
+  });
+
+  const SearchResultSectionSchema = z.object({
+    indexNumber: z.string().min(1, 'Index number is required'),
+    sectionId: z.number().optional(),
+    courseString: z.string().optional(),
+    courseTitle: z.string().optional(),
+    credits: z.number().optional(),
+    sectionNumber: z.string().optional(),
+    instructors: z.array(z.string()).optional(),
+    isOpen: z.boolean().optional(),
+    meetingTimes: z.array(SearchResultMeetingTimeSchema).optional(),
+    isOnline: z.boolean().optional(),
+    sessionDates: z.string().optional(),
+  });
+
+  const SearchResultMiscSchema = z.object({
+    body: z.string().optional(),
+    fields: z
+      .array(
+        z.object({
+          label: z.string(),
+          value: z.string(),
+        }),
+      )
+      .optional(),
+    href: z.string().optional(),
+  });
+
   const SearchResultItemSchema = z.object({
     id: z.string().min(1, 'ID is required'),
+    type: z.enum(['section', 'course', 'misc']).optional(),
     title: z.string().min(1, 'Title is required'),
     subtitle: z.string().optional(),
     summary: z.string().optional(),
@@ -85,7 +130,58 @@ export default function HomePage() {
         }),
       )
       .optional(),
+    section: SearchResultSectionSchema.optional(),
+    misc: SearchResultMiscSchema.optional(),
+    termYear: z.number().optional(),
+    termCode: z.string().optional(),
+    campus: z.string().optional(),
   });
+
+  type AddSectionPayload = {
+    section: SearchResultSection;
+    termYear?: number;
+    termCode?: string;
+    campus?: string;
+  };
+
+  const applyAddSection = React.useCallback((args: AddSectionPayload) => {
+    const schedule = loadSchedule();
+    const hasSections = schedule.sections.length > 0;
+
+    if (args.termYear && args.termYear !== schedule.termYear && hasSections) {
+      throw new Error(`Schedule is for ${schedule.termYear}. Clear it before adding a new term.`);
+    }
+    if (args.termCode && args.termCode !== schedule.termCode && hasSections) {
+      throw new Error(`Schedule is for term ${schedule.termCode}. Clear it before adding a new term.`);
+    }
+    if (args.campus && args.campus !== schedule.campus && hasSections) {
+      throw new Error(`Schedule is for campus ${schedule.campus}. Clear it before adding a new campus.`);
+    }
+
+    const nextSchedule = {
+      ...schedule,
+      termYear: args.termYear ?? schedule.termYear,
+      termCode: args.termCode ?? schedule.termCode,
+      campus: args.campus ?? schedule.campus,
+    };
+
+    const { schedule: updated, added } = addSectionToSchedule(nextSchedule, args.section);
+    saveSchedule(updated);
+    dispatchScheduleUpdated();
+
+    return { added, totalSections: updated.sections.length };
+  }, []);
+
+  const handleAddSection = React.useCallback(
+    async (payload: AddSectionPayload) => {
+      try {
+        applyAddSection(payload);
+      } catch (error) {
+        console.error('Failed to add section from search results', error);
+      }
+    },
+    [applyAddSection],
+  );
 
   useRegisterState({
     key: 'searchResults',
@@ -202,31 +298,7 @@ export default function HomePage() {
       campus: z.string().optional(),
     }),
     execute: async (args) => {
-      const schedule = loadSchedule();
-      const hasSections = schedule.sections.length > 0;
-
-      if (args.termYear && args.termYear !== schedule.termYear && hasSections) {
-        throw new Error(`Schedule is for ${schedule.termYear}. Clear it before adding a new term.`);
-      }
-      if (args.termCode && args.termCode !== schedule.termCode && hasSections) {
-        throw new Error(`Schedule is for term ${schedule.termCode}. Clear it before adding a new term.`);
-      }
-      if (args.campus && args.campus !== schedule.campus && hasSections) {
-        throw new Error(`Schedule is for campus ${schedule.campus}. Clear it before adding a new campus.`);
-      }
-
-      const nextSchedule = {
-        ...schedule,
-        termYear: args.termYear ?? schedule.termYear,
-        termCode: args.termCode ?? schedule.termCode,
-        campus: args.campus ?? schedule.campus,
-      };
-
-      const { schedule: updated, added } = addSectionToSchedule(nextSchedule, args.section);
-      saveSchedule(updated);
-      dispatchScheduleUpdated();
-
-      return { added, totalSections: updated.sections.length };
+      return applyAddSection(args);
     },
   });
 
@@ -262,13 +334,21 @@ export default function HomePage() {
       <ChatModeSelector currentMode={chatMode} onModeChange={setChatMode} />
 
       {/* Main interactive content area */}
-      <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 space-y-8">
-        <div className="w-full max-w-6xl">
-          <ScheduleGrid />
-        </div>
-
-        <div className="w-full max-w-4xl">
-          <SearchResults results={searchResults} />
+      <div className="flex flex-col items-start justify-center min-h-[60vh] p-8 space-y-8">
+        <div className="w-full self-start">
+          <div className="grid w-full grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1.1fr)]">
+            <div className="min-w-0">
+              <ScheduleGrid />
+            </div>
+            <div className="min-w-0 space-y-6">
+              <SearchResults results={searchResults} onAddSection={handleAddSection} />
+              {chatMode === 'floating' && (
+                <div className="h-[520px]">
+                  <EmbeddedCedarChat title="Cedarling Chat" />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Big text that Cedar can change */}
@@ -280,7 +360,7 @@ export default function HomePage() {
         </div>
 
         {/* Instructions for adding new text */}
-        <div className="text-center">
+        <div className="text-center self-center">
           <h2 className="text-2xl font-semibold text-gray-700 mb-2">
             tell cedar to add new lines of text to the screen
           </h2>
@@ -317,9 +397,7 @@ export default function HomePage() {
 
       {chatMode === 'caption' && <CedarCaptionChat />}
 
-      {chatMode === 'floating' && (
-        <FloatingCedarChat side="right" title="Cedarling Chat" collapsedLabel="Chat with Cedar" />
-      )}
+      {chatMode === 'floating' && null}
     </div>
   );
 

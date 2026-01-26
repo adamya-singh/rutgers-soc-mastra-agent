@@ -113,6 +113,10 @@ describe('Tools Configuration', () => {
       const withDays = schema.safeParse({ days: ['M', 'W', 'F'] });
       assert.ok(withDays.success);
       
+      // Should accept openOnly=false to include closed sections
+      const withClosed = schema.safeParse({ openOnly: false });
+      assert.ok(withClosed.success);
+
       // Should reject invalid day codes
       const invalidDays = schema.safeParse({ days: ['Monday'] });
       assert.ok(!invalidDays.success);
