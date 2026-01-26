@@ -9,6 +9,14 @@ import {
   useSubscribeStateToAgentContext,
   useCedarStore,
 } from 'cedar-os';
+import { supabaseClient } from '@/lib/supabaseClient';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/cedar/components/ui/dialog';
 
 import {
   SearchResults,
@@ -41,6 +49,8 @@ export default function HomePage() {
   // Cedar state for dynamically added text lines
   const [textLines, setTextLines] = React.useState<string[]>([]);
   const [searchResults, setSearchResults] = React.useState<SearchResultItem[]>([]);
+  const [userEmail, setUserEmail] = React.useState<string | null>(null);
+  const [isProfileOpen, setIsProfileOpen] = React.useState(false);
 
   // Get setShowChat from Cedar store to open chat by default
   const setShowChat = useCedarStore((state) => state.setShowChat);
@@ -49,6 +59,30 @@ export default function HomePage() {
   React.useEffect(() => {
     setShowChat(true);
   }, [setShowChat]);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    supabaseClient.auth.getUser().then(({ data, error }) => {
+      if (!isMounted) return;
+      if (error) {
+        console.warn('Failed to read auth state', error);
+        setUserEmail(null);
+        return;
+      }
+      setUserEmail(data.user?.email ?? null);
+    });
+
+    const { data: authListener } = supabaseClient.auth.onAuthStateChange(
+      (_event, session) => {
+        setUserEmail(session?.user?.email ?? null);
+      },
+    );
+
+    return () => {
+      isMounted = false;
+      authListener?.subscription.unsubscribe();
+    };
+  }, []);
 
   // Register the main text as Cedar state with a state setter
   useRegisterState({
@@ -323,13 +357,47 @@ export default function HomePage() {
     <div className="relative h-screen w-full">
       <div className="pointer-events-none absolute left-6 right-6 top-6 z-10 flex items-center justify-between">
         <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Rutgers SOC</div>
-        <Link
-          href="/login"
-          className="pointer-events-auto rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-700 shadow-sm backdrop-blur transition hover:border-slate-300 hover:text-slate-900"
-        >
-          Sign in
-        </Link>
+        {userEmail ? (
+          <button
+            type="button"
+            onClick={() => setIsProfileOpen(true)}
+            className="pointer-events-auto rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-700 shadow-sm backdrop-blur transition hover:border-slate-300 hover:text-slate-900"
+          >
+            Profile
+          </button>
+        ) : (
+          <Link
+            href="/login"
+            className="pointer-events-auto rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-700 shadow-sm backdrop-blur transition hover:border-slate-300 hover:text-slate-900"
+          >
+            Sign in
+          </Link>
+        )}
       </div>
+
+      <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Profile</DialogTitle>
+            <DialogDescription>Signed in account</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              {userEmail ?? 'Unknown email'}
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                await supabaseClient.auth.signOut();
+                setIsProfileOpen(false);
+              }}
+              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-900"
+            >
+              Sign out
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Main interactive content area */}
       <div className="flex flex-col items-start justify-center min-h-[60vh] p-8 space-y-8">
