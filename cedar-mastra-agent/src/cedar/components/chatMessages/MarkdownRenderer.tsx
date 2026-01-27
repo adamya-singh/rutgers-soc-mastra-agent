@@ -73,7 +73,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 					a: ({ children, href }) => (
 						<a
 							href={href}
-							className='text-blue-500 underline inline'
+							className='text-accent underline inline'
 							target='_blank'
 							rel='noopener noreferrer'>
 							{children}
@@ -86,7 +86,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 
 						return isInline ? (
 							<code
-								className='px-1 py-0.5 rounded text-sm inline font-mono bg-[#2d2d2d]'
+								className='rounded px-1 py-0.5 text-sm inline font-mono bg-surface-3 border border-border'
 								style={{
 									color: styling.color,
 								}}>
@@ -94,24 +94,21 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 							</code>
 						) : (
 							<div
-								className='relative group my-4 rounded-lg w-full font-mono'
+								className='relative group my-4 w-full rounded-lg border border-border bg-surface-1 font-mono'
 								style={{
-									backgroundColor: '#1e1e1e',
-									border: '1px solid rgba(255, 255, 255, 0.1)',
+									backgroundColor: 'var(--surface-1)',
 								}}>
 								{match && (
 									<div
-										className='flex items-center justify-between w-full px-4 py-2 text-xs bg-[#2d2d2d] rounded-t-lg'
+										className='flex w-full items-center justify-between rounded-t-lg border-b border-border bg-surface-2 px-4 py-2 text-xs text-muted-foreground'
 										style={{
-											borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-											color: '#888',
+											color: 'var(--muted-foreground)',
 										}}>
 										<span className=''>{match[1]}</span>
 										<div className='flex items-center gap-2'>
 											<button
 												onClick={() => handleCopyCode(codeString)}
-												className='flex items-center gap-1 px-2 py-1 rounded hover:bg-white/10 transition-colors'
-												style={{ color: '#888' }}>
+												className='flex items-center gap-1 rounded px-2 py-1 text-muted-foreground transition-colors hover:bg-surface-3 hover:text-foreground'>
 												{copiedCode === codeString ? (
 													<Check className='w-3 h-3' />
 												) : (
@@ -122,8 +119,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 												</span>
 											</button>
 											<button
-												className='px-2 py-1 rounded hover:bg-white/10 transition-colors'
-												style={{ color: '#888' }}>
+												className='rounded px-2 py-1 text-muted-foreground transition-colors hover:bg-surface-3 hover:text-foreground'>
 												Edit
 											</button>
 										</div>
@@ -131,8 +127,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 								)}
 								<pre className='p-4 overflow-x-auto w-full'>
 									<code
-										className='text-sm whitespace-pre'
-										style={{ color: '#d4d4d4' }}>
+										className='text-sm whitespace-pre text-foreground'>
 										{codeString}
 									</code>
 								</pre>

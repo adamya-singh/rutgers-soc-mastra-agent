@@ -43,9 +43,9 @@ export const PromptSuggestions: React.FC<PromptSuggestionsProps> = ({
         <Flat3dButton
           key={prompt}
           onClick={() => onSelect(prompt)}
-          className="rounded-md border border-slate-200 bg-white/90 px-2 py-1 text-left text-slate-700 hover:border-slate-300 hover:bg-white"
+          className="rounded-md border border-border bg-surface-1 px-3 py-2 text-left text-foreground shadow-elev-1 transition hover:border-border-subtle hover:bg-surface-2"
         >
-          <span className="text-sm font-medium">{prompt}</span>
+          <span className="text-sm font-medium text-foreground/90">{prompt}</span>
         </Flat3dButton>
       ))}
     </div>

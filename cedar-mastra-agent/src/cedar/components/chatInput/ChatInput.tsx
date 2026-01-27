@@ -79,15 +79,15 @@ export const ChatInput: React.FC<{
   // Get mic button appearance based on voice state
   const getMicButtonClass = () => {
     if (voice.isListening) {
-      return 'p-1 text-red-500 hover:text-red-600 cursor-pointer animate-pulse';
+      return 'p-1 text-accent hover:text-accent/90 cursor-pointer animate-pulse';
     }
     if (voice.isSpeaking) {
-      return 'p-1 text-green-500 hover:text-green-600 cursor-pointer';
+      return 'p-1 text-emerald-400 hover:text-emerald-300 cursor-pointer';
     }
     if (voice.voicePermissionStatus === 'denied') {
-      return 'p-1 text-gray-400 cursor-not-allowed';
+      return 'p-1 text-muted-foreground/60 cursor-not-allowed';
     }
-    return 'p-1 text-gray-600 dark:text-gray-200 hover:text-black dark:hover:text-white cursor-pointer';
+    return 'p-1 text-muted-foreground hover:text-foreground cursor-pointer';
   };
 
   // Focus the editor when isInputFocused changes to allow for controlled focusing
@@ -192,7 +192,12 @@ export const ChatInput: React.FC<{
   );
 
   return (
-    <div className={cn('bg-gray-800/10 dark:bg-gray-600/80 rounded-lg p-3 text-sm', className)}>
+    <div
+      className={cn(
+        'rounded-2xl border border-border bg-surface-2/85 p-3 text-sm text-foreground shadow-elev-1 backdrop-blur',
+        className,
+      )}
+    >
       {/* Input context row showing selected context nodes */}
       <ContextBadgeRow editor={editor} />
 
@@ -230,14 +235,10 @@ export const ChatInput: React.FC<{
                   className="text-muted-foreground border-muted-foreground/30 flex-shrink-0"
                 />
               )}
-              <motion.div
-                layoutId="chatInput"
-                className="flex-1 justify-center py-3"
-                aria-label="Message input"
-              >
+              <motion.div layoutId="chatInput" className="flex-1 justify-center py-3" aria-label="Message input">
                 <EditorContent
                   editor={editor}
-                  className="prose prose-sm max-w-none focus:outline-none outline-none focus:ring-0 ring-0 [&_*]:focus:outline-none [&_*]:outline-none [&_*]:focus:ring-0 [&_*]:ring-0 placeholder-gray-500 dark:placeholder-gray-400 [&_.ProseMirror]:p-0 [&_.ProseMirror]:outline-none [&_.ProseMirror]:break-words [&_.ProseMirror]:overflow-wrap-anywhere [&_.ProseMirror]:word-break-break-word"
+                  className="prose prose-sm max-w-none text-foreground focus:outline-none outline-none focus:ring-0 ring-0 [&_*]:focus:outline-none [&_*]:outline-none [&_*]:focus:ring-0 [&_*]:ring-0 [&_.ProseMirror]:p-0 [&_.ProseMirror]:outline-none [&_.ProseMirror]:break-words [&_.ProseMirror]:overflow-wrap-anywhere [&_.ProseMirror]:word-break-break-word"
                 />
               </motion.div>
             </div>
@@ -272,13 +273,13 @@ export const ChatInput: React.FC<{
           </button>
           <button
             type="button"
-            className="p-1 text-gray-600 dark:text-gray-200 hover:text-black dark:hover:text-white cursor-pointer"
+            className="p-1 text-muted-foreground hover:text-foreground cursor-pointer"
           >
             <Image className="w-4 h-4" />
           </button>
           <button
             type="button"
-            className="p-1 text-gray-600 dark:text-gray-200 hover:text-black dark:hover:text-white cursor-pointer"
+            className="p-1 text-muted-foreground hover:text-foreground cursor-pointer"
           >
             <Code className="w-4 h-4" />
           </button>
@@ -289,13 +290,13 @@ export const ChatInput: React.FC<{
             layoutId: 'send-chat',
             animate: {
               opacity: isEditorEmpty ? 0.5 : 1,
-              backgroundColor: isEditorEmpty ? 'transparent' : '#93c5fd',
+              backgroundColor: isEditorEmpty ? 'transparent' : 'rgba(194, 59, 58, 0.2)',
             },
             transition: { type: 'spring', stiffness: 300, damping: 20 },
           }}
           onClick={() => handleSubmit()}
-          color={isEditorEmpty ? undefined : '#93c5fd'}
-          className="flex items-center flex-shrink-0 ml-auto -mt-0.5 rounded-full bg-white dark:bg-gray-800"
+          color={isEditorEmpty ? undefined : '#c23b3a'}
+          className="flex items-center flex-shrink-0 ml-auto -mt-0.5 rounded-full border border-border bg-surface-1"
           childClassName="p-1.5"
         >
           <motion.div

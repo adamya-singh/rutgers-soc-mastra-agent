@@ -72,38 +72,38 @@ export function SearchResults({
   onAddSection,
 }: SearchResultsProps) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur">
+    <section className="flex min-h-[350px] flex-col rounded-xl border border-border bg-surface-2 p-6 shadow-elev-1">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-        <span className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
+        <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+        <span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
           {results.length} items
         </span>
       </div>
 
       {results.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm text-slate-500">
+        <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-border bg-surface-1 px-4 py-10 text-center text-sm text-muted-foreground">
           {emptyState}
         </div>
       ) : (
-        <div className="max-h-[420px] space-y-3 overflow-y-auto pr-2">
+        <div className="max-h-[350px] space-y-3 overflow-y-auto pr-2">
           {results.map((result) => (
             <details
               key={result.id}
-              className="group rounded-xl border border-slate-200 bg-white shadow-sm transition hover:border-slate-300"
+              className="group rounded-lg border border-border bg-surface-1 shadow-elev-1 transition hover:border-border-subtle"
             >
               <summary className="flex cursor-pointer list-none flex-col gap-2 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <div className="text-base font-semibold text-slate-900">{result.title}</div>
+                    <div className="text-base font-semibold text-foreground">{result.title}</div>
                     {result.subtitle && (
-                      <div className="text-sm text-slate-500">{result.subtitle}</div>
+                      <div className="text-sm text-muted-foreground">{result.subtitle}</div>
                     )}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     {result.type === 'section' && result.section?.indexNumber && onAddSection && (
                       <button
                         type="button"
-                        className="rounded-full border border-slate-200 bg-slate-900 px-3 py-1 text-xs font-semibold text-white transition hover:bg-slate-800"
+                        className="rounded-full border border-border bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground shadow-glow transition hover:bg-[#d24a48]"
                         onClick={(event) => {
                           event.preventDefault();
                           event.stopPropagation();
@@ -123,7 +123,7 @@ export function SearchResults({
                         {result.badges.map((badge) => (
                           <span
                             key={badge}
-                            className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600"
+                            className="rounded-full border border-border bg-surface-2 px-2.5 py-1 text-xs font-semibold text-muted-foreground"
                           >
                             {badge}
                           </span>
@@ -132,27 +132,25 @@ export function SearchResults({
                     )}
                   </div>
                 </div>
-                {result.summary && (
-                  <p className="text-sm text-slate-600">{result.summary}</p>
-                )}
+                {result.summary && <p className="text-sm text-muted-foreground">{result.summary}</p>}
               </summary>
               {(result.details && result.details.length > 0) ||
               result.misc?.body ||
               (result.misc?.fields && result.misc.fields.length > 0) ? (
-                <div className="border-t border-slate-100 px-4 pb-4 pt-3 text-sm text-slate-600">
+                <div className="border-t border-border px-4 pb-4 pt-3 text-sm text-muted-foreground">
                   {result.misc?.body && (
-                    <p className="mb-3 text-sm text-slate-600">{result.misc.body}</p>
+                    <p className="mb-3 text-sm text-muted-foreground">{result.misc.body}</p>
                   )}
                   <dl className="grid gap-x-4 gap-y-2 sm:grid-cols-[minmax(0,140px)_minmax(0,1fr)]">
                     {(result.details ?? result.misc?.fields ?? []).map((detail) => (
                       <React.Fragment key={`${result.id}-${detail.label}`}>
-                        <dt className="font-medium text-slate-500">{detail.label}</dt>
-                        <dd className="text-slate-700">{detail.value}</dd>
+                        <dt className="font-medium text-muted-foreground">{detail.label}</dt>
+                        <dd className="text-foreground/80">{detail.value}</dd>
                       </React.Fragment>
                     ))}
                   </dl>
                   {result.misc?.href && (
-                    <div className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                    <div className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                       {result.misc.href}
                     </div>
                   )}

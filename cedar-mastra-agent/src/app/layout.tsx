@@ -1,17 +1,26 @@
 'use client';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { IBM_Plex_Sans, Space_Grotesk, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { CedarCopilot, ProviderConfig } from 'cedar-os';
 import { messageRenderers } from '@/cedar/messageRenderers';
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
+const spaceGrotesk = Space_Grotesk({
+  variable: '--font-space-grotesk',
   subsets: ['latin'],
+  display: 'swap',
 });
 
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
+const plexSans = IBM_Plex_Sans({
+  variable: '--font-plex-sans',
   subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: '--font-jetbrains-mono',
+  subsets: ['latin'],
+  display: 'swap',
 });
 
 export default function RootLayout({
@@ -26,7 +35,9 @@ export default function RootLayout({
 
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body
+        className={`${spaceGrotesk.variable} ${plexSans.variable} ${jetbrainsMono.variable} antialiased`}
+      >
         <CedarCopilot
           userId={'Test User'}
           threadId={'Test Thread'}

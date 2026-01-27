@@ -24,10 +24,7 @@ import {
   type SearchResultSection,
 } from '@/components/search/SearchResults';
 import { ScheduleGrid } from '@/components/schedule/ScheduleGrid';
-import { CedarCaptionChat } from '@/cedar/components/chatComponents/CedarCaptionChat';
 import { EmbeddedCedarChat } from '@/cedar/components/chatComponents/EmbeddedCedarChat';
-import { SidePanelCedarChat } from '@/cedar/components/chatComponents/SidePanelCedarChat';
-import { DebuggerPanel } from '@/cedar/components/debugger';
 import {
   addSectionToSchedule,
   dispatchScheduleUpdated,
@@ -36,12 +33,13 @@ import {
   saveSchedule,
 } from '@/lib/scheduleStorage';
 
-type ChatMode = 'floating' | 'sidepanel' | 'caption';
+type ChatMode = 'sidepanel';
 
 export default function HomePage() {
   // Cedar-OS chat components with mode selector
   // Choose between caption, floating, or side panel chat modes
-  const [chatMode, setChatMode] = React.useState<ChatMode>('floating');
+  const [chatMode] = React.useState<ChatMode>('sidepanel');
+  const [theme, setTheme] = React.useState<'light' | 'dark'>('dark');
 
   // Cedar state for the main text that can be changed by the agent
   const [mainText, setMainText] = React.useState('tell Cedar to change me');
@@ -59,6 +57,25 @@ export default function HomePage() {
   React.useEffect(() => {
     setShowChat(true);
   }, [setShowChat]);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const storedTheme = window.localStorage.getItem('theme');
+    const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+    const nextTheme =
+      storedTheme === 'light' || storedTheme === 'dark'
+        ? storedTheme
+        : prefersDark
+          ? 'dark'
+          : 'light';
+    setTheme(nextTheme);
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    window.localStorage.setItem('theme', theme);
+  }, [theme]);
 
   React.useEffect(() => {
     let isMounted = true;
@@ -354,35 +371,56 @@ export default function HomePage() {
   });
 
   const renderContent = () => (
-    <div className="relative h-screen w-full">
-      <div className="pointer-events-none absolute left-6 right-6 top-6 z-10 flex items-center justify-between">
-        <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Rutgers SOC</div>
-        {userEmail ? (
-          <button
-            type="button"
-            onClick={() => setIsProfileOpen(true)}
-            className="pointer-events-auto rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-700 shadow-sm backdrop-blur transition hover:border-slate-300 hover:text-slate-900"
-          >
-            Profile
-          </button>
-        ) : (
-          <Link
-            href="/login"
-            className="pointer-events-auto rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-700 shadow-sm backdrop-blur transition hover:border-slate-300 hover:text-slate-900"
-          >
-            Sign in
-          </Link>
-        )}
+    <div className="relative h-screen w-full overflow-hidden bg-background text-foreground">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+        <div className="absolute -bottom-40 right-[-120px] h-[420px] w-[420px] rounded-full bg-[radial-gradient(circle_at_center,rgba(90,120,160,0.2),transparent_70%)] blur-3xl" />
       </div>
+      {/* Header */}
+      <header className="pointer-events-none absolute left-0 right-0 top-0 z-20">
+        <div className="mx-6 mt-6 flex items-center justify-between rounded-xl border border-border bg-surface-1 px-5 py-3 shadow-elev-1">
+          <div className="flex items-center gap-6">
+            <div className="pointer-events-auto text-xs uppercase tracking-[0.28em] text-muted-foreground">
+              Rutgers SOC
+            </div>
+          </div>
+          <div className="pointer-events-auto">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+                className="rounded-full border border-border bg-surface-1 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground shadow-elev-1 transition hover:border-border-subtle hover:bg-surface-2"
+              >
+                {theme === 'dark' ? 'Light' : 'Dark'}
+              </button>
+              {userEmail ? (
+                <button
+                  type="button"
+                  onClick={() => setIsProfileOpen(true)}
+                  className="rounded-full border border-border bg-surface-2/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground shadow-elev-1 transition hover:border-border-subtle hover:bg-surface-3"
+                >
+                  Profile
+                </button>
+              ) : (
+                <Link
+                  href="/login"
+                  className="rounded-full border border-border bg-surface-2/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground shadow-elev-1 transition hover:border-border-subtle hover:bg-surface-3"
+                >
+                  Sign in
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      </header>
 
       <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
-        <DialogContent className="sm:max-w-[420px]">
+        <DialogContent className="border border-border bg-surface-2 text-foreground shadow-elev-2 sm:max-w-[420px]">
           <DialogHeader>
             <DialogTitle>Profile</DialogTitle>
             <DialogDescription>Signed in account</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div className="rounded-lg border border-border bg-surface-1 px-4 py-3 text-sm text-foreground/80">
               {userEmail ?? 'Unknown email'}
             </div>
             <button
@@ -391,7 +429,7 @@ export default function HomePage() {
                 await supabaseClient.auth.signOut();
                 setIsProfileOpen(false);
               }}
-              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-900"
+              className="w-full rounded-lg border border-border bg-surface-1 px-4 py-2 text-sm font-semibold text-foreground shadow-elev-1 transition hover:border-border-subtle hover:bg-surface-2"
             >
               Sign out
             </button>
@@ -399,87 +437,31 @@ export default function HomePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Main interactive content area */}
-      <div className="flex flex-col items-start justify-center min-h-[60vh] p-8 space-y-8">
-        <div className="w-full self-start">
-          <div className="grid w-full grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1.1fr)]">
-            <div className="min-w-0">
-              <ScheduleGrid />
-            </div>
-            <div className="min-w-0 space-y-6">
-              <SearchResults results={searchResults} onAddSection={handleAddSection} />
-              {chatMode === 'floating' && (
+      {/* Main content area */}
+      <div className="flex h-full flex-col pt-24">
+        <div className="flex-1 overflow-y-auto px-6 pb-8">
+          <div className="mx-auto h-full max-w-[1600px]">
+            <div className="grid h-full w-full grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+              {/* Schedule Grid */}
+              <div className="min-w-0">
+                <ScheduleGrid />
+              </div>
+
+              {/* Search Results & Embedded Chat (for sidepanel mode) */}
+              <div className="min-w-0 space-y-6">
+                <div className="min-h-[350px]">
+                  <SearchResults results={searchResults} onAddSection={handleAddSection} />
+                </div>
                 <div className="h-[520px]">
                   <EmbeddedCedarChat title="Cedarling Chat" />
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
-
-        {/* Big text that Cedar can change */}
-        <div className="text-center">
-          <h1 className="text-6xl font-bold text-gray-800 mb-4">{mainText}</h1>
-          <p className="text-lg text-gray-600 mb-8">
-            This text can be changed by Cedar using state setters
-          </p>
-        </div>
-
-        {/* Instructions for adding new text */}
-        <div className="text-center self-center">
-          <h2 className="text-2xl font-semibold text-gray-700 mb-2">
-            tell cedar to add new lines of text to the screen
-          </h2>
-          <p className="text-md text-gray-500 mb-6">
-            Cedar can add new text using frontend tools with different styles
-          </p>
-        </div>
-
-        {/* Display dynamically added text lines */}
-        {textLines.length > 0 && (
-          <div className="w-full max-w-2xl">
-            <h3 className="text-xl font-medium text-gray-700 mb-4 text-center">Added by Cedar:</h3>
-            <div className="space-y-2">
-              {textLines.map((line, index) => (
-                <div
-                  key={index}
-                  className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-center"
-                >
-                  {line.startsWith('**') && line.endsWith('**') ? (
-                    <strong className="text-blue-800">{line.slice(2, -2)}</strong>
-                  ) : line.startsWith('*') && line.endsWith('*') ? (
-                    <em className="text-blue-700">{line.slice(1, -1)}</em>
-                  ) : line.startsWith('🌟') ? (
-                    <span className="text-yellow-600 font-semibold">{line}</span>
-                  ) : (
-                    <span className="text-blue-800">{line}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
-
-      {chatMode === 'caption' && <CedarCaptionChat />}
-
-      {chatMode === 'floating' && null}
     </div>
   );
-
-  if (chatMode === 'sidepanel') {
-    return (
-      <SidePanelCedarChat
-        side="right"
-        title="Cedarling Chat"
-        collapsedLabel="Chat with Cedar"
-        showCollapsedButton={true}
-      >
-        <DebuggerPanel />
-        {renderContent()}
-      </SidePanelCedarChat>
-    );
-  }
 
   return renderContent();
 }

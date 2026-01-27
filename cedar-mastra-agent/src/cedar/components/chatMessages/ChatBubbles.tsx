@@ -60,7 +60,7 @@ export const ChatBubbles: React.FC<ChatBubblesProps> = ({
 			style={{
 				...containerStyle,
 				// Custom scrollbar styles for Firefox
-				scrollbarColor: 'rgba(156, 163, 175, 0.8) transparent',
+				scrollbarColor: 'rgba(126, 138, 153, 0.6) transparent',
 			}}>
 			{/* Messages container */}
 			<div className='relative z-20 px-1 py-1'>

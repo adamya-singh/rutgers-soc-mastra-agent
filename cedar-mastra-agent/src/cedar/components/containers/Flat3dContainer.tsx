@@ -53,23 +53,11 @@ const Flat3dContainer: React.FC<Flat3dContainerProps> = ({
 		)}, 0 4px 6px 0 rgba(0,0,0,0.20)`;
 	} else {
 		// Theme-based defaults
-		backgroundStyle = darkThemeEnabled
-			? {
-					background: `linear-gradient(to bottom, rgb(38,38,38), rgb(20,20,20))`,
-			  }
-			: {
-					background: `linear-gradient(to bottom, #FAFAFA, #F0F0F0)`,
-			  };
+		backgroundStyle = {
+			background: `linear-gradient(to bottom, var(--surface-1), var(--surface-2))`,
+		};
 
-		edgeShadow = darkThemeEnabled
-			? `0px 1px 0px 0px ${getShadedColor(
-					'#000000',
-					20
-			  )}, 0 4px 6px 0 rgba(0,0,0,0.20)`
-			: `0px 1px 0px 0px ${getShadedColor(
-					'#ffffff',
-					30
-			  )}, 0 4px 6px 0 rgba(0,0,0,0.35)`;
+		edgeShadow = 'var(--elev-1)';
 	}
 
 	return (

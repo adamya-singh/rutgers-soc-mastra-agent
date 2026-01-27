@@ -57,14 +57,14 @@ type SidebarItem = {
 };
 
 const campusColors: Record<string, string> = {
-  busch: '#3B82F6',
-  livingston: '#F97316',
-  'college avenue': '#EAB308',
-  'cook/douglass': '#22C55E',
-  'downtown nb': '#A855F7',
-  online: '#6B7280',
-  newark: '#14B8A6',
-  camden: '#EC4899',
+  busch: '#4D78C2',
+  livingston: '#D88A4A',
+  'college avenue': '#CFA64B',
+  'cook/douglass': '#4FAE7D',
+  'downtown nb': '#8E6BD2',
+  online: '#7B8694',
+  newark: '#4CA9A6',
+  camden: '#CC6C96',
 };
 
 const parseMilitaryTime = (time?: string | null): number | null => {
@@ -303,10 +303,10 @@ export const ScheduleGrid: React.FC = () => {
   const scheduleStatusTone = !isLoggedIn
     ? 'text-muted-foreground'
     : syncState === 'error' || syncError
-      ? 'text-red-500'
+      ? 'text-red-400'
       : syncStatus === 'saved'
-        ? 'text-emerald-600'
-        : 'text-amber-600';
+        ? 'text-emerald-400'
+        : 'text-amber-400';
 
   const sortedSchedules = React.useMemo(() => {
     return [...schedules].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -422,7 +422,7 @@ export const ScheduleGrid: React.FC = () => {
 
   return (
     <section className="w-full">
-      <div className="rounded-2xl border border-border bg-card shadow-sm">
+      <div className="rounded-xl border border-border bg-surface-2 shadow-elev-1">
         <div className="border-b border-border px-4 py-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-col gap-2">
@@ -430,7 +430,7 @@ export const ScheduleGrid: React.FC = () => {
                 <select
                   value={activeScheduleId ?? ''}
                   onChange={handleScheduleSelect}
-                  className="h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                  className="h-10 rounded-xl border border-border bg-surface-1 px-3 text-sm text-foreground shadow-elev-1 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30"
                 >
                   {sortedSchedules.length === 0 ? (
                     <option value="">No schedules</option>
@@ -457,7 +457,7 @@ export const ScheduleGrid: React.FC = () => {
                   }}
                   placeholder="Schedule name"
                   disabled={!activeEntry}
-                  className="h-10 min-w-[220px] flex-1 rounded-xl border border-border bg-background px-3 text-sm text-foreground shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="h-10 min-w-[220px] flex-1 rounded-xl border border-border bg-surface-1 px-3 text-sm text-foreground shadow-elev-1 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30 disabled:cursor-not-allowed disabled:opacity-60"
                 />
               </div>
               <p className="text-sm text-muted-foreground">
@@ -468,7 +468,7 @@ export const ScheduleGrid: React.FC = () => {
               <button
                 type="button"
                 onClick={handleCreateSchedule}
-                className="h-10 rounded-full border border-border bg-background px-4 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:border-slate-300"
+                className="h-10 rounded-full border border-border bg-surface-1 px-4 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:border-border-subtle hover:bg-surface-2"
               >
                 New
               </button>
@@ -476,7 +476,7 @@ export const ScheduleGrid: React.FC = () => {
                 type="button"
                 onClick={handleDuplicateSchedule}
                 disabled={!activeEntry}
-                className="h-10 rounded-full border border-border bg-background px-4 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
+                className="h-10 rounded-full border border-border bg-surface-1 px-4 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:border-border-subtle hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Duplicate
               </button>
@@ -484,7 +484,7 @@ export const ScheduleGrid: React.FC = () => {
                 type="button"
                 onClick={handleDeleteSchedule}
                 disabled={!activeEntry}
-                className="h-10 rounded-full border border-border bg-background px-4 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
+                className="h-10 rounded-full border border-border bg-surface-1 px-4 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition hover:border-border-subtle hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Delete
               </button>
@@ -492,7 +492,7 @@ export const ScheduleGrid: React.FC = () => {
                 type="button"
                 onClick={() => void syncActiveSchedule()}
                 disabled={!isLoggedIn || !activeEntry || syncState === 'saving'}
-                className="h-10 rounded-full bg-slate-900 px-4 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                className="h-10 rounded-full bg-accent px-4 text-xs font-semibold uppercase tracking-[0.2em] text-accent-foreground shadow-glow transition hover:bg-[#d24a48] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Save
               </button>
@@ -510,7 +510,7 @@ export const ScheduleGrid: React.FC = () => {
           <div className="flex-1 overflow-x-auto">
             <div className="min-w-[860px] p-4">
               <div
-                className="relative grid rounded-xl border border-border bg-background"
+                className="relative grid rounded-lg border border-border bg-surface-1"
                 style={{
                   gridTemplateColumns: '72px repeat(6, minmax(0, 1fr))',
                   gridTemplateRows: `40px repeat(${TOTAL_SLOTS}, 28px)`,
@@ -544,7 +544,7 @@ export const ScheduleGrid: React.FC = () => {
                   timeSlots.map((slot, rowIndex) => (
                     <div
                       key={`${dayIndex}-${slot.key}`}
-                      className="border-b border-r border-border bg-background"
+                      className="border-b border-r border-border bg-surface-1"
                       style={{ gridColumnStart: dayIndex + 2, gridRowStart: rowIndex + 2 }}
                     />
                   )),
@@ -554,7 +554,7 @@ export const ScheduleGrid: React.FC = () => {
                   <div
                     key={block.key}
                     title={block.tooltip}
-                    className="relative z-10 mx-1 my-[2px] flex flex-col gap-0.5 overflow-hidden rounded-lg px-2 py-1 text-[11px] text-white shadow-sm"
+                    className="relative z-10 mx-1 my-[2px] flex flex-col gap-0.5 overflow-hidden rounded-lg px-2 py-1 text-[11px] text-white shadow-elev-1 ring-1 ring-white/10 transition hover:scale-[1.01]"
                     style={{
                       gridColumnStart: block.column,
                       gridRowStart: block.rowStart,
@@ -590,7 +590,7 @@ export const ScheduleGrid: React.FC = () => {
             </div>
           </div>
 
-          <aside className="w-full border-t border-border bg-muted/30 lg:w-80 lg:border-l lg:border-t-0">
+          <aside className="w-full border-t border-border bg-surface-1/80 lg:w-80 lg:border-l lg:border-t-0">
             <div className="p-4">
               <div className="flex items-baseline justify-between">
                 <h3 className="text-sm font-semibold text-foreground">Online + Sunday</h3>
@@ -599,19 +599,19 @@ export const ScheduleGrid: React.FC = () => {
 
               <div className="mt-3 space-y-3">
                 {sidebarItems.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-border bg-background px-3 py-4 text-xs text-muted-foreground">
+                  <div className="rounded-lg border border-dashed border-border bg-surface-2 px-3 py-4 text-xs text-muted-foreground">
                     No online or Sunday meetings yet.
                   </div>
                 ) : (
                   sidebarItems.map((item) => (
                     <div
                       key={item.key}
-                      className="rounded-lg border border-border bg-background px-3 py-2"
+                      className="rounded-lg border border-border bg-surface-2 px-3 py-2"
                     >
                       <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
                         <span>{item.label}</span>
                         {item.isClosed && (
-                          <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-semibold uppercase text-red-600">
+                          <span className="rounded-full border border-red-400/40 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-red-200">
                             FULL
                           </span>
                         )}

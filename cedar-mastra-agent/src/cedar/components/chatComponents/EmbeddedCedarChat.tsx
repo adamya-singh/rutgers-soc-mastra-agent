@@ -36,20 +36,20 @@ export const EmbeddedCedarChat: React.FC<EmbeddedCedarChatProps> = ({
 
 	return (
 		<div className={`w-full h-full ${className}`}>
-			<Container3D className='flex flex-col h-full w-full text-sm'>
+			<Container3D className='flex h-full w-full flex-col rounded-xl border border-border bg-surface-2 text-sm backdrop-blur-0'>
 				{/* Header */}
 				{showHeader && (
-					<div className='flex-shrink-0 z-20 flex flex-row items-center justify-between px-5 pt-3 min-w-0 border-b border-gray-200 dark:border-gray-700'>
+					<div className='z-20 flex min-w-0 flex-shrink-0 flex-row items-center justify-between border-b border-border px-5 pt-3'>
 						<div className='flex items-center min-w-0 flex-1'>
 							{companyLogo && (
 								<div className='flex-shrink-0 w-6 h-6 mr-2'>{companyLogo}</div>
 							)}
-							<span className='font-bold text-lg truncate'>{title}</span>
+							<span className='truncate text-lg font-semibold text-foreground'>{title}</span>
 						</div>
 						{showCloseButton && (
 							<div className='flex items-center gap-2 flex-shrink-0'>
 								<button
-									className='p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors'
+									className='rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-3 hover:text-foreground'
 									onClick={handleClose}
 									aria-label='Close chat'>
 									<X className='h-4 w-4' strokeWidth={2.5} />

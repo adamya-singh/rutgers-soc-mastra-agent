@@ -42,11 +42,11 @@ export const ChatRenderer: React.FC<ChatRendererProps> = ({ message }) => {
 	// Get common message styling
 	const getMessageStyles = (role: string) => {
 		const commonClasses =
-			'prose prose-sm inline-block rounded-xl py-2 relative text-sm w-fit [&>*+*]:mt-3 [&>ol>li+li]:mt-2 [&>ul>li+li]:mt-2 [&>ol>li>p]:mb-1 [&>ul>li>p]:mb-1';
+			'prose prose-sm inline-block rounded-lg px-3 py-2 relative text-sm w-fit border [&>*+*]:mt-3 [&>ol>li+li]:mt-2 [&>ul>li+li]:mt-2 [&>ol>li>p]:mb-1 [&>ul>li>p]:mb-1';
 		const roleClasses =
 			role === 'bot' || role === 'assistant'
-				? `font-serif dark:text-gray-100 text-[#141413] w-full`
-				: 'text-[white] px-3';
+				? 'text-foreground w-full border-border bg-surface-1'
+				: 'text-accent-foreground border-border bg-accent';
 
 		const style =
 			role === 'bot' || role === 'assistant'
@@ -55,9 +55,7 @@ export const ChatRenderer: React.FC<ChatRendererProps> = ({ message }) => {
 						lineHeight: '1.5em',
 				  }
 				: {
-						boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)',
-						backgroundColor: '#3b82f6',
-						color: '#ffffff',
+						boxShadow: '0 18px 40px rgba(2, 6, 12, 0.35)',
 				  };
 
 		return {
