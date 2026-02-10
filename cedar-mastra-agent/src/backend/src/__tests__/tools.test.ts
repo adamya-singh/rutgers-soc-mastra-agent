@@ -121,6 +121,25 @@ describe('Tools Configuration', () => {
       const invalidDays = schema.safeParse({ days: ['Monday'] });
       assert.ok(!invalidDays.success);
     });
+
+    it('accepts valid classroom filters and rejects malformed classroom codes', () => {
+      const schema = searchSections.inputSchema;
+
+      const validClassroomDash = schema.safeParse({ classroomCode: 'LSH-B116' });
+      assert.ok(validClassroomDash.success);
+
+      const validClassroomSpace = schema.safeParse({ classroomCode: 'LSH B116' });
+      assert.ok(validClassroomSpace.success);
+
+      const validClassroomCompact = schema.safeParse({ classroomCode: 'LSHB116' });
+      assert.ok(validClassroomCompact.success);
+
+      const validExplicitFields = schema.safeParse({ buildingCode: 'LSH', roomNumber: 'B116' });
+      assert.ok(validExplicitFields.success);
+
+      const invalidClassroom = schema.safeParse({ classroomCode: '-' });
+      assert.ok(!invalidClassroom.success);
+    });
   });
 
   describe('getSectionByIndex', () => {

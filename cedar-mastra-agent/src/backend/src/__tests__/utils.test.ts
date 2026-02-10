@@ -14,6 +14,8 @@ import {
   calculateOverlapRange,
   parseCourseString,
   isValidIndexNumber,
+  normalizeLocationToken,
+  parseClassroomCode,
   formatLocation,
 } from '../lib/utils.js';
 
@@ -191,6 +193,54 @@ describe('Utils', () => {
       assert.strictEqual(isValidIndexNumber('123456'), false);  // Too long
       assert.strictEqual(isValidIndexNumber('1234a'), false);  // Contains letter
       assert.strictEqual(isValidIndexNumber(''), false);  // Empty
+    });
+  });
+
+  describe('normalizeLocationToken', () => {
+    it('uppercases and strips non-alphanumeric characters', () => {
+      assert.strictEqual(normalizeLocationToken('lsh-b116'), 'LSHB116');
+      assert.strictEqual(normalizeLocationToken(' B-116 '), 'B116');
+      assert.strictEqual(normalizeLocationToken('sec_220'), 'SEC220');
+    });
+  });
+
+  describe('parseClassroomCode', () => {
+    it('parses classroom codes with a dash separator', () => {
+      const result = parseClassroomCode('LSH-B116');
+      assert.deepStrictEqual(result, {
+        buildingCodeNorm: 'LSH',
+        roomNumberNorm: 'B116',
+      });
+    });
+
+    it('parses classroom codes with a space separator', () => {
+      const result = parseClassroomCode('lsh b116');
+      assert.deepStrictEqual(result, {
+        buildingCodeNorm: 'LSH',
+        roomNumberNorm: 'B116',
+      });
+    });
+
+    it('parses compact classroom codes', () => {
+      const result = parseClassroomCode('LSHB116');
+      assert.deepStrictEqual(result, {
+        buildingCodeNorm: 'LSH',
+        roomNumberNorm: 'B116',
+      });
+    });
+
+    it('parses compact classroom codes without a room letter prefix', () => {
+      const result = parseClassroomCode('LSH116');
+      assert.deepStrictEqual(result, {
+        buildingCodeNorm: 'LSH',
+        roomNumberNorm: '116',
+      });
+    });
+
+    it('returns null for invalid classroom formats', () => {
+      assert.strictEqual(parseClassroomCode('-'), null);
+      assert.strictEqual(parseClassroomCode('123'), null);
+      assert.strictEqual(parseClassroomCode(''), null);
     });
   });
 

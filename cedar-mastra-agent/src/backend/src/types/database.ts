@@ -287,6 +287,7 @@ export type Database = {
         Row: {
           ba_class_hours: string | null
           building_code: string | null
+          building_code_norm: string | null
           campus_abbrev: string | null
           campus_location: string | null
           campus_name: string | null
@@ -298,6 +299,7 @@ export type Database = {
           meeting_mode_desc: string | null
           pm_code: string | null
           room_number: string | null
+          room_number_norm: string | null
           section_id: number
           start_time: string | null
           start_time_military: string | null
@@ -305,6 +307,7 @@ export type Database = {
         Insert: {
           ba_class_hours?: string | null
           building_code?: string | null
+          building_code_norm?: string | null
           campus_abbrev?: string | null
           campus_location?: string | null
           campus_name?: string | null
@@ -316,6 +319,7 @@ export type Database = {
           meeting_mode_desc?: string | null
           pm_code?: string | null
           room_number?: string | null
+          room_number_norm?: string | null
           section_id: number
           start_time?: string | null
           start_time_military?: string | null
@@ -323,6 +327,7 @@ export type Database = {
         Update: {
           ba_class_hours?: string | null
           building_code?: string | null
+          building_code_norm?: string | null
           campus_abbrev?: string | null
           campus_location?: string | null
           campus_name?: string | null
@@ -334,6 +339,7 @@ export type Database = {
           meeting_mode_desc?: string | null
           pm_code?: string | null
           room_number?: string | null
+          room_number_norm?: string | null
           section_id?: number
           start_time?: string | null
           start_time_military?: string | null
@@ -1053,6 +1059,7 @@ export type Database = {
       v_schedule_builder: {
         Row: {
           building_code: string | null
+          building_code_norm: string | null
           campus_name: string | null
           course_string: string | null
           credits: number | null
@@ -1062,6 +1069,7 @@ export type Database = {
           meeting_mode_desc: string | null
           open_status: boolean | null
           room_number: string | null
+          room_number_norm: string | null
           section_id: number | null
           start_time_military: string | null
           term: string | null

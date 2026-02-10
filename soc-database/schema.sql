@@ -297,6 +297,8 @@ CREATE TABLE meeting_times (
     campus_abbrev VARCHAR(10),
     building_code VARCHAR(20),
     room_number VARCHAR(20),
+    building_code_norm TEXT,
+    room_number_norm TEXT,
     
     -- Mode
     meeting_mode_code VARCHAR(2),  -- '90'=Online, '02'=Lecture, etc.
@@ -382,6 +384,12 @@ CREATE INDEX idx_meeting_times_day ON meeting_times(meeting_day) WHERE meeting_d
 
 -- Find online classes (no physical meeting)
 CREATE INDEX idx_meeting_times_online ON meeting_times(meeting_mode_code) WHERE meeting_mode_code = '90';
+
+-- Find sections by normalized building code
+CREATE INDEX idx_meeting_times_building_norm ON meeting_times(building_code_norm) WHERE building_code_norm <> '';
+
+-- Find sections by normalized building+room
+CREATE INDEX idx_meeting_times_building_room_norm ON meeting_times(building_code_norm, room_number_norm) WHERE building_code_norm <> '';
 
 -- -----------------------------------------------------------------------------
 -- Notifications Indexes
@@ -504,6 +512,8 @@ SELECT
     mt.campus_name,
     mt.building_code,
     mt.room_number,
+    mt.building_code_norm,
+    mt.room_number_norm,
     mt.meeting_mode_desc,
     t.year,
     t.term,

@@ -304,6 +304,71 @@ export function isValidIndexNumber(indexNumber: string): boolean {
 }
 
 // =============================================================================
+// Classroom/Location Parsing
+// =============================================================================
+
+/**
+ * Normalize a location token for deterministic matching.
+ * Removes non-alphanumeric characters and uppercases the result.
+ */
+export function normalizeLocationToken(value: string): string {
+  return value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+}
+
+/**
+ * Parse classroom input into normalized building and room components.
+ * Supports examples like "LSH-B116", "LSH B116", and "LSHB116".
+ */
+export function parseClassroomCode(input: string): {
+  buildingCodeNorm?: string;
+  roomNumberNorm?: string;
+} | null {
+  const trimmed = input.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const upper = trimmed.toUpperCase();
+
+  // Explicit split with separators
+  const separated = upper.match(/^([A-Z]+)[\s-]+([A-Z0-9]+)$/);
+  if (separated) {
+    const buildingCodeNorm = normalizeLocationToken(separated[1]);
+    const roomNumberNorm = normalizeLocationToken(separated[2]);
+    if (buildingCodeNorm && roomNumberNorm) {
+      return { buildingCodeNorm, roomNumberNorm };
+    }
+    return null;
+  }
+
+  // Compact form without separators (e.g., LSHB116)
+  const compact = normalizeLocationToken(upper);
+  const digitIndex = compact.search(/\d/);
+  if (digitIndex > 0) {
+    const letterPrefix = compact.slice(0, digitIndex);
+    const numericSuffix = compact.slice(digitIndex);
+
+    if (letterPrefix.length < 2 || !numericSuffix) {
+      return null;
+    }
+
+    // In compact strings like LSHB116, treat trailing letter as room prefix (B116).
+    const useTrailingRoomPrefix = letterPrefix.length >= 4;
+    const buildingCodeNorm = useTrailingRoomPrefix
+      ? letterPrefix.slice(0, -1)
+      : letterPrefix;
+    const roomPrefix = useTrailingRoomPrefix ? letterPrefix.slice(-1) : '';
+    const roomNumberNorm = `${roomPrefix}${numericSuffix}`;
+
+    if (buildingCodeNorm && roomNumberNorm) {
+      return { buildingCodeNorm, roomNumberNorm };
+    }
+  }
+
+  return null;
+}
+
+// =============================================================================
 // Location Formatting
 // =============================================================================
 

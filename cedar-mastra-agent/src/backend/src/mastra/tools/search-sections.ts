@@ -3,11 +3,12 @@ import { z } from 'zod';
 import { supabase } from '../../lib/supabase.js';
 import {
   getDefaultTerm,
-  getTermName,
   getDayName,
   formatTime,
   isOnlineMeeting,
   formatLocation,
+  normalizeLocationToken,
+  parseClassroomCode,
 } from '../../lib/utils.js';
 
 /**
@@ -21,7 +22,7 @@ export const searchSections = createTool({
   description: `Find course sections based on schedule criteria like day, time, instructor, or availability.
 Use this tool to find sections that fit specific schedule requirements.
 Set openOnly=false to include CLOSED sections.
-Examples: "Find open sections on Monday and Wednesday", "Evening classes after 5 PM", "Online sections for CS courses", "Include closed sections for 01:198:111"`,
+Examples: "Find open sections on Monday and Wednesday", "Evening classes after 5 PM", "Online sections for CS courses", "Include closed sections for 01:198:111", "Classes in LSH-B116"`,
   inputSchema: z.object({
     courseString: z.string().optional()
       .describe('Limit to specific course (e.g., "01:198:111")'),
@@ -34,6 +35,15 @@ Examples: "Find open sections on Monday and Wednesday", "Evening classes after 5
     
     instructor: z.string().optional()
       .describe('Filter by instructor name (partial match)'),
+
+    classroomCode: z.string().optional()
+      .describe('Classroom code (e.g., "LSH-B116", "LSH B116", "LSHB116")'),
+
+    buildingCode: z.string().optional()
+      .describe('Building code override (e.g., "LSH")'),
+
+    roomNumber: z.string().optional()
+      .describe('Room number override (e.g., "B116")'),
     
     days: z.array(z.enum(['M', 'T', 'W', 'H', 'F', 'S', 'U'])).optional()
       .describe('Filter by meeting days (M=Mon, T=Tue, W=Wed, H=Thu, F=Fri, S=Sat, U=Sun)'),
@@ -57,6 +67,18 @@ Examples: "Find open sections on Monday and Wednesday", "Evening classes after 5
     
     limit: z.number().min(1).max(100).default(25),
     offset: z.number().min(0).default(0),
+  }).superRefine((input, ctx) => {
+    if (!input.classroomCode) {
+      return;
+    }
+
+    if (!parseClassroomCode(input.classroomCode)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['classroomCode'],
+        message: 'Invalid classroom format. Expected examples: LSH-B116, LSH 116, LSH116',
+      });
+    }
   }),
   outputSchema: z.object({
     sections: z.array(z.object({
@@ -91,6 +113,9 @@ Examples: "Find open sections on Monday and Wednesday", "Evening classes after 5
       subject,
       openOnly = true,
       instructor,
+      classroomCode,
+      buildingCode,
+      roomNumber,
       days,
       timeAfter,
       timeBefore,
@@ -109,6 +134,15 @@ Examples: "Find open sections on Monday and Wednesday", "Evening classes after 5
     const term = inputTerm ?? defaultTerm.term;
 
     try {
+      const hasLocationFilterInput = classroomCode !== undefined || buildingCode !== undefined || roomNumber !== undefined;
+      const parsedClassroom = classroomCode ? parseClassroomCode(classroomCode) : null;
+      const resolvedBuildingNorm = normalizeLocationToken(buildingCode || parsedClassroom?.buildingCodeNorm || '');
+      const resolvedRoomNorm = normalizeLocationToken(roomNumber || parsedClassroom?.roomNumberNorm || '');
+
+      if (hasLocationFilterInput && !resolvedBuildingNorm && !resolvedRoomNorm) {
+        throw new Error('Invalid classroom format. Expected examples: LSH-B116, LSH 116, LSH116');
+      }
+
       // Build campus filter
       const campusFilters: string[] = [campus];
       if (includeOnline) {
@@ -126,6 +160,14 @@ Examples: "Find open sections on Monday and Wednesday", "Evening classes after 5
       // Apply filters
       if (courseString) {
         query = query.eq('course_string', courseString);
+      }
+
+      if (resolvedBuildingNorm) {
+        query = query.eq('building_code_norm', resolvedBuildingNorm);
+      }
+
+      if (resolvedRoomNorm) {
+        query = query.eq('room_number_norm', resolvedRoomNorm);
       }
 
       if (openOnly) {
