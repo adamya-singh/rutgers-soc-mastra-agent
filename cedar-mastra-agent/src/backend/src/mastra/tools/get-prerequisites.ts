@@ -1,6 +1,6 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { supabase } from '../../lib/supabase.js';
+import { supabase as defaultSupabase } from '../../lib/supabase.js';
 import { getDefaultTerm, getTermName, parseCourseString } from '../../lib/utils.js';
 
 /**
@@ -9,12 +9,11 @@ import { getDefaultTerm, getTermName, parseCourseString } from '../../lib/utils.
  * Returns both what courses are required for this course and
  * what courses this course unlocks (reverse lookup).
  */
-export const getPrerequisites = createTool({
-  id: 'getPrerequisites',
-  description: `Get prerequisite information for a course - what courses are required and what courses it unlocks.
+export const GET_PREREQUISITES_DESCRIPTION = `Get prerequisite information for a course - what courses are required and what courses it unlocks.
 Use this tool to understand course sequences and requirements.
-Examples: "What are the prerequisites for CS 211?", "What can I take after Calc 1?", "Show me the prereq chain for Data Structures"`,
-  inputSchema: z.object({
+Examples: "What are the prerequisites for CS 211?", "What can I take after Calc 1?", "Show me the prereq chain for Data Structures"`;
+
+export const getPrerequisitesInputSchema = z.object({
     courseString: z.string()
       .describe('Course to analyze (e.g., "01:198:211")'),
     
@@ -24,8 +23,9 @@ Examples: "What are the prerequisites for CS 211?", "What can I take after Calc 
     year: z.number().optional(),
     term: z.enum(['0', '1', '7', '9']).optional(),
     campus: z.enum(['NB', 'NK', 'CM']).default('NB'),
-  }),
-  outputSchema: z.object({
+  });
+
+export const getPrerequisitesOutputSchema = z.object({
     course: z.object({
       courseString: z.string(),
       title: z.string(),
@@ -43,8 +43,19 @@ Examples: "What are the prerequisites for CS 211?", "What can I take after Calc 
       courseString: z.string(),
       title: z.string(),
     })).optional(),
-  }),
-  execute: async ({ context }) => {
+  });
+
+export type GetPrerequisitesInput = z.infer<typeof getPrerequisitesInputSchema>;
+export type GetPrerequisitesOutput = z.infer<typeof getPrerequisitesOutputSchema>;
+
+export async function runGetPrerequisites(
+  context: GetPrerequisitesInput,
+  deps: {
+    supabaseClient?: typeof defaultSupabase;
+    now?: () => Date;
+  } = {},
+): Promise<GetPrerequisitesOutput> {
+  const supabase = deps.supabaseClient ?? defaultSupabase;
     const {
       courseString,
       includeUnlocks = true,
@@ -60,7 +71,7 @@ Examples: "What are the prerequisites for CS 211?", "What can I take after Calc 
     }
 
     // Auto-detect term if not provided
-    const defaultTerm = getDefaultTerm();
+    const defaultTerm = getDefaultTerm(deps.now?.());
     const year = inputYear ?? defaultTerm.year;
     const term = inputTerm ?? defaultTerm.term;
     const termName = getTermName(term);
@@ -205,7 +216,14 @@ Examples: "What are the prerequisites for CS 211?", "What can I take after Calc 
       }
       throw new Error(`Failed to get prerequisites: Unknown error`);
     }
-  },
+}
+
+export const getPrerequisites = createTool({
+  id: 'getPrerequisites',
+  description: GET_PREREQUISITES_DESCRIPTION,
+  inputSchema: getPrerequisitesInputSchema,
+  outputSchema: getPrerequisitesOutputSchema,
+  execute: async ({ context }) => runGetPrerequisites(context),
 });
 
 /**

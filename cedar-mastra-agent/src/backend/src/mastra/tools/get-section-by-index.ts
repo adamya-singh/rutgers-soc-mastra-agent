@@ -1,6 +1,6 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { supabase } from '../../lib/supabase.js';
+import { supabase as defaultSupabase } from '../../lib/supabase.js';
 import {
   getDefaultTerm,
   getTermName,
@@ -16,12 +16,11 @@ import {
  * 
  * Returns full section details including course info, meeting times, instructors.
  */
-export const getSectionByIndex = createTool({
-  id: 'getSectionByIndex',
-  description: `Get details for a specific section by its 5-digit registration index number.
+export const GET_SECTION_BY_INDEX_DESCRIPTION = `Get details for a specific section by its 5-digit registration index number.
 Use this tool when you have a section index and need its full details.
-Examples: "Get details for section 09214", "Is index 12345 open?", "When does section 09214 meet?"`,
-  inputSchema: z.object({
+Examples: "Get details for section 09214", "Is index 12345 open?", "When does section 09214 meet?"`;
+
+export const getSectionByIndexInputSchema = z.object({
     indexNumber: z.string()
       .describe('5-digit registration index number (e.g., "09214"). Must be exactly 5 digits including leading zeros.'),
     
@@ -30,8 +29,9 @@ Examples: "Get details for section 09214", "Is index 12345 open?", "When does se
     
     term: z.enum(['0', '1', '7', '9']).optional()
       .describe('Term code. Auto-detected if not specified'),
-  }),
-  outputSchema: z.object({
+  });
+
+export const getSectionByIndexOutputSchema = z.object({
     section: z.object({
       indexNumber: z.string(),
       sectionNumber: z.string(),
@@ -74,8 +74,19 @@ Examples: "Get details for section 09214", "Is index 12345 open?", "When does se
       termName: z.string(),
       campus: z.string(),
     }),
-  }),
-  execute: async ({ context }) => {
+  });
+
+export type GetSectionByIndexInput = z.infer<typeof getSectionByIndexInputSchema>;
+export type GetSectionByIndexOutput = z.infer<typeof getSectionByIndexOutputSchema>;
+
+export async function runGetSectionByIndex(
+  context: GetSectionByIndexInput,
+  deps: {
+    supabaseClient?: typeof defaultSupabase;
+    now?: () => Date;
+  } = {},
+): Promise<GetSectionByIndexOutput> {
+  const supabase = deps.supabaseClient ?? defaultSupabase;
     const { indexNumber, year: inputYear, term: inputTerm } = context;
 
     // Validate index number format
@@ -84,7 +95,7 @@ Examples: "Get details for section 09214", "Is index 12345 open?", "When does se
     }
 
     // Auto-detect term if not provided
-    const defaultTerm = getDefaultTerm();
+    const defaultTerm = getDefaultTerm(deps.now?.());
     const year = inputYear ?? defaultTerm.year;
     const term = inputTerm ?? defaultTerm.term;
     const termName = getTermName(term);
@@ -236,5 +247,12 @@ Examples: "Get details for section 09214", "Is index 12345 open?", "When does se
       }
       throw new Error(`Failed to get section by index: Unknown error`);
     }
-  },
+}
+
+export const getSectionByIndex = createTool({
+  id: 'getSectionByIndex',
+  description: GET_SECTION_BY_INDEX_DESCRIPTION,
+  inputSchema: getSectionByIndexInputSchema,
+  outputSchema: getSectionByIndexOutputSchema,
+  execute: async ({ context }) => runGetSectionByIndex(context),
 });

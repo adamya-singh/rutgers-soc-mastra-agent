@@ -11,8 +11,7 @@
  * The agent defaults to the term students are most likely REGISTERING for,
  * not the currently-active term.
  */
-export function getDefaultTerm(): { year: number; term: string; termName: string } {
-  const now = new Date();
+export function getDefaultTerm(now: Date = new Date()): { year: number; term: string; termName: string } {
   const month = now.getMonth() + 1; // 1-12
   let year = now.getFullYear();
   

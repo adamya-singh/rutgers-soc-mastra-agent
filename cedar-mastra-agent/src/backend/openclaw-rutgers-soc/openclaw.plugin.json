@@ -1,0 +1,47 @@
+{
+  "id": "rutgers-soc",
+  "name": "Rutgers SOC",
+  "description": "Direct Rutgers Schedule of Classes tools for OpenClaw.",
+  "skills": ["./skills"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "supabaseUrl": {
+        "type": "string",
+        "description": "Supabase project URL for Rutgers SOC data access."
+      },
+      "supabaseAnonKey": {
+        "type": "string",
+        "description": "Supabase anonymous key for Rutgers SOC data access."
+      },
+      "defaultCampus": {
+        "type": "string",
+        "enum": ["NB", "NK", "CM"],
+        "description": "Default campus used when a tool call omits campus."
+      },
+      "maxLimit": {
+        "type": "number",
+        "minimum": 1,
+        "maximum": 10000,
+        "description": "Upper bound for tool limit parameters."
+      }
+    }
+  },
+  "uiHints": {
+    "supabaseUrl": {
+      "label": "Supabase URL",
+      "placeholder": "https://your-project.supabase.co"
+    },
+    "supabaseAnonKey": {
+      "label": "Supabase Anon Key",
+      "sensitive": true
+    },
+    "defaultCampus": {
+      "label": "Default Campus"
+    },
+    "maxLimit": {
+      "label": "Max Result Limit"
+    }
+  }
+}

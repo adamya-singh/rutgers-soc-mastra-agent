@@ -1,6 +1,6 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { supabase } from '../../lib/supabase.js';
+import { supabase as defaultSupabase } from '../../lib/supabase.js';
 import { getTermName } from '../../lib/utils.js';
 
 /**
@@ -9,12 +9,11 @@ import { getTermName } from '../../lib/utils.js';
  * Essential for discovery and building valid queries. Helps users understand
  * what options are available in the system.
  */
-export const browseMetadata = createTool({
-  id: 'browseMetadata',
-  description: `List available metadata options in the Rutgers course system.
+export const BROWSE_METADATA_DESCRIPTION = `List available metadata options in the Rutgers course system.
 Use this to discover available terms, subjects, schools, core codes, or instructors.
-Examples: "What terms are available?", "List all CS subjects", "What core codes exist?", "What schools are there?"`,
-  inputSchema: z.object({
+Examples: "What terms are available?", "List all CS subjects", "What core codes exist?", "What schools are there?"`;
+
+export const browseMetadataInputSchema = z.object({
     type: z.enum(['terms', 'subjects', 'schools', 'coreCodes', 'instructors'])
       .describe('Type of metadata to retrieve'),
     
@@ -29,8 +28,9 @@ Examples: "What terms are available?", "List all CS subjects", "What core codes 
     
     limit: z.number().min(1).max(10000).default(100)
       .describe('Maximum results'),
-  }),
-  outputSchema: z.object({
+  });
+
+export const browseMetadataOutputSchema = z.object({
     type: z.string(),
     items: z.array(z.object({
       code: z.string(),
@@ -42,8 +42,18 @@ Examples: "What terms are available?", "List all CS subjects", "What core codes 
       courseCount: z.number().optional(),
     })),
     totalCount: z.number(),
-  }),
-  execute: async ({ context }) => {
+  });
+
+export type BrowseMetadataInput = z.infer<typeof browseMetadataInputSchema>;
+export type BrowseMetadataOutput = z.infer<typeof browseMetadataOutputSchema>;
+
+export async function runBrowseMetadata(
+  context: BrowseMetadataInput,
+  deps: {
+    supabaseClient?: typeof defaultSupabase;
+  } = {},
+): Promise<BrowseMetadataOutput> {
+  const supabase = deps.supabaseClient ?? defaultSupabase;
     const { type, filter, campus, year, limit = 100 } = context;
 
     try {
@@ -143,10 +153,10 @@ Examples: "What terms are available?", "List all CS subjects", "What core codes 
           }
 
           const items = (subjects || []).map(s => ({
-            code: s.code,
-            name: s.description,
-            description: s.description,
-            courseCount: campus ? (courseCountsMap.get(s.code) || 0) : undefined,
+            code: s.code || '',
+            name: s.description || undefined,
+            description: s.description || undefined,
+            courseCount: campus ? (courseCountsMap.get(s.code || '') || 0) : undefined,
           }));
 
           return {
@@ -175,9 +185,9 @@ Examples: "What terms are available?", "List all CS subjects", "What core codes 
           }
 
           const items = (data || []).map(s => ({
-            code: s.code,
-            name: s.description,
-            description: s.description,
+            code: s.code || '',
+            name: s.description || undefined,
+            description: s.description || undefined,
           }));
 
           return {
@@ -201,7 +211,7 @@ Examples: "What terms are available?", "List all CS subjects", "What core codes 
           // Deduplicate
           const coreCodeMap = new Map<string, string | null>();
           data?.forEach(cc => {
-            if (!coreCodeMap.has(cc.core_code)) {
+            if (cc.core_code && !coreCodeMap.has(cc.core_code)) {
               coreCodeMap.set(cc.core_code, cc.core_code_description);
             }
           });
@@ -252,8 +262,8 @@ Examples: "What terms are available?", "List all CS subjects", "What core codes 
           }
 
           const items = (data || []).map(i => ({
-            code: i.name,
-            name: i.name,
+            code: i.name || '',
+            name: i.name || undefined,
           }));
 
           return {
@@ -272,5 +282,12 @@ Examples: "What terms are available?", "List all CS subjects", "What core codes 
       }
       throw new Error(`Failed to browse metadata: Unknown error`);
     }
-  },
+}
+
+export const browseMetadata = createTool({
+  id: 'browseMetadata',
+  description: BROWSE_METADATA_DESCRIPTION,
+  inputSchema: browseMetadataInputSchema,
+  outputSchema: browseMetadataOutputSchema,
+  execute: async ({ context }) => runBrowseMetadata(context),
 });

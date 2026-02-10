@@ -1,6 +1,6 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { supabase } from '../../lib/supabase.js';
+import { supabase as defaultSupabase } from '../../lib/supabase.js';
 import {
   getDefaultTerm,
   getTermName,
@@ -18,12 +18,11 @@ import {
  * Analyzes a set of sections to find any overlapping meeting times.
  * Essential for schedule building.
  */
-export const checkScheduleConflicts = createTool({
-  id: 'checkScheduleConflicts',
-  description: `Check if multiple sections have time conflicts. 
+export const CHECK_SCHEDULE_CONFLICTS_DESCRIPTION = `Check if multiple sections have time conflicts. 
 Use this tool to validate a schedule or find if classes overlap.
-Examples: "Do sections 09214 and 12345 conflict?", "Can I take all of these classes together?"`,
-  inputSchema: z.object({
+Examples: "Do sections 09214 and 12345 conflict?", "Can I take all of these classes together?"`;
+
+export const checkScheduleConflictsInputSchema = z.object({
     sectionIndices: z.array(z.string()).min(2).max(10)
       .describe('Array of section index numbers to check for conflicts (2-10 sections)'),
     
@@ -35,8 +34,9 @@ Examples: "Do sections 09214 and 12345 conflict?", "Can I take all of these clas
     
     campus: z.enum(['NB', 'NK', 'CM']).default('NB')
       .describe('Campus code'),
-  }),
-  outputSchema: z.object({
+  });
+
+export const checkScheduleConflictsOutputSchema = z.object({
     hasConflicts: z.boolean(),
     conflicts: z.array(z.object({
       section1: z.object({
@@ -72,8 +72,19 @@ Examples: "Do sections 09214 and 12345 conflict?", "Can I take all of these clas
     })),
     totalCredits: z.number().nullable(),
     warnings: z.array(z.string()),
-  }),
-  execute: async ({ context }) => {
+  });
+
+export type CheckScheduleConflictsInput = z.infer<typeof checkScheduleConflictsInputSchema>;
+export type CheckScheduleConflictsOutput = z.infer<typeof checkScheduleConflictsOutputSchema>;
+
+export async function runCheckScheduleConflicts(
+  context: CheckScheduleConflictsInput,
+  deps: {
+    supabaseClient?: typeof defaultSupabase;
+    now?: () => Date;
+  } = {},
+): Promise<CheckScheduleConflictsOutput> {
+  const supabase = deps.supabaseClient ?? defaultSupabase;
     const {
       sectionIndices,
       year: inputYear,
@@ -88,7 +99,7 @@ Examples: "Do sections 09214 and 12345 conflict?", "Can I take all of these clas
     }
 
     // Auto-detect term if not provided
-    const defaultTerm = getDefaultTerm();
+    const defaultTerm = getDefaultTerm(deps.now?.());
     const year = inputYear ?? defaultTerm.year;
     const term = inputTerm ?? defaultTerm.term;
 
@@ -331,5 +342,12 @@ Examples: "Do sections 09214 and 12345 conflict?", "Can I take all of these clas
       }
       throw new Error(`Failed to check schedule conflicts: Unknown error`);
     }
-  },
+}
+
+export const checkScheduleConflicts = createTool({
+  id: 'checkScheduleConflicts',
+  description: CHECK_SCHEDULE_CONFLICTS_DESCRIPTION,
+  inputSchema: checkScheduleConflictsInputSchema,
+  outputSchema: checkScheduleConflictsOutputSchema,
+  execute: async ({ context }) => runCheckScheduleConflicts(context),
 });

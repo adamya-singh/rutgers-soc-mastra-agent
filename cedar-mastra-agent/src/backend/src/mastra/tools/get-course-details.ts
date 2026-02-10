@@ -1,6 +1,6 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { supabase } from '../../lib/supabase.js';
+import { supabase as defaultSupabase } from '../../lib/supabase.js';
 import {
   getDefaultTerm,
   getTermName,
@@ -18,12 +18,11 @@ import {
  * Returns full course info including all sections, meeting times,
  * instructors, and prerequisites.
  */
-export const getCourseDetails = createTool({
-  id: 'getCourseDetails',
-  description: `Get detailed information about a specific course including all sections, meeting times, instructors, and prerequisites.
+export const GET_COURSE_DETAILS_DESCRIPTION = `Get detailed information about a specific course including all sections, meeting times, instructors, and prerequisites.
 Use this tool when you need complete course details, section availability, or meeting schedules.
-Examples: "Tell me about CS 111", "What sections are available for Calc 1?", "Show details for 01:640:151"`,
-  inputSchema: z.object({
+Examples: "Tell me about CS 111", "What sections are available for Calc 1?", "Show details for 01:640:151"`;
+
+export const getCourseDetailsInputSchema = z.object({
     courseString: z.string()
       .describe('Full course identifier (e.g., "01:198:111") OR subject:course format (e.g., "198:111")'),
     
@@ -35,8 +34,9 @@ Examples: "Tell me about CS 111", "What sections are available for Calc 1?", "Sh
     
     campus: z.enum(['NB', 'NK', 'CM']).default('NB')
       .describe('Campus code'),
-  }),
-  outputSchema: z.object({
+  });
+
+export const getCourseDetailsOutputSchema = z.object({
     course: z.object({
       courseString: z.string(),
       title: z.string(),
@@ -102,9 +102,20 @@ Examples: "Tell me about CS 111", "What sections are available for Calc 1?", "Sh
       termName: z.string(),
       campus: z.string(),
     }),
-  }),
-  execute: async ({ context }) => {
-    const {
+  });
+
+export type GetCourseDetailsInput = z.infer<typeof getCourseDetailsInputSchema>;
+export type GetCourseDetailsOutput = z.infer<typeof getCourseDetailsOutputSchema>;
+
+export async function runGetCourseDetails(
+  context: GetCourseDetailsInput,
+  deps: {
+    supabaseClient?: typeof defaultSupabase;
+    now?: () => Date;
+  } = {},
+): Promise<GetCourseDetailsOutput> {
+  const supabase = deps.supabaseClient ?? defaultSupabase;
+  const {
       courseString,
       year: inputYear,
       term: inputTerm,
@@ -118,7 +129,7 @@ Examples: "Tell me about CS 111", "What sections are available for Calc 1?", "Sh
     }
 
     // Auto-detect term if not provided
-    const defaultTerm = getDefaultTerm();
+    const defaultTerm = getDefaultTerm(deps.now?.());
     const year = inputYear ?? defaultTerm.year;
     const term = inputTerm ?? defaultTerm.term;
     const termName = getTermName(term);
@@ -393,5 +404,12 @@ Examples: "Tell me about CS 111", "What sections are available for Calc 1?", "Sh
       }
       throw new Error(`Failed to get course details: Unknown error`);
     }
-  },
+}
+
+export const getCourseDetails = createTool({
+  id: 'getCourseDetails',
+  description: GET_COURSE_DETAILS_DESCRIPTION,
+  inputSchema: getCourseDetailsInputSchema,
+  outputSchema: getCourseDetailsOutputSchema,
+  execute: async ({ context }) => runGetCourseDetails(context),
 });

@@ -1,6 +1,6 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { supabase } from '../../lib/supabase.js';
+import { supabase as defaultSupabase } from '../../lib/supabase.js';
 import {
   getDefaultTerm,
   getDayName,
@@ -17,13 +17,12 @@ import {
  * Search for sections by day, time, instructor, or availability.
  * Useful for building schedules around constraints.
  */
-export const searchSections = createTool({
-  id: 'searchSections',
-  description: `Find course sections based on schedule criteria like day, time, instructor, or availability.
+export const SEARCH_SECTIONS_DESCRIPTION = `Find course sections based on schedule criteria like day, time, instructor, or availability.
 Use this tool to find sections that fit specific schedule requirements.
 Set openOnly=false to include CLOSED sections.
-Examples: "Find open sections on Monday and Wednesday", "Evening classes after 5 PM", "Online sections for CS courses", "Include closed sections for 01:198:111", "Classes in LSH-B116"`,
-  inputSchema: z.object({
+Examples: "Find open sections on Monday and Wednesday", "Evening classes after 5 PM", "Online sections for CS courses", "Include closed sections for 01:198:111", "Classes in LSH-B116"`;
+
+export const searchSectionsInputSchema = z.object({
     courseString: z.string().optional()
       .describe('Limit to specific course (e.g., "01:198:111")'),
     
@@ -79,8 +78,9 @@ Examples: "Find open sections on Monday and Wednesday", "Evening classes after 5
         message: 'Invalid classroom format. Expected examples: LSH-B116, LSH 116, LSH116',
       });
     }
-  }),
-  outputSchema: z.object({
+  });
+
+export const searchSectionsOutputSchema = z.object({
     sections: z.array(z.object({
       indexNumber: z.string(),
       sectionNumber: z.string(),
@@ -106,8 +106,19 @@ Examples: "Find open sections on Monday and Wednesday", "Evening classes after 5
     })),
     totalCount: z.number(),
     hasMore: z.boolean(),
-  }),
-  execute: async ({ context }) => {
+  });
+
+export type SearchSectionsInput = z.infer<typeof searchSectionsInputSchema>;
+export type SearchSectionsOutput = z.infer<typeof searchSectionsOutputSchema>;
+
+export async function runSearchSections(
+  context: SearchSectionsInput,
+  deps: {
+    supabaseClient?: typeof defaultSupabase;
+    now?: () => Date;
+  } = {},
+): Promise<SearchSectionsOutput> {
+  const supabase = deps.supabaseClient ?? defaultSupabase;
     const {
       courseString,
       subject,
@@ -129,7 +140,7 @@ Examples: "Find open sections on Monday and Wednesday", "Evening classes after 5
     } = context;
 
     // Auto-detect term if not provided
-    const defaultTerm = getDefaultTerm();
+    const defaultTerm = getDefaultTerm(deps.now?.());
     const year = inputYear ?? defaultTerm.year;
     const term = inputTerm ?? defaultTerm.term;
 
@@ -382,5 +393,12 @@ Examples: "Find open sections on Monday and Wednesday", "Evening classes after 5
       }
       throw new Error(`Failed to search sections: Unknown error`);
     }
-  },
+}
+
+export const searchSections = createTool({
+  id: 'searchSections',
+  description: SEARCH_SECTIONS_DESCRIPTION,
+  inputSchema: searchSectionsInputSchema,
+  outputSchema: searchSectionsOutputSchema,
+  execute: async ({ context }) => runSearchSections(context),
 });

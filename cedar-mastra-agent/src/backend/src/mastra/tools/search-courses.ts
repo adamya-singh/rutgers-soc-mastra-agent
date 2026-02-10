@@ -1,6 +1,6 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { supabase } from '../../lib/supabase.js';
+import { supabase as defaultSupabase } from '../../lib/supabase.js';
 import { getDefaultTerm, getTermName } from '../../lib/utils.js';
 
 /**
@@ -16,12 +16,11 @@ import { getDefaultTerm, getTermName } from '../../lib/utils.js';
  * - Instructor name
  * - Open sections only
  */
-export const searchCourses = createTool({
-  id: 'searchCourses',
-  description: `Search for courses in the Rutgers Schedule of Classes. 
+export const SEARCH_COURSES_DESCRIPTION = `Search for courses in the Rutgers Schedule of Classes. 
 Use this tool to find courses by subject, title, level, credits, core codes, instructor, or availability.
-Examples: "Find CS courses", "Show 3-credit QQ courses", "Open sections for Math".`,
-  inputSchema: z.object({
+Examples: "Find CS courses", "Show 3-credit QQ courses", "Open sections for Math".`;
+
+export const searchCoursesInputSchema = z.object({
     query: z.string().optional()
       .describe('Full-text search on course title (e.g., "machine learning", "calculus")'),
     
@@ -69,8 +68,9 @@ Examples: "Find CS courses", "Show 3-credit QQ courses", "Open sections for Math
     
     offset: z.number().min(0).default(0)
       .describe('Pagination offset'),
-  }),
-  outputSchema: z.object({
+  });
+
+export const searchCoursesOutputSchema = z.object({
     courses: z.array(z.object({
       courseString: z.string(),
       title: z.string(),
@@ -97,9 +97,20 @@ Examples: "Find CS courses", "Show 3-credit QQ courses", "Open sections for Math
       termName: z.string(),
       campus: z.string(),
     }),
-  }),
-  execute: async ({ context }) => {
-    const {
+  });
+
+export type SearchCoursesInput = z.infer<typeof searchCoursesInputSchema>;
+export type SearchCoursesOutput = z.infer<typeof searchCoursesOutputSchema>;
+
+export async function runSearchCourses(
+  context: SearchCoursesInput,
+  deps: {
+    supabaseClient?: typeof defaultSupabase;
+    now?: () => Date;
+  } = {},
+): Promise<SearchCoursesOutput> {
+  const supabase = deps.supabaseClient ?? defaultSupabase;
+  const {
       query,
       subject,
       level,
@@ -119,7 +130,7 @@ Examples: "Find CS courses", "Show 3-credit QQ courses", "Open sections for Math
     } = context;
 
     // Auto-detect term if not provided
-    const defaultTerm = getDefaultTerm();
+    const defaultTerm = getDefaultTerm(deps.now?.());
     const year = inputYear ?? defaultTerm.year;
     const term = inputTerm ?? defaultTerm.term;
     const termName = getTermName(term);
@@ -331,5 +342,12 @@ Examples: "Find CS courses", "Show 3-credit QQ courses", "Open sections for Math
     } catch (error) {
       throw new Error(`Failed to search courses: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-  },
+}
+
+export const searchCourses = createTool({
+  id: 'searchCourses',
+  description: SEARCH_COURSES_DESCRIPTION,
+  inputSchema: searchCoursesInputSchema,
+  outputSchema: searchCoursesOutputSchema,
+  execute: async ({ context }) => runSearchCourses(context),
 });
