@@ -29,7 +29,7 @@ import { memory } from '../memory';
  */
 const vertex = createVertex({
   project: process.env.GOOGLE_VERTEX_PROJECT || 'concise-foundry-465822-d7',
-  location: process.env.GOOGLE_VERTEX_LOCATION || 'us-central1',
+  location: process.env.GOOGLE_VERTEX_LOCATION || 'global',
   googleAuthOptions: {
     keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
   },
@@ -151,7 +151,7 @@ export const socAgent = new Agent({
   // Anthropic (commented out - using Vertex AI instead):
   // model: 'anthropic/claude-sonnet-4-20250514',
   // Google Vertex AI (uses service account from GOOGLE_APPLICATION_CREDENTIALS):
-  model: vertex('gemini-2.5-flash'),
+  model: vertex('gemini-3-flash-preview'),
   tools: {
     searchCourses,
     getCourseDetails,
