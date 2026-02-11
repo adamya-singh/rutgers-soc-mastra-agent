@@ -42,19 +42,23 @@ python ingest_courses.py --init-schema
 > **Note:** For Supabase projects, the schema is typically managed via migrations.
 > Only use `--init-schema` for fresh local PostgreSQL instances.
 
-### 3. Import course data
+### 3. Import or update course data
+
+**To update the database** (clears all existing data for that semester, then re-imports):
+```bash
+python ingest_courses.py --year 2026 --term 1 --campus NB --clear
+```
+
+Other import options:
 ```bash
 # Winter term (smallest dataset, good for testing)
 python ingest_courses.py --year 2025 --term 0 --campus NB
 
-# Single campus
+# Single campus (incremental, does not clear)
 python ingest_courses.py --year 2025 --term 1 --campus NB
 
 # All campuses for a term
 python ingest_courses.py --year 2025 --term 1 --all-campuses
-
-# Fresh import (clears existing term data)
-python ingest_courses.py --year 2025 --term 1 --campus NB --clear
 ```
 
 ## Schema Overview
