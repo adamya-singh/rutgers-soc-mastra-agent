@@ -12,3 +12,6 @@ dist
 # Google Cloud service account keys (never commit)
 concise-foundry-*.json
 *-service-account*.json
+
+#database venv
+soc-database/soc-venv
