@@ -25,6 +25,7 @@ import {
 } from '@/components/search/SearchResults';
 import { ScheduleGrid } from '@/components/schedule/ScheduleGrid';
 import { EmbeddedCedarChat } from '@/cedar/components/chatComponents/EmbeddedCedarChat';
+import { DebuggerPanel } from '@/cedar/components/debugger';
 import {
   addSectionToSchedule,
   dispatchScheduleUpdated,
@@ -412,6 +413,16 @@ export default function HomePage() {
           </div>
         </div>
       </header>
+
+      <div className="fixed inset-0 z-50 pointer-events-none">
+        <DebuggerPanel
+          initialPosition={
+            typeof window !== 'undefined'
+              ? { x: window.innerWidth - 80, y: 120 }
+              : undefined
+          }
+        />
+      </div>
 
       <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
         <DialogContent className="border border-border bg-surface-2 text-foreground shadow-elev-2 sm:max-w-[420px]">

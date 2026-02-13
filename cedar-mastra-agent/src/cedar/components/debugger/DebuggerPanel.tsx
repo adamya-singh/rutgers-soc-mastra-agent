@@ -250,6 +250,7 @@ export const DebuggerPanel: React.FC<DebuggerPanelProps> = ({
 							zIndex: 9999,
 							width: 48,
 							height: 48,
+							pointerEvents: 'auto',
 						}}
 						className={cn('cursor-move select-none', className)}>
 						<div
@@ -289,6 +290,7 @@ export const DebuggerPanel: React.FC<DebuggerPanelProps> = ({
 							zIndex: 9999,
 							width: panelWidth,
 							height: panelHeight,
+							pointerEvents: 'auto',
 						}}
 						className={cn(
 							'bg-white dark:bg-gray-900 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700',
