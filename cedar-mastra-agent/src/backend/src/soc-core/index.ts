@@ -43,3 +43,9 @@ export {
   type BrowseMetadataInput,
   type BrowseMetadataOutput,
 } from './browse-metadata.js';
+export {
+  FIND_ROOM_AVAILABILITY_DESCRIPTION,
+  runFindRoomAvailability,
+  type FindRoomAvailabilityInput,
+  type FindRoomAvailabilityOutput,
+} from './find-room-availability.js';

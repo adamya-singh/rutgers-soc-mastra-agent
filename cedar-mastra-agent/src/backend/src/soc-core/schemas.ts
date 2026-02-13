@@ -11,3 +11,4 @@ export {
 } from './check-schedule-conflicts.js';
 export { getPrerequisitesInputSchema, getPrerequisitesOutputSchema } from './get-prerequisites.js';
 export { browseMetadataInputSchema, browseMetadataOutputSchema } from './browse-metadata.js';
+export { findRoomAvailabilityInputSchema, findRoomAvailabilityOutputSchema } from './find-room-availability.js';

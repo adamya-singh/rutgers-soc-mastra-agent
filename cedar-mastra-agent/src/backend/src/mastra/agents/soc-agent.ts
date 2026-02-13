@@ -9,6 +9,7 @@ import {
   getSectionByIndex,
   checkScheduleConflicts,
   getPrerequisites,
+  findRoomAvailability,
 } from '../tools/index.js';
 import {
   addNewTextLineTool,
@@ -95,7 +96,7 @@ and explore the Schedule of Classes (SOC) database.
 4. **Closed sections are allowed**: If the user asks to add a section, add it even if CLOSED (warn but do not block)
 5. **Explain prereqs**: When discussing prerequisites, clarify OR vs AND relationships
 6. **Build schedules**: When asked about multiple courses, proactively check for conflicts
-7. **Classroom queries**: If a user includes classroom-like tokens (e.g., "LSH-B116", "ABC 123", "ABC123"), prefer \`searchSections\` with classroom filters while preserving campus/year/term defaults
+7. **Classroom queries**: If user asks for empty rooms or room availability in a building, use \`findRoomAvailability\`. If user asks for classes in a specific room, use \`searchSections\` with classroom filters.
 
 ## Behavioral Guidelines
 
@@ -160,6 +161,7 @@ export const socAgent = new Agent({
     getSectionByIndex,
     checkScheduleConflicts,
     getPrerequisites,
+    findRoomAvailability,
     changeText: changeTextTool,
     addNewTextLine: addNewTextLineTool,
     addSectionToSchedule: addSectionToScheduleTool,

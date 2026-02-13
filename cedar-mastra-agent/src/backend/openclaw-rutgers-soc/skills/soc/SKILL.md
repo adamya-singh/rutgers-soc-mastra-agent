@@ -7,6 +7,7 @@ metadata: {"openclaw":{"emoji":"🎓","skillKey":"rutgers-soc","requires":{"conf
 # Rutgers SOC Skill
 
 Use this skill when the user asks Rutgers class-planning questions.
+For empty-room or room-availability requests, use the dedicated `soc-room-finder` skill.
 
 ## Tool map
 
@@ -16,6 +17,7 @@ Use this skill when the user asks Rutgers class-planning questions.
 - Lookup a specific index: `rutgers_soc_get_section_by_index`
 - Validate overlap across section indices: `rutgers_soc_check_schedule_conflicts`
 - Prerequisite and unlock chain: `rutgers_soc_get_prerequisites`
+- Room availability windows by building/day/time: `rutgers_soc_find_room_availability`
 - Terms/subjects/schools/core codes/instructors: `rutgers_soc_browse_metadata`
 
 ## Rules

@@ -4,6 +4,7 @@ import {
   BROWSE_METADATA_DESCRIPTION,
   CHECK_SCHEDULE_CONFLICTS_DESCRIPTION,
   GET_COURSE_DETAILS_DESCRIPTION,
+  FIND_ROOM_AVAILABILITY_DESCRIPTION,
   GET_PREREQUISITES_DESCRIPTION,
   GET_SECTION_BY_INDEX_DESCRIPTION,
   SEARCH_COURSES_DESCRIPTION,
@@ -14,6 +15,8 @@ import {
   runCheckScheduleConflicts,
   getCourseDetailsInputSchema,
   runGetCourseDetails,
+  findRoomAvailabilityInputSchema,
+  runFindRoomAvailability,
   getPrerequisitesInputSchema,
   runGetPrerequisites,
   getSectionByIndexInputSchema,
@@ -128,6 +131,9 @@ function normalizeInput<T extends Record<string, unknown>>(api: OpenClawPluginAp
   if (typeof next.limit === 'number' && maxLimit !== undefined) {
     next.limit = Math.min(next.limit, maxLimit);
   }
+  if (typeof next.limitRooms === 'number' && maxLimit !== undefined) {
+    next.limitRooms = Math.min(next.limitRooms, maxLimit);
+  }
 
   return next as T;
 }
@@ -202,6 +208,13 @@ export function createSocTools(api: OpenClawPluginApi): SocTool[] {
       description: GET_PREREQUISITES_DESCRIPTION,
       schema: getPrerequisitesInputSchema,
       run: runGetPrerequisites as (input: Record<string, unknown>, deps: { supabaseClient: SupabaseClient<Database> }) => Promise<unknown>,
+    }),
+    buildTool({
+      api,
+      name: 'rutgers_soc_find_room_availability',
+      description: FIND_ROOM_AVAILABILITY_DESCRIPTION,
+      schema: findRoomAvailabilityInputSchema,
+      run: runFindRoomAvailability as (input: Record<string, unknown>, deps: { supabaseClient: SupabaseClient<Database> }) => Promise<unknown>,
     }),
     buildTool({
       api,

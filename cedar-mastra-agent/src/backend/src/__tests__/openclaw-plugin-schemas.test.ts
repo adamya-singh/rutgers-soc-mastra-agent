@@ -36,6 +36,13 @@ describe('openclaw Rutgers SOC plugin parameter schemas', () => {
     assert.ok(searchTool, 'rutgers_soc_search_courses should be registered');
     assert.strictEqual(searchTool.parameters.type, 'object');
   });
+
+  it('registers rutgers_soc_find_room_availability with object schema', () => {
+    const tools = createSocTools(mockApi);
+    const roomTool = tools.find((tool) => tool.name === 'rutgers_soc_find_room_availability');
+    assert.ok(roomTool, 'rutgers_soc_find_room_availability should be registered');
+    assert.strictEqual(roomTool.parameters.type, 'object');
+  });
 });
 
 describe('plugin schema fallback guard', () => {

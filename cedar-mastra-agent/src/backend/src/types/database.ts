@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      building_aliases: {
+        Row: {
+          alias_display: string | null
+          alias_norm: string
+          building_code_norm: string
+          campus: string
+          created_at: string
+          id: number
+        }
+        Insert: {
+          alias_display?: string | null
+          alias_norm: string
+          building_code_norm: string
+          campus: string
+          created_at?: string
+          id?: number
+        }
+        Update: {
+          alias_display?: string | null
+          alias_norm?: string
+          building_code_norm?: string
+          campus?: string
+          created_at?: string
+          id?: number
+        }
+        Relationships: []
+      }
       course_campus_locations: {
         Row: {
           code: string

@@ -9,6 +9,7 @@ import {
   getSectionByIndex,
   checkScheduleConflicts,
   getPrerequisites,
+  findRoomAvailability,
 } from '../mastra/tools/index.js';
 
 /**
@@ -214,6 +215,38 @@ describe('Tools Configuration', () => {
       // Should accept valid courseString
       const valid = schema.safeParse({ courseString: '01:198:211' });
       assert.ok(valid.success);
+    });
+  });
+
+  describe('findRoomAvailability', () => {
+    it('has required properties', () => {
+      assert.strictEqual(findRoomAvailability.id, 'findRoomAvailability');
+      assert.ok(findRoomAvailability.description);
+      assert.ok(findRoomAvailability.inputSchema);
+      assert.ok(findRoomAvailability.outputSchema);
+      assert.ok(typeof findRoomAvailability.execute === 'function');
+    });
+
+    it('validates input defaults and time format', () => {
+      const schema = findRoomAvailability.inputSchema;
+
+      const minimal = schema.safeParse({ buildingQuery: 'Tillett Hall' });
+      assert.ok(minimal.success);
+
+      const valid = schema.safeParse({
+        buildingQuery: 'TIL',
+        day: 'T',
+        startTime: '1700',
+        endTime: '2200',
+        minFreeMinutes: 60,
+      });
+      assert.ok(valid.success);
+
+      const invalidTime = schema.safeParse({
+        buildingQuery: 'TIL',
+        startTime: '5pm',
+      });
+      assert.ok(!invalidTime.success);
     });
   });
 });
