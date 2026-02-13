@@ -164,7 +164,7 @@ SQL_TEMPLATES = {
             open_status_text = EXCLUDED.open_status_text,
             session_dates = EXCLUDED.session_dates,
             updated_at = NOW()
-        RETURNING id, index_number
+        RETURNING id, course_id, index_number
     """,
     "section_instructors": """
         INSERT INTO section_instructors (section_id, instructor_id)
@@ -226,6 +226,7 @@ class BulkInserter:
         self.buffer_size = buffer_size
         self.buffers: Dict[str, List[tuple]] = defaultdict(list)
         self.stats: Dict[str, int] = defaultdict(int)
+        self.returned_rows: Dict[str, List[tuple]] = defaultdict(list)
     
     def add(self, table_name: str, row: tuple) -> None:
         """Add a row to the buffer for the specified table."""
@@ -253,13 +254,21 @@ class BulkInserter:
         
         # Use fetch=True for tables that return IDs
         if "RETURNING" in sql:
-            results = execute_values(self.cursor, sql, rows, fetch=True)
+            results = execute_values(self.cursor, sql, rows, fetch=True, page_size=1000)
+            if results:
+                self.returned_rows[table_name].extend(results)
             self.buffers[table_name] = []
             return results
         else:
             execute_values(self.cursor, sql, rows, page_size=1000)
             self.buffers[table_name] = []
             return None
+
+    def pop_returned_rows(self, table_name: str) -> List[tuple]:
+        """Return and clear accumulated RETURNING rows for a table."""
+        rows = self.returned_rows.get(table_name, [])
+        self.returned_rows[table_name] = []
+        return rows
     
     def flush_all(self) -> None:
         """Flush all table buffers."""
@@ -400,6 +409,7 @@ def process_chunk(
     
     courses_processed = 0
     sections_processed = 0
+    integrity_stats: Dict[str, int] = {}
     
     try:
         # =======================================================================
@@ -467,12 +477,22 @@ def process_chunk(
             bulk.add("courses", course_row)
             course_data_map[course_string] = course
         
-        # Flush courses and collect IDs
-        results = bulk.flush_table("courses")
-        if results:
-            for row in results:
-                course_id_map[row[1]] = row[0]  # course_string -> id
-        
+        # Flush courses and collect IDs from all flushes (auto + explicit)
+        bulk.flush_table("courses")
+        for row in bulk.pop_returned_rows("courses"):
+            course_id, course_string = row
+            if course_string:
+                course_id_map[course_string] = course_id
+
+        expected_courses = len(seen_courses)
+        integrity_stats["integrity_courses_expected"] = expected_courses
+        integrity_stats["integrity_courses_mapped"] = len(course_id_map)
+        if len(course_id_map) != expected_courses:
+            raise RuntimeError(
+                f"Course ID mapping mismatch in worker {chunk_index}: "
+                f"expected {expected_courses}, mapped {len(course_id_map)}"
+            )
+
         courses_processed = len(course_id_map)
         
         # =======================================================================
@@ -528,6 +548,9 @@ def process_chunk(
                 index_number = section.get("index")
                 if not index_number:
                     continue
+                index_number = str(index_number).strip()
+                if not index_number:
+                    continue
                 
                 # Skip duplicates within this batch
                 section_key = (course_id, index_number)
@@ -568,25 +591,31 @@ def process_chunk(
                 bulk.add("sections", section_row)
                 section_data_map[(course_id, index_number)] = section
         
-        # Flush sections and collect IDs
-        results = bulk.flush_table("sections")
-        if results:
-            # Results contain (section_id, index_number), but we need course_id too
-            # We need to match by index_number within the current batch
-            # Since we process one chunk at a time, we can use a reverse lookup
-            for row in results:
-                section_id, index_number = row
-                # Find the course_id for this index_number
-                for (course_id, idx), section in section_data_map.items():
-                    if idx == index_number:
-                        section_id_map[(course_id, index_number)] = section_id
-                        break
-        
+        # Flush sections and collect IDs from all flushes (auto + explicit)
+        bulk.flush_table("sections")
+        for row in bulk.pop_returned_rows("sections"):
+            section_id, course_id, index_number = row
+            if course_id is None or index_number is None:
+                continue
+            section_id_map[(int(course_id), str(index_number))] = section_id
+
+        expected_sections = len(seen_sections)
+        integrity_stats["integrity_sections_expected"] = expected_sections
+        integrity_stats["integrity_sections_mapped"] = len(section_id_map)
+        if len(section_id_map) != expected_sections:
+            raise RuntimeError(
+                f"Section ID mapping mismatch in worker {chunk_index}: "
+                f"expected {expected_sections}, mapped {len(section_id_map)}"
+            )
+
         sections_processed = len(section_id_map)
         
         # =======================================================================
         # PHASE 3: Insert all section child data
         # =======================================================================
+        source_sections_with_meetings = 0
+        source_meeting_rows = 0
+
         for (course_id, index_number), section_id in section_id_map.items():
             section = section_data_map.get((course_id, index_number), {})
             
@@ -646,7 +675,12 @@ def process_chunk(
                 ))
             
             # Meeting times
-            for mt in section.get("meetingTimes", []):
+            meeting_times = section.get("meetingTimes", []) or []
+            if meeting_times:
+                source_sections_with_meetings += 1
+            source_meeting_rows += len(meeting_times)
+
+            for mt in meeting_times:
                 bulk.add("meeting_times", (
                     section_id,
                     mt.get("meetingDay"),
@@ -667,6 +701,18 @@ def process_chunk(
         
         # Flush all remaining buffers
         bulk.flush_all()
+
+        inserted_meeting_rows = bulk.get_stats().get("meeting_times", 0)
+        integrity_stats["integrity_source_sections_with_meetings"] = source_sections_with_meetings
+        integrity_stats["integrity_source_meeting_rows"] = source_meeting_rows
+        integrity_stats["integrity_inserted_meeting_rows"] = inserted_meeting_rows
+
+        # If source chunk has meeting times, ingestion must persist all of them.
+        if source_meeting_rows > 0 and inserted_meeting_rows != source_meeting_rows:
+            raise RuntimeError(
+                f"Meeting-time row count mismatch in worker {chunk_index}: "
+                f"source {source_meeting_rows}, inserted {inserted_meeting_rows}"
+            )
         
         # Commit the transaction
         conn.commit()
@@ -678,7 +724,9 @@ def process_chunk(
         cursor.close()
         conn.close()
     
-    return courses_processed, sections_processed, bulk.get_stats()
+    insert_stats = bulk.get_stats()
+    insert_stats.update(integrity_stats)
+    return courses_processed, sections_processed, insert_stats
 
 
 # -----------------------------------------------------------------------------
