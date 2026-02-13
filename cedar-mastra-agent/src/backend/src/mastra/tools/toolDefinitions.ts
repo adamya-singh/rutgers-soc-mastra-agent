@@ -13,6 +13,7 @@ import {
   getSectionByIndex,
   checkScheduleConflicts,
   getPrerequisites,
+  findRoomAvailability,
 } from './index.js';
 import { mastraDocsSearchTool } from './mastraDocsSearchTool.js';
 
@@ -210,6 +211,7 @@ export const TOOL_REGISTRY = {
     getSectionByIndex,
     checkScheduleConflicts,
     getPrerequisites,
+    findRoomAvailability,
   },
   textManipulation: {
     changeTextTool,
@@ -236,6 +238,7 @@ export const SOC_TOOLS = [
   getSectionByIndex,
   checkScheduleConflicts,
   getPrerequisites,
+  findRoomAvailability,
 ];
 
 export const ALL_TOOLS = [

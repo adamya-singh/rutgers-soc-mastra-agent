@@ -801,6 +801,63 @@ LIMIT $limit OFFSET $offset;
 
 ---
 
+### Room Availability Workflow (Built-in Mastra)
+
+**Purpose**: Return empty-room windows in a building/day/time range for quick study-space selection.
+
+**Primary Tool**: `findRoomAvailability`
+
+**When to use**:
+- "Find empty rooms in Tillett after 5 PM"
+- "What rooms are free now on Livingston?"
+- "Show rooms available for at least 1 hour on Tuesday"
+
+**Built-in agent rendering contract**:
+1. Call `findRoomAvailability`.
+2. Clear existing cards with `clearSearchResults`.
+3. Render one `type="misc"` card per room with:
+   - `title`: `<BUILDING> <ROOM>`
+   - `subtitle`: `Longest free: <minutes>m`
+   - `misc.fields`: day, window, duration, and fallback marker (if used)
+4. If `fallbackApplied=true`, explicitly tell user shorter windows were included.
+5. If building resolution is ambiguous, ask a concise follow-up instead of fabricating output.
+
+**Example flow**:
+- Input:
+```json
+{
+  "buildingQuery": "Tillett Hall",
+  "campus": "NB",
+  "day": "T",
+  "startTime": "1700",
+  "minFreeMinutes": 60
+}
+```
+- Output pattern:
+```json
+{
+  "searchContext": {
+    "resolvedBuildingCode": "TIL",
+    "day": "T",
+    "windowStartMilitary": "1700",
+    "windowEndMilitary": "2200",
+    "minFreeMinutes": 60
+  },
+  "rooms": [
+    {
+      "room": "125",
+      "longestFreeMinutes": 300,
+      "freeWindows": [
+        { "startMilitary": "1700", "endMilitary": "2200", "durationMinutes": 300 }
+      ]
+    }
+  ],
+  "fallbackApplied": false
+}
+```
+
+---
+
 ### 4. getSectionByIndex
 
 **Purpose**: Direct lookup of a specific section by its registration index number.
