@@ -16,7 +16,16 @@ export const ChatBubbles: React.FC<ChatBubblesProps> = ({
 	const containerRef = useRef<HTMLDivElement>(null);
 	const isProcessing = useCedarStore((state) => state.isProcessing);
 	// Use useThreadMessages hook to get messages for current thread
-	const { messages } = useThreadMessages();
+	const { messages: rawMessages } = useThreadMessages();
+
+	// Filter out system and tool messages to keep the chat clean
+	const messages = rawMessages.filter(
+		(m) =>
+			(m.role as string) !== 'system' &&
+			(m.role as string) !== 'tool' &&
+			// Also filter out empty tool calls if any sneak through as 'assistant'
+			!(m.role === 'assistant' && !m.content && (m as any).toolCalls)
+	);
 
 	// Immediate scroll to bottom on initial render (before paint)
 	useLayoutEffect(() => {
@@ -82,9 +91,8 @@ export const ChatBubbles: React.FC<ChatBubblesProps> = ({
 								duration: 0.15,
 								ease: 'easeOut',
 							}}
-							className={`flex ${
-								message.role === 'user' ? 'justify-end' : 'justify-start'
-							} ${isConsecutiveMessage(index) ? 'mt-1' : 'mt-2'}`}>
+							className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'
+								} ${isConsecutiveMessage(index) ? 'mt-1' : 'mt-2'}`}>
 							<ChatRenderer message={message} />
 						</motion.div>
 					))}

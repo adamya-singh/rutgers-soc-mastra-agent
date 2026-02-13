@@ -57,28 +57,28 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[radial-gradient(circle_at_top,_#e5f1ff,_#f7f9fc_45%,_#ffffff)]">
+    <div className="min-h-screen w-full bg-background">
       <div className="mx-auto flex min-h-screen w-full max-w-5xl items-center px-6 py-16">
         <div className="w-full">
           <div className="mb-10 flex items-center justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Rutgers SOC</p>
-              <h1 className="mt-2 text-3xl font-semibold text-slate-900">Sign in to continue</h1>
-              <p className="mt-2 text-sm text-slate-600">
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Rutgers SOC</p>
+              <h1 className="mt-2 text-3xl font-semibold text-foreground">Sign in to continue</h1>
+              <p className="mt-2 text-sm text-muted-foreground">
                 Use your email and password to access saved schedules and preferences.
               </p>
             </div>
             <Link
               href="/"
-              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-900"
+              className="rounded-full border border-border bg-surface-1 px-4 py-2 text-sm font-medium text-foreground shadow-sm transition hover:border-border-subtle hover:bg-surface-2"
             >
               Back to home
             </Link>
           </div>
 
           <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="rounded-2xl border border-slate-200 bg-white/80 p-8 shadow-[0_25px_60px_-40px_rgba(15,23,42,0.35)] backdrop-blur">
-              <div className="flex rounded-full border border-slate-200 bg-slate-50 p-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+            <div className="rounded-2xl border border-border bg-surface-2/80 p-8 shadow-elev-1 backdrop-blur">
+              <div className="flex rounded-full border border-border bg-surface-1 p-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 <button
                   type="button"
                   onClick={() => {
@@ -86,7 +86,7 @@ export default function LoginPage() {
                     setError(null);
                     setSuccessMessage(null);
                   }}
-                  className={`flex-1 rounded-full px-3 py-2 transition ${mode === 'signin' ? 'bg-white text-slate-900 shadow-sm' : ''}`}
+                  className={`flex-1 rounded-full px-3 py-2 transition ${mode === 'signin' ? 'bg-surface-2 text-foreground shadow-sm' : ''}`}
                 >
                   Sign in
                 </button>
@@ -97,7 +97,7 @@ export default function LoginPage() {
                     setError(null);
                     setSuccessMessage(null);
                   }}
-                  className={`flex-1 rounded-full px-3 py-2 transition ${mode === 'signup' ? 'bg-white text-slate-900 shadow-sm' : ''}`}
+                  className={`flex-1 rounded-full px-3 py-2 transition ${mode === 'signup' ? 'bg-surface-2 text-foreground shadow-sm' : ''}`}
                 >
                   Sign up
                 </button>
@@ -105,7 +105,7 @@ export default function LoginPage() {
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
-                  <label className="text-sm font-medium text-slate-700" htmlFor="email">
+                  <label className="text-sm font-medium text-foreground" htmlFor="email">
                     Email
                   </label>
                   <input
@@ -115,13 +115,13 @@ export default function LoginPage() {
                     required
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
-                    className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                    className="mt-2 w-full rounded-xl border border-border bg-surface-1 px-4 py-3 text-sm text-foreground shadow-sm outline-none transition focus:border-action focus:ring-2 focus:ring-action/20"
                     placeholder="you@rutgers.edu"
                   />
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-slate-700" htmlFor="password">
+                  <label className="text-sm font-medium text-foreground" htmlFor="password">
                     Password
                   </label>
                   <input
@@ -131,19 +131,19 @@ export default function LoginPage() {
                     required
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                    className="mt-2 w-full rounded-xl border border-border bg-surface-1 px-4 py-3 text-sm text-foreground shadow-sm outline-none transition focus:border-action focus:ring-2 focus:ring-action/20"
                     placeholder="••••••••"
                   />
                 </div>
 
                 {successMessage && (
-                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                  <div className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">
                     {successMessage}
                   </div>
                 )}
 
                 {error && (
-                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                     {error}
                   </div>
                 )}
@@ -151,7 +151,7 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex w-full items-center justify-center rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
+                  className="flex w-full items-center justify-center rounded-full bg-action px-5 py-3 text-sm font-semibold text-action-foreground shadow-action-glow transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   {loading
                     ? mode === 'signup'
@@ -164,26 +164,26 @@ export default function LoginPage() {
               </form>
             </div>
 
-            <div className="rounded-2xl border border-slate-100 bg-white/70 p-8 shadow-sm">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Why sign in?</p>
-              <h2 className="mt-3 text-xl font-semibold text-slate-900">
+            <div className="rounded-2xl border border-border bg-surface-1/70 p-8 shadow-sm">
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Why sign in?</p>
+              <h2 className="mt-3 text-xl font-semibold text-foreground">
                 Keep your schedule synced
               </h2>
-              <p className="mt-3 text-sm text-slate-600">
+              <p className="mt-3 text-sm text-muted-foreground">
                 Save your course plans across devices, pick up where you left off, and keep your
                 schedule preferences aligned with Cedar.
               </p>
-              <div className="mt-6 space-y-3 text-sm text-slate-700">
+              <div className="mt-6 space-y-3 text-sm text-foreground/80">
                 <div className="flex items-start gap-3">
-                  <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-slate-500" />
+                  <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-action" />
                   <span>Store schedules and timetable metadata securely.</span>
                 </div>
                 <div className="flex items-start gap-3">
-                  <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-slate-500" />
+                  <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-action" />
                   <span>Unlock collaboration with advisors and peers.</span>
                 </div>
                 <div className="flex items-start gap-3">
-                  <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-slate-500" />
+                  <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-action" />
                   <span>Get smarter recommendations from Cedar.</span>
                 </div>
               </div>

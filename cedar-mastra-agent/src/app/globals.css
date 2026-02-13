@@ -44,6 +44,11 @@
   --color-surface-3: var(--surface-3);
   --color-border-subtle: var(--border-subtle);
   --color-accent-glow: var(--accent-glow);
+  --color-action: var(--action);
+  --color-action-foreground: var(--action-foreground);
+  --shadow-action-glow: var(--action-glow);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
   --shadow-elev-1: var(--elev-1);
   --shadow-elev-2: var(--elev-2);
   --shadow-glow: var(--glow);
@@ -92,6 +97,11 @@
   --sidebar-accent-foreground: #0b1220;
   --sidebar-border: #d6dde6;
   --sidebar-ring: #c23b3a;
+  --action: #4F46E5;
+  --action-foreground: #ffffff;
+  --action-glow: 0 0 0 1px rgba(79, 70, 229, 0.25), 0 0 20px rgba(79, 70, 229, 0.15);
+  --success: #10b981;
+  --warning: #f59e0b;
   --elev-1: 0 18px 40px rgba(10, 16, 28, 0.12);
   --elev-2: 0 24px 64px rgba(10, 16, 28, 0.18);
   --glow: 0 0 0 1px rgba(194, 59, 58, 0.22), 0 0 24px rgba(194, 59, 58, 0.18);
@@ -136,6 +146,11 @@
   --sidebar-accent-foreground: var(--foreground);
   --sidebar-border: #2f3a4a;
   --sidebar-ring: #c23b3a;
+  --action: #6366f1;
+  --action-foreground: #ffffff;
+  --action-glow: 0 0 0 1px rgba(99, 102, 241, 0.3), 0 0 20px rgba(99, 102, 241, 0.2);
+  --success: #34d399;
+  --warning: #fbbf24;
   --elev-1: 0 18px 50px rgba(7, 10, 16, 0.38);
   --elev-2: 0 24px 80px rgba(4, 8, 14, 0.48);
   --glow: 0 0 0 1px rgba(194, 59, 58, 0.22), 0 0 24px rgba(194, 59, 58, 0.18);

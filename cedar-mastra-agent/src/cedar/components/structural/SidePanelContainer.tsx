@@ -44,8 +44,12 @@ export const SidePanelContainer: React.FC<SidePanelContainerProps> = ({
 	const [isMobile, setIsMobile] = useState(false);
 
 	// Calculate max width
-	const calculatedMaxWidth =
-		maxWidth || (typeof window !== 'undefined' ? window.innerWidth * 0.6 : 800);
+	// Calculate max width - always constrained by viewport
+	const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+	// On mobile/tablet, allow taking up most of the screen (e.g. 85%)
+	// On desktop, stick to the provided maxWidth or default
+	const effectiveMaxWidth = maxWidth || (screenWidth * 0.6);
+	const calculatedMaxWidth = Math.min(effectiveMaxWidth, screenWidth * 0.85);
 
 	// Detect mobile viewport
 	useEffect(() => {

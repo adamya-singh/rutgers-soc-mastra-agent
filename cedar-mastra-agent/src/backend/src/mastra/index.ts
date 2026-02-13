@@ -15,10 +15,15 @@ import { storage } from './memory';
  * - API routes for the frontend to communicate with
  */
 
+import { ConsoleLogger } from '@mastra/core/logger';
+
 export const mastra = new Mastra({
   agents: { socAgent },
   workflows: { chatWorkflow },
   storage,
+  logger: new ConsoleLogger({
+    level: 'debug',
+  }),
   observability: {
     default: { enabled: true },
   },

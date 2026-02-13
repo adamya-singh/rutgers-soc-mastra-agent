@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "mastra dev",
+    "dev": "mastra dev --debug",
     "build": "mastra build",
     "start": "mastra start",
     "test": "node --import tsx --test src/__tests__/*.test.ts",

@@ -33,7 +33,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 		if (!processPrefix) return children;
 
 		if (typeof children === 'string') {
-			const parts = children.split(/(@@PREFIX@@.*?@@ENDPREFIX@@)/);
+			const parts = children.split(/(@@PREFIX@@.*?@@ENDPREFIX@@|\b\d{2}:\d{3}:\d{3}\b|\b\d{5}\b)/g);
 			return parts.map((part, index) => {
 				if (part.startsWith('@@PREFIX@@') && part.endsWith('@@ENDPREFIX@@')) {
 					const prefixText = part
@@ -42,6 +42,27 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 					return (
 						<span key={index} style={{ color: styling.accentColor }}>
 							{prefixText}
+						</span>
+					);
+				}
+				// Highlight Course Strings (e.g. 01:198:111)
+				if (/\b\d{2}:\d{3}:\d{3}\b/.test(part)) {
+					return (
+						<span
+							key={index}
+							className='font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-1 rounded mx-0.5'>
+							{part}
+						</span>
+					);
+				}
+				// Highlight Index Numbers (e.g. 09214) - ensure it's not part of a larger number/string
+				// The split regex \b boundaries help, but let's be careful
+				if (/^\d{5}$/.test(part)) {
+					return (
+						<span
+							key={index}
+							className='font-mono font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-1 rounded mx-0.5'>
+							{part}
 						</span>
 					);
 				}

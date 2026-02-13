@@ -42,7 +42,7 @@ export default function HomePage() {
   const [theme, setTheme] = React.useState<'light' | 'dark'>('dark');
 
   // Cedar state for the main text that can be changed by the agent
-  const [mainText, setMainText] = React.useState('tell Cedar to change me');
+  const [mainText, setMainText] = React.useState('');
 
   // Cedar state for dynamically added text lines
   const [textLines, setTextLines] = React.useState<string[]>([]);
@@ -452,8 +452,8 @@ export default function HomePage() {
                 <div className="min-h-[350px]">
                   <SearchResults results={searchResults} onAddSection={handleAddSection} />
                 </div>
-                <div className="h-[520px]">
-                  <EmbeddedCedarChat title="Cedarling Chat" />
+                <div className="h-[600px]">
+                  <EmbeddedCedarChat title="Course Assistant" />
                 </div>
               </div>
             </div>
