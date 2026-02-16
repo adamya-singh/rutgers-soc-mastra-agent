@@ -36,7 +36,7 @@ Backend env vars (Mastra service):
 
 Frontend env vars (Next.js app):
 
-- `NEXT_PUBLIC_MASTRA_URL` (points to Cloud Run backend URL)
+- `NEXT_PUBLIC_MASTRA_URL` (points to Cloud Run backend base URL)
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
@@ -161,6 +161,24 @@ Permission note:
   - `roles/iam.serviceAccountUser` on `rutgers-agent-mastra-backend@concise-foundry-465822-d7.iam.gserviceaccount.com`
 - Check active account with `gcloud auth list` and set it with `gcloud config set account YOUR_USER_EMAIL`.
 
+Public access note (important for orgs with domain restrictions):
+- If `gcloud run services add-iam-policy-binding ... --member=allUsers --role=roles/run.invoker` fails with `FAILED_PRECONDITION` and mentions permitted customers, your org likely enforces `constraints/iam.allowedPolicyMemberDomains`.
+- In that case, use Cloud Run's unauthenticated mode instead of an `allUsers` IAM binding:
+
+```bash
+gcloud run services update rutgers-agent-mastra-backend \
+  --region us-east4 \
+  --no-invoker-iam-check
+```
+
+- To inspect effective org policies:
+
+```bash
+gcloud resource-manager org-policies describe constraints/iam.allowedPolicyMemberDomains --effective --project=concise-foundry-465822-d7
+gcloud resource-manager org-policies describe constraints/iam.managed.allowedPolicyMembers --effective --project=concise-foundry-465822-d7
+gcloud resource-manager org-policies describe constraints/run.managed.requireInvokerIam --effective --project=concise-foundry-465822-d7
+```
+
 ---
 
 ## 8) Verify backend health
@@ -173,11 +191,12 @@ curl -i https://rutgers-agent-mastra-backend-496012954691.us-east4.run.app/chat
 
 If GET returns 404/405, that can still indicate service reachability.
 
-2. Functional POST test:
+2. Functional POST stream test:
 
 ```bash
-curl -X POST https://rutgers-agent-mastra-backend-496012954691.us-east4.run.app/chat/execute-function \
+curl -N -X POST https://rutgers-agent-mastra-backend-496012954691.us-east4.run.app/chat/stream \
   -H "Content-Type: application/json" \
+  -H "Accept: text/event-stream" \
   -d '{"prompt":"Hello","temperature":0.2,"maxTokens":64,"systemPrompt":"You are a helpful assistant."}'
 ```
 
