@@ -1,6 +1,11 @@
-# Deployment Plan: Vercel (Frontend) + GCP Cloud Run (Backend)
+# Deployment Plan: GCP Frontend + GCP Cloud Run Backend
 
-This is a step-by-step deployment plan tailored to this repo structure. Follow in order.
+This is a step-by-step deployment plan tailored to this repo structure.
+
+Architecture:
+- Frontend: Firebase App Hosting (Next.js app in `cedar-mastra-agent`)
+- Backend: Google Cloud Run (Mastra service in `cedar-mastra-agent/src/backend`)
+- Data/Auth: Supabase
 
 ---
 
@@ -8,58 +13,76 @@ This is a step-by-step deployment plan tailored to this repo structure. Follow i
 
 Pick names and reuse them throughout:
 
-- `GCP_PROJECT_ID`: Your Google Cloud project ID.
-- `GCP_REGION`: Choose a region (example: `us-central1`).
-- `SERVICE_NAME`: Example: `rutgers-soc-mastra-backend`.
-- `AR_REPO`: Artifact Registry repo name, example: `mastra-backend`.
-- `IMAGE_NAME`: Example: `mastra-backend`.
-- `VERCEL_PROJECT`: Your Vercel project name.
+- `GCP_PROJECT_ID`: `concise-foundry-465822-d7`.
+- `GCP_REGION`: `global` (Vertex model location for Gemini 3 models).
+- `CLOUD_RUN_REGION`: `us-east4` (must not be `global`).
+- `AR_LOCATION`: `us-east4`.
+- `SERVICE_NAME`: `rutgers-agent-mastra-backend`.
+- `SERVICE_ACCOUNT_NAME`: `rutgers-agent-mastra-backend`.
+- `AR_REPO`: `rutgers-agent-backend-ar`.
+- `IMAGE_NAME`: `rutgers-agent-mastra-backend-img`.
+- `FIREBASE_PROJECT_ID`: `concise-foundry-465822-d7` (or a Firebase-linked project you choose).
 
 ---
 
 ## 1) Confirm env vars used by the app
 
-Backend `.env` (from `README.md`):
+Backend env vars (Mastra service):
 
 - `GOOGLE_VERTEX_PROJECT`
 - `GOOGLE_VERTEX_LOCATION`
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 
-Frontend (from `src/app/layout.tsx`):
+Frontend env vars (Next.js app):
 
-- `NEXT_PUBLIC_MASTRA_URL` (points to the backend URL)
+- `NEXT_PUBLIC_MASTRA_URL` (points to Cloud Run backend URL)
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-Decision: We will set all backend vars as Cloud Run environment variables. For Vertex AI auth we will use a service account (recommended), not a JSON key file.
+Notes:
+- Frontend Supabase env vars are required by `src/lib/supabaseClient.ts`.
+- For Vertex auth on Cloud Run, use a service account (recommended), not a JSON key file.
 
 ---
 
 ## 2) Create GCP service account + permissions
 
-1. In GCP Console → IAM & Admin → Service Accounts → Create.
-2. Name it `mastra-backend-sa`.
+1. In GCP Console -> IAM & Admin -> Service Accounts -> Create.
+2. Name it `rutgers-agent-mastra-backend`.
 3. Grant roles:
    - `Vertex AI User`
    - `Service Account Token Creator` (needed for some Vertex auth flows)
 4. Note the service account email.
 
-We will attach this service account to the Cloud Run service.
+Attach this service account to the Cloud Run backend service.
 
 ---
 
-## 3) Create Artifact Registry repo
+## 3) Enable required GCP APIs
 
 ```bash
-gcloud services enable artifactregistry.googleapis.com run.googleapis.com cloudbuild.googleapis.com
-gcloud artifacts repositories create $AR_REPO \
+gcloud services enable \
+  artifactregistry.googleapis.com \
+  run.googleapis.com \
+  cloudbuild.googleapis.com \
+  firebase.googleapis.com
+```
+
+---
+
+## 4) Create Artifact Registry repo
+
+```bash
+gcloud artifacts repositories create rutgers-agent-backend-ar \
   --repository-format=docker \
-  --location=$GCP_REGION \
+  --location=us-east4 \
   --description="Mastra backend images"
 ```
 
 ---
 
-## 4) Add a Dockerfile for the backend
+## 5) Add a Dockerfile for the backend
 
 Create `cedar-mastra-agent/src/backend/Dockerfile` with this content:
 
@@ -79,7 +102,6 @@ COPY . .
 # Build Mastra
 RUN pnpm run build
 
-# Cloud Run listens on $PORT; Mastra should bind to it.
 ENV NODE_ENV=production
 ENV PORT=8080
 
@@ -89,115 +111,126 @@ CMD ["pnpm", "run", "start"]
 
 Add `cedar-mastra-agent/src/backend/.dockerignore`:
 
-```
+```text
 node_modules
 dist
 .env
 ```
 
 Notes:
-- The backend requires Node 22 (per `src/backend/package.json`).
-- If Mastra does not honor `PORT`, update the `CMD` to include a port flag after checking `mastra --help`.
+- Backend requires Node 22 (see `src/backend/package.json`).
+- If Mastra does not honor `PORT`, adjust `CMD` after checking `mastra --help`.
 
 ---
 
-## 5) Build and push the backend image
+## 6) Build and push backend image
 
-From the repo root:
+From repo root:
 
 ```bash
 cd cedar-mastra-agent/src/backend
-gcloud auth configure-docker $GCP_REGION-docker.pkg.dev
+gcloud auth configure-docker us-east4-docker.pkg.dev
 
-IMAGE_URI="$GCP_REGION-docker.pkg.dev/$GCP_PROJECT_ID/$AR_REPO/$IMAGE_NAME:$(date +%Y%m%d%H%M%S)"
+IMAGE_URI="us-east4-docker.pkg.dev/concise-foundry-465822-d7/rutgers-agent-backend-ar/rutgers-agent-mastra-backend-img:$(date +%Y%m%d%H%M%S)"
 docker build -t "$IMAGE_URI" .
 docker push "$IMAGE_URI"
 ```
 
 ---
 
-## 6) Deploy backend to Cloud Run
+## 7) Deploy backend to Cloud Run
 
 ```bash
-gcloud run deploy $SERVICE_NAME \
+gcloud run deploy rutgers-agent-mastra-backend \
   --image "$IMAGE_URI" \
-  --region $GCP_REGION \
+  --region us-east4 \
   --platform managed \
-  --allow-unauthenticated \
-  --service-account mastra-backend-sa@$GCP_PROJECT_ID.iam.gserviceaccount.com \
-  --set-env-vars "GOOGLE_VERTEX_PROJECT=$GCP_PROJECT_ID,GOOGLE_VERTEX_LOCATION=$GCP_REGION,SUPABASE_URL=YOUR_SUPABASE_URL,SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY"
+  --service-account rutgers-agent-mastra-backend@concise-foundry-465822-d7.iam.gserviceaccount.com \
+  --set-env-vars "GOOGLE_VERTEX_PROJECT=concise-foundry-465822-d7,GOOGLE_VERTEX_LOCATION=global,SUPABASE_URL=https://cokisotftjntuswdfuhc.supabase.co,SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNva2lzb3RmdGpudHVzd2RmdWhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwMjY4OTQsImV4cCI6MjA4MzYwMjg5NH0.BU9D9cMt_j2Gd5HYf8Xccd02cq5SGSJk-EBVJZIyBCU"
 ```
 
-After deploy, note the Cloud Run URL (we will use it for Vercel).
+Successful deployment reference:
+- Service: `rutgers-agent-mastra-backend`
+- Revision: `rutgers-agent-mastra-backend-00002-q95`
+- URL: `https://rutgers-agent-mastra-backend-496012954691.us-east4.run.app`
+
+Permission note:
+- Deploy permissions apply to the active `gcloud` account, not the runtime service account.
+- If you see `PERMISSION_DENIED: run.services.update`, switch account and grant IAM:
+  - `roles/run.admin` on project `concise-foundry-465822-d7`
+  - `roles/iam.serviceAccountUser` on `rutgers-agent-mastra-backend@concise-foundry-465822-d7.iam.gserviceaccount.com`
+- Check active account with `gcloud auth list` and set it with `gcloud config set account YOUR_USER_EMAIL`.
 
 ---
 
-## 7) Verify backend health locally
+## 8) Verify backend health
 
-1. Test the Cloud Run URL with a simple curl:
+1. Basic reachability check:
 
 ```bash
-curl -i https://YOUR_CLOUD_RUN_URL/chat
+curl -i https://rutgers-agent-mastra-backend-496012954691.us-east4.run.app/chat
 ```
 
-If your backend is configured only for POST endpoints, expect a 404/405 for GET. That still confirms the service is reachable.
+If GET returns 404/405, that can still indicate service reachability.
 
-2. For a real test, send a POST:
+2. Functional POST test:
 
 ```bash
-curl -X POST https://YOUR_CLOUD_RUN_URL/chat/execute-function \
+curl -X POST https://rutgers-agent-mastra-backend-496012954691.us-east4.run.app/chat/execute-function \
   -H "Content-Type: application/json" \
   -d '{"prompt":"Hello","temperature":0.2,"maxTokens":64,"systemPrompt":"You are a helpful assistant."}'
 ```
 
 ---
 
-## 8) Deploy frontend on Vercel
+## 9) Deploy frontend on Firebase App Hosting (GCP)
 
-1. In Vercel, create a new project and import the repo.
-2. Set the **Root Directory** to `cedar-mastra-agent`.
-3. Build settings:
-   - Framework: Next.js
-   - Build Command: `npm run build`
-   - Output: `.next`
-4. Environment variables:
-   - `NEXT_PUBLIC_MASTRA_URL=https://YOUR_CLOUD_RUN_URL`
-5. Deploy.
-
----
-
-## 9) Verify end-to-end
-
-1. Open the Vercel URL.
-2. Open the Cedar chat UI.
-3. Send a message and confirm you get a response.
-
-If you see network errors:
-- Ensure `NEXT_PUBLIC_MASTRA_URL` is correct.
-- Ensure Cloud Run allows unauthenticated requests (or add auth if you want it private).
-- Check CORS: if needed, allow your Vercel domain in the backend CORS config.
+1. In Firebase Console, create/select project `FIREBASE_PROJECT_ID`.
+2. Go to **App Hosting** and connect your GitHub repo.
+3. Set app root directory to `cedar-mastra-agent`.
+4. Set frontend environment variables:
+   - `NEXT_PUBLIC_MASTRA_URL=https://rutgers-agent-mastra-backend-496012954691.us-east4.run.app`
+   - `NEXT_PUBLIC_SUPABASE_URL=https://cokisotftjntuswdfuhc.supabase.co`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY=<same anon key used by backend>`
+5. Trigger deployment from the connected branch.
 
 ---
 
-## 10) Production hardening (recommended)
+## 10) Verify end-to-end
 
-- Lock down Cloud Run with IAM and require an API key or JWT.
-- Set up a custom domain for Cloud Run.
-- Add rate limiting at Cloud Run or via a proxy.
-- Store secrets in Secret Manager and reference them in Cloud Run env vars.
+1. Open the Firebase App Hosting URL.
+2. Open Cedar chat UI and send a message.
+3. Confirm response returns from backend.
+4. Validate login/schedule features (they rely on frontend Supabase env vars).
+
+If there are network errors:
+- Check `NEXT_PUBLIC_MASTRA_URL` value.
+- Confirm Cloud Run service is reachable.
+- If you add CORS restrictions later, include your App Hosting domain.
 
 ---
 
-## 11) Optional: automate builds with Cloud Build
+## 11) Production hardening (recommended)
 
-You can use a Cloud Build trigger on `main` to build and deploy the backend. This avoids local Docker builds.
+- Move sensitive values to Secret Manager and reference from Cloud Run.
+- Add Cloud Monitoring alerts for backend latency/error rate.
+- Configure Cloud Run min instances for reduced cold start.
+- Add backend auth (JWT/API key/IAM) before broad public traffic.
+- Configure custom domain + SSL for frontend App Hosting.
+
+---
+
+## 12) Optional CI/CD
+
+- Use Cloud Build trigger for backend image build/deploy on `main`.
+- Keep frontend auto-deploy via Firebase App Hosting GitHub integration.
 
 ---
 
 ## Quick checklist
 
-- [ ] Cloud Run service deployed and reachable
-- [ ] `NEXT_PUBLIC_MASTRA_URL` set on Vercel
-- [ ] Vertex + Supabase env vars set on Cloud Run
-- [ ] End-to-end chat works
-
+- [ ] Cloud Run backend deployed and reachable
+- [ ] Backend env vars set (`GOOGLE_VERTEX_*`, `SUPABASE_*`)
+- [ ] Firebase App Hosting connected to repo and deployed
+- [ ] Frontend env vars set (`NEXT_PUBLIC_MASTRA_URL`, `NEXT_PUBLIC_SUPABASE_*`)
+- [ ] End-to-end chat and auth paths work
