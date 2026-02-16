@@ -249,7 +249,7 @@ export async function runGetCourseDetails(
       const sectionIds = sections.map(s => s.id);
 
       // Get instructors for all sections
-      let instructorsBySectionId = new Map<number, string[]>();
+      const instructorsBySectionId = new Map<number, string[]>();
       if (sectionIds.length > 0) {
         const { data: sectionInstructors, error: instructorsError } = await supabase
           .from('section_instructors')
@@ -270,7 +270,7 @@ export async function runGetCourseDetails(
       }
 
       // Get meeting times for all sections
-      let meetingTimesBySectionId = new Map<number, typeof meetingTimesData>();
+      const meetingTimesBySectionId = new Map<number, typeof meetingTimesData>();
       let meetingTimesData: Array<{
         section_id: number;
         meeting_day: string | null;
@@ -302,7 +302,7 @@ export async function runGetCourseDetails(
       }
 
       // Get comments for all sections
-      let commentsBySectionId = new Map<number, string[]>();
+      const commentsBySectionId = new Map<number, string[]>();
       if (sectionIds.length > 0) {
         const { data: commentsData, error: commentsError } = await supabase
           .from('section_comments')

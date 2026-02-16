@@ -24,7 +24,7 @@ export const ChatBubbles: React.FC<ChatBubblesProps> = ({
 			(m.role as string) !== 'system' &&
 			(m.role as string) !== 'tool' &&
 			// Also filter out empty tool calls if any sneak through as 'assistant'
-			!(m.role === 'assistant' && !m.content && (m as any).toolCalls)
+			!(m.role === 'assistant' && !m.content && 'toolCalls' in m)
 	);
 
 	// Immediate scroll to bottom on initial render (before paint)

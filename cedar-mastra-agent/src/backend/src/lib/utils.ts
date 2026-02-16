@@ -13,7 +13,7 @@
  */
 export function getDefaultTerm(now: Date = new Date()): { year: number; term: string; termName: string } {
   const month = now.getMonth() + 1; // 1-12
-  let year = now.getFullYear();
+  const year = now.getFullYear();
   
   // Default to the term students are most likely REGISTERING for
   // (not the currently-active term)

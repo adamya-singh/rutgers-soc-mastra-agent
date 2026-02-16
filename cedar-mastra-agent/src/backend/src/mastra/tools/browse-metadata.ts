@@ -129,7 +129,7 @@ export async function runBrowseMetadata(
           }
 
           // Get course counts if campus is specified
-          let courseCountsMap = new Map<string, number>();
+          const courseCountsMap = new Map<string, number>();
           if (campus && subjects && subjects.length > 0) {
             const subjectCodes = subjects.map(s => s.code);
             
