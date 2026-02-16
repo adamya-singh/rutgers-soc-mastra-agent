@@ -1,0 +1,18 @@
+env:
+  - variable: NEXT_PUBLIC_MASTRA_URL
+    value: "https://rutgers-agent-mastra-backend-496012954691.us-east4.run.app"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_SUPABASE_URL
+    value: "https://cokisotftjntuswdfuhc.supabase.co"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_SUPABASE_ANON_KEY
+    value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNva2lzb3RmdGpudHVzd2RmdWhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwMjY4OTQsImV4cCI6MjA4MzYwMjg5NH0.BU9D9cMt_j2Gd5HYf8Xccd02cq5SGSJk-EBVJZIyBCU"
+    availability:
+      - BUILD
+      - RUNTIME
