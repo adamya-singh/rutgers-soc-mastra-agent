@@ -349,7 +349,7 @@ export default function HomePage() {
       campus: z.string().optional(),
     }),
     execute: async (args) => {
-      return applyAddSection(args);
+      applyAddSection(args);
     },
   });
 
@@ -361,13 +361,12 @@ export default function HomePage() {
     }),
     execute: async (args) => {
       const schedule = loadSchedule();
-      const { schedule: updated, removed } = removeSectionFromSchedule(
+      const { schedule: updated } = removeSectionFromSchedule(
         schedule,
         args.indexNumber,
       );
       saveSchedule(updated);
       dispatchScheduleUpdated();
-      return { removed, totalSections: updated.sections.length };
     },
   });
 
