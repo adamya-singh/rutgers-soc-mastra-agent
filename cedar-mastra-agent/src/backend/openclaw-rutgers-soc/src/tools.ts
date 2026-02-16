@@ -88,34 +88,15 @@ function getSupabaseClient(api: OpenClawPluginApi): SupabaseClient<Database> {
 }
 
 export function toParameters(api: OpenClawPluginApi, toolName: string, schema: z.ZodTypeAny): Record<string, unknown> {
-  try {
-    const jsonSchema = z.toJSONSchema(schema) as Record<string, unknown>;
-    if ('$schema' in jsonSchema) {
-      delete jsonSchema.$schema;
-    }
-
-    if (jsonSchema.type !== 'object') {
-      api.logger?.warn?.(
-        `[rutgers-soc] ${toolName} produced non-object parameters schema (type=${String(jsonSchema.type)}); falling back to permissive object schema`,
-      );
-      return {
-        type: 'object',
-        properties: {},
-        additionalProperties: true,
-      };
-    }
-
-    return jsonSchema;
-  } catch (error) {
-    api.logger?.warn?.(
-      `[rutgers-soc] ${toolName} failed to convert tool schema; falling back to permissive object schema: ${error instanceof Error ? error.message : String(error)}`,
-    );
-    return {
-      type: 'object',
-      properties: {},
-      additionalProperties: true,
-    };
-  }
+  void schema;
+  api.logger?.warn?.(
+    `[rutgers-soc] ${toolName} schema conversion is unavailable with current Zod version; using permissive object schema`,
+  );
+  return {
+    type: 'object',
+    properties: {},
+    additionalProperties: true,
+  };
 }
 
 function normalizeInput<T extends Record<string, unknown>>(api: OpenClawPluginApi, raw: T): T {
