@@ -33,6 +33,9 @@ Backend env vars (Mastra service):
 - `GOOGLE_VERTEX_LOCATION`
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
+- `BROWSERBASE_API_KEY`
+- `BROWSERBASE_PROJECT_ID`
+- `BROWSERBASE_API_BASE` (optional override, defaults to `https://www.browserbase.com/v1`)
 
 Frontend env vars (Next.js app):
 
@@ -249,7 +252,7 @@ If there are network errors:
 ## Quick checklist
 
 - [ ] Cloud Run backend deployed and reachable
-- [ ] Backend env vars set (`GOOGLE_VERTEX_*`, `SUPABASE_*`)
+- [ ] Backend env vars set (`GOOGLE_VERTEX_*`, `SUPABASE_*`, `BROWSERBASE_*`)
 - [ ] Firebase App Hosting connected to repo and deployed
 - [ ] Frontend env vars set (`NEXT_PUBLIC_MASTRA_URL`, `NEXT_PUBLIC_SUPABASE_*`)
 - [ ] End-to-end chat and auth paths work

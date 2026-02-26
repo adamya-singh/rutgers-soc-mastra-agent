@@ -3,6 +3,8 @@ import { IBM_Plex_Sans, Space_Grotesk, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { CedarCopilot, ProviderConfig } from 'cedar-os';
 import { messageRenderers } from '@/cedar/messageRenderers';
+import React from 'react';
+import { getClientIdentity } from '@/lib/clientIdentity';
 
 const spaceGrotesk = Space_Grotesk({
   variable: '--font-space-grotesk',
@@ -28,6 +30,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const [identity, setIdentity] = React.useState(() => getClientIdentity());
+
+  React.useEffect(() => {
+    setIdentity(getClientIdentity());
+  }, []);
+
   const llmProvider: ProviderConfig = {
     provider: 'mastra' as const,
     baseURL: process.env.NEXT_PUBLIC_MASTRA_URL || 'http://localhost:4111',
@@ -39,8 +47,8 @@ export default function RootLayout({
         className={`${spaceGrotesk.variable} ${plexSans.variable} ${jetbrainsMono.variable} antialiased`}
       >
         <CedarCopilot
-          userId={'Test User'}
-          threadId={'Test Thread'}
+          userId={identity.userId}
+          threadId={identity.threadId}
           llmProvider={llmProvider}
           messageRenderers={messageRenderers}
         >

@@ -1,0 +1,863 @@
+import {
+  BrowserSessionRepository,
+  createSupabaseBrowserSessionRepository,
+} from './sessionRepository.js';
+import {
+  BrowserSessionCloseReason,
+  BrowserSessionError,
+  BrowserSessionState,
+  BrowserTarget,
+} from './types.js';
+
+const BROWSERBASE_API_BASE = process.env.BROWSERBASE_API_BASE ?? 'https://api.browserbase.com/v1';
+const DEGREE_NAVIGATOR_URL = 'https://dn.rutgers.edu/';
+const BROWSER_REAPER_INTERVAL_MS = 10_000;
+const BROWSER_REAPER_IDLE_CUTOFF_MS = 60_000;
+
+let sessionRepository: BrowserSessionRepository = createSupabaseBrowserSessionRepository();
+
+type BrowserActionResult = {
+  success: boolean;
+  message: string;
+  data?: unknown;
+  needsConfirmation?: boolean;
+  confirmationRequiredFor?: string;
+};
+
+export interface ProviderTerminationResult {
+  terminated: boolean;
+  method: string;
+  terminationVerified: boolean;
+  providerStillRunning: boolean;
+  deleteStatus?: number;
+  terminateStatus?: number;
+  verifyStatus?: number;
+  verifyProviderStatus?: BrowserSessionState['status'];
+}
+
+export interface CloseSessionWithPolicyInput {
+  sessionId: string;
+  ownerId: string;
+  reason?: BrowserSessionCloseReason;
+  allowUntracked?: boolean;
+}
+
+export interface CloseSessionWithPolicyResult {
+  accepted: boolean;
+  terminated: boolean;
+  terminationMethod: string;
+  terminationVerified?: boolean;
+  providerStillRunning?: boolean;
+  session: BrowserSessionState | null;
+}
+
+export function setBrowserSessionRepository(repository: BrowserSessionRepository): void {
+  sessionRepository = repository;
+}
+
+export function resetBrowserSessionRepository(): void {
+  sessionRepository = createSupabaseBrowserSessionRepository();
+}
+
+interface StagehandPageLike {
+  goto?: (url: string, options?: { waitUntil?: string }) => Promise<void>;
+  title?: () => Promise<string>;
+  url?: () => string;
+}
+
+interface StagehandLike {
+  init?: () => Promise<void> | void;
+  close?: () => Promise<void> | void;
+  page?: StagehandPageLike;
+  observe?: (input?: unknown) => Promise<unknown>;
+  extract?: (input: unknown) => Promise<unknown>;
+  act?: (input: unknown) => Promise<unknown>;
+}
+
+interface BrowserbaseRawResponse {
+  ok: boolean;
+  status: number;
+  text: string;
+  data: unknown;
+}
+
+let reaperTimer: ReturnType<typeof setInterval> | null = null;
+
+function ensureBrowserbaseEnv(): { apiKey: string; projectId: string } {
+  const apiKey = process.env.BROWSERBASE_API_KEY;
+  const projectId = process.env.BROWSERBASE_PROJECT_ID;
+
+  if (!apiKey || !projectId) {
+    throw new BrowserSessionError(
+      'BROWSER_PROVIDER_ERROR',
+      'Browserbase credentials are missing. Set BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID.',
+    );
+  }
+
+  return { apiKey, projectId };
+}
+
+function mapProviderStatus(input: unknown): BrowserSessionState['status'] {
+  if (typeof input !== 'string') {
+    return 'awaiting_login';
+  }
+
+  const normalized = input.toLowerCase();
+
+  if (normalized.includes('running') || normalized.includes('active')) {
+    return 'ready';
+  }
+  if (normalized.includes('created') || normalized.includes('queued') || normalized.includes('starting')) {
+    return 'awaiting_login';
+  }
+  if (normalized.includes('complete') || normalized.includes('closed') || normalized.includes('ended')) {
+    return 'closed';
+  }
+
+  if (normalized.includes('error') || normalized.includes('failed')) {
+    return 'error';
+  }
+
+  return 'awaiting_login';
+}
+
+function asObject(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object') {
+    return {};
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function findString(obj: Record<string, unknown>, keys: string[]): string | null {
+  for (const key of keys) {
+    const direct = obj[key];
+    if (typeof direct === 'string' && direct.length > 0) {
+      return direct;
+    }
+
+    const nested = asObject(direct);
+    for (const nestedKey of ['id', 'url', 'liveViewUrl', 'debuggerFullscreenUrl']) {
+      const value = nested[nestedKey];
+      if (typeof value === 'string' && value.length > 0) {
+        return value;
+      }
+    }
+  }
+
+  return null;
+}
+
+async function browserbaseRawRequest(path: string, init: RequestInit): Promise<BrowserbaseRawResponse> {
+  const { apiKey } = ensureBrowserbaseEnv();
+
+  const response = await fetch(`${BROWSERBASE_API_BASE}${path}`, {
+    ...init,
+    headers: {
+      'x-bb-api-key': apiKey,
+      ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(init.headers ?? {}),
+    },
+  });
+
+  const text = await response.text();
+  let data: unknown = null;
+  if (text) {
+    try {
+      data = JSON.parse(text) as unknown;
+    } catch {
+      data = text;
+    }
+  }
+
+  return {
+    ok: response.ok,
+    status: response.status,
+    text,
+    data,
+  };
+}
+
+async function browserbaseRequest(path: string, init: RequestInit): Promise<unknown> {
+  const response = await browserbaseRawRequest(path, init);
+
+  if (!response.ok) {
+    throw new BrowserSessionError(
+      'BROWSER_PROVIDER_ERROR',
+      `Browserbase API error (${response.status}) from ${BROWSERBASE_API_BASE}: ${response.text || 'No body returned'}`,
+    );
+  }
+
+  return response.data;
+}
+
+function deriveLiveViewUrl(sessionId: string, responseData: unknown): string {
+  const payload = asObject(responseData);
+  const payloadData = asObject(payload.data);
+
+  const candidateContainers: Array<Record<string, unknown>> = [
+    payload,
+    payloadData,
+    asObject(payload.session),
+    asObject(payloadData.session),
+    asObject(payload.liveUrls),
+    asObject(payloadData.liveUrls),
+    asObject(payload.live_urls),
+    asObject(payloadData.live_urls),
+  ];
+
+  const extracted = candidateContainers
+    .map((container) =>
+      findString(container, [
+        'liveViewUrl',
+        'live_view_url',
+        'liveURL',
+        'liveUrl',
+        'viewUrl',
+        'debuggerFullscreenUrl',
+        'debugger_fullscreen_url',
+        'debuggerUrl',
+        'debugger_url',
+        'inspectorUrl',
+        'inspector_url',
+        'url',
+      ]),
+    )
+    .find((value): value is string => !!value && /^https?:\/\//i.test(value));
+
+  if (extracted) {
+    return extracted;
+  }
+
+  return `https://www.browserbase.com/sessions/${sessionId}`;
+}
+
+function isBareBrowserbaseSessionPage(url: string, sessionId: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const normalizedPath = parsed.pathname.replace(/\/+$/, '');
+    return (
+      parsed.hostname === 'www.browserbase.com' &&
+      normalizedPath === `/sessions/${sessionId}` &&
+      !parsed.search
+    );
+  } catch {
+    return false;
+  }
+}
+
+function extractDebugLiveViewUrl(responseData: unknown): string | null {
+  const payload = asObject(responseData);
+  const direct = findString(payload, ['debuggerFullscreenUrl', 'debugger_fullscreen_url']);
+  if (direct && /^https?:\/\//i.test(direct)) {
+    return direct;
+  }
+
+  const pages = Array.isArray(payload.pages) ? payload.pages : [];
+  for (const page of pages) {
+    const pageObject = asObject(page);
+    const pageUrl = findString(pageObject, ['debuggerFullscreenUrl', 'debugger_fullscreen_url']);
+    if (pageUrl && /^https?:\/\//i.test(pageUrl)) {
+      return pageUrl;
+    }
+  }
+
+  return null;
+}
+
+function isEmbeddableLiveViewUrl(url: string, sessionId: string): boolean {
+  return /^https?:\/\//i.test(url) && !isBareBrowserbaseSessionPage(url, sessionId);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function resolveEmbeddableLiveViewUrl(sessionId: string, createPayload: unknown): Promise<string> {
+  const initialLiveView = deriveLiveViewUrl(sessionId, createPayload);
+  if (isEmbeddableLiveViewUrl(initialLiveView, sessionId)) {
+    return initialLiveView;
+  }
+
+  const detailedSession = await browserbaseRequest(`/sessions/${sessionId}`, {
+    method: 'GET',
+  }).catch(() => null);
+
+  if (detailedSession) {
+    const detailedLiveView = deriveLiveViewUrl(sessionId, detailedSession);
+    if (isEmbeddableLiveViewUrl(detailedLiveView, sessionId)) {
+      return detailedLiveView;
+    }
+  }
+
+  const maxDebugAttempts = 6;
+  for (let attempt = 0; attempt < maxDebugAttempts; attempt += 1) {
+    const debugPayload = await browserbaseRequest(`/sessions/${sessionId}/debug`, {
+      method: 'GET',
+    }).catch(() => null);
+
+    if (debugPayload) {
+      const debugUrl = extractDebugLiveViewUrl(debugPayload);
+      if (debugUrl && isEmbeddableLiveViewUrl(debugUrl, sessionId)) {
+        return debugUrl;
+      }
+    }
+
+    if (attempt < maxDebugAttempts - 1) {
+      await sleep(500);
+    }
+  }
+
+  throw new BrowserSessionError(
+    'BROWSER_PROVIDER_ERROR',
+    `Created Browserbase session ${sessionId} but could not resolve an embeddable live view URL from /sessions/{id}/debug.`,
+  );
+}
+
+function validateTarget(target: BrowserTarget): BrowserTarget {
+  if (target !== 'degree_navigator') {
+    throw new BrowserSessionError('INVALID_BROWSER_TARGET', `Unsupported browser target: ${target}`);
+  }
+
+  return target;
+}
+
+function targetDefaultUrl(target: BrowserTarget): string {
+  switch (target) {
+    case 'degree_navigator':
+      return DEGREE_NAVIGATOR_URL;
+    default:
+      return DEGREE_NAVIGATOR_URL;
+  }
+}
+
+function isCloseRecoverableError(error: unknown): boolean {
+  if (!(error instanceof BrowserSessionError)) {
+    return false;
+  }
+
+  return (
+    error.code === 'SESSION_NOT_FOUND' ||
+    error.code === 'SESSION_EXPIRED' ||
+    error.code === 'SESSION_OWNERSHIP_MISMATCH'
+  );
+}
+
+const importModule = new Function('specifier', 'return import(specifier)') as (
+  specifier: string,
+) => Promise<unknown>;
+
+async function withStagehand<T>(
+  sessionId: string,
+  action: (stagehand: StagehandLike) => Promise<T>,
+): Promise<T> {
+  const { apiKey, projectId } = ensureBrowserbaseEnv();
+
+  let stagehand: StagehandLike | null = null;
+  try {
+    const stagehandModule = (await importModule('@browserbasehq/stagehand')) as Record<string, unknown>;
+    const Stagehand =
+      stagehandModule.Stagehand ??
+      (stagehandModule.default as { Stagehand?: unknown } | undefined)?.Stagehand ??
+      stagehandModule.default;
+
+    if (!Stagehand || typeof Stagehand !== 'function') {
+      throw new BrowserSessionError(
+        'BROWSER_PROVIDER_ERROR',
+        'Stagehand module loaded but Stagehand constructor was not found.',
+      );
+    }
+
+    const stagehandConfig: Record<string, unknown> = {
+      env: 'BROWSERBASE',
+      apiKey,
+      projectId,
+      browserbaseSessionID: sessionId,
+    };
+
+    if (process.env.OPENAI_API_KEY) {
+      stagehandConfig.modelName = 'gpt-4o-mini';
+      stagehandConfig.modelClientOptions = { apiKey: process.env.OPENAI_API_KEY };
+    }
+
+    stagehand = new (Stagehand as new (config: Record<string, unknown>) => StagehandLike)(stagehandConfig);
+    if (typeof stagehand.init === 'function') {
+      await stagehand.init();
+    }
+
+    return await action(stagehand);
+  } catch (error) {
+    if (error instanceof BrowserSessionError) {
+      throw error;
+    }
+
+    throw new BrowserSessionError(
+      'BROWSER_PROVIDER_ERROR',
+      `Stagehand execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    );
+  } finally {
+    if (stagehand && typeof stagehand.close === 'function') {
+      await stagehand.close().catch(() => undefined);
+    }
+  }
+}
+
+async function stagehandNavigate(sessionId: string, url: string): Promise<{ url: string; title?: string }> {
+  return withStagehand(sessionId, async (stagehand) => {
+    const page = stagehand.page;
+    if (!page || typeof page.goto !== 'function') {
+      throw new BrowserSessionError(
+        'BROWSER_PROVIDER_ERROR',
+        'Stagehand page.goto is unavailable for this session.',
+      );
+    }
+
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+
+    const title = typeof page.title === 'function' ? await page.title() : undefined;
+    return { url, title };
+  });
+}
+
+async function stagehandObserve(sessionId: string, instruction?: string): Promise<unknown> {
+  return withStagehand(sessionId, async (stagehand) => {
+    if (typeof stagehand.observe === 'function') {
+      return stagehand.observe(instruction ? { instruction } : undefined);
+    }
+
+    const page = stagehand.page;
+    if (!page) {
+      return { notice: 'Stagehand observe unavailable and no page object found.' };
+    }
+
+    const pageUrl = typeof page.url === 'function' ? page.url() : undefined;
+    const title = typeof page.title === 'function' ? await page.title() : undefined;
+
+    return {
+      url: pageUrl,
+      title,
+      notice: instruction
+        ? `Observe fallback executed. Instruction not interpreted directly: ${instruction}`
+        : 'Observe fallback executed.',
+    };
+  });
+}
+
+async function stagehandExtract(sessionId: string, instruction: string): Promise<unknown> {
+  return withStagehand(sessionId, async (stagehand) => {
+    if (typeof stagehand.extract === 'function') {
+      try {
+        return await stagehand.extract({ instruction });
+      } catch {
+        return stagehand.extract(instruction);
+      }
+    }
+
+    throw new BrowserSessionError(
+      'BROWSER_PROVIDER_ERROR',
+      'Stagehand extract capability is unavailable for this runtime.',
+    );
+  });
+}
+
+async function stagehandAct(sessionId: string, action: string): Promise<unknown> {
+  return withStagehand(sessionId, async (stagehand) => {
+    if (typeof stagehand.act === 'function') {
+      try {
+        return await stagehand.act({ action });
+      } catch {
+        return stagehand.act(action);
+      }
+    }
+
+    throw new BrowserSessionError(
+      'BROWSER_PROVIDER_ERROR',
+      'Stagehand act capability is unavailable for this runtime.',
+    );
+  });
+}
+
+export async function createSession(target: BrowserTarget, ownerId: string): Promise<BrowserSessionState> {
+  const resolvedTarget = validateTarget(target);
+  const { projectId } = ensureBrowserbaseEnv();
+
+  const providerData = await browserbaseRequest('/sessions', {
+    method: 'POST',
+    body: JSON.stringify({
+      projectId,
+    }),
+  });
+
+  const payload = asObject(providerData);
+  const sessionId =
+    findString(payload, ['id', 'sessionId', 'session_id']) ??
+    findString(asObject(payload.data), ['id', 'sessionId', 'session_id']);
+
+  if (!sessionId) {
+    throw new BrowserSessionError(
+      'BROWSER_PROVIDER_ERROR',
+      'Browserbase create session response did not include a session ID.',
+    );
+  }
+
+  const status = mapProviderStatus(payload.status ?? asObject(payload.data).status);
+  await stagehandNavigate(sessionId, targetDefaultUrl(resolvedTarget)).catch(() => undefined);
+  const liveViewUrl = await resolveEmbeddableLiveViewUrl(sessionId, payload);
+
+  const session = await sessionRepository.create({
+    provider: 'browserbase',
+    sessionId,
+    liveViewUrl,
+    target: resolvedTarget,
+    status,
+    ownerId,
+  });
+  return sessionRepository.touch(session.sessionId, ownerId, 'awaiting_login');
+}
+
+export async function terminateProviderSession(sessionId: string): Promise<ProviderTerminationResult> {
+  const deleteAttempt = await browserbaseRawRequest(`/sessions/${sessionId}`, {
+    method: 'DELETE',
+  });
+
+  if (deleteAttempt.ok) {
+    return {
+      terminated: true,
+      method: 'delete',
+      terminationVerified: true,
+      providerStillRunning: false,
+      deleteStatus: deleteAttempt.status,
+    };
+  }
+
+  const terminateAttempt = await browserbaseRawRequest(`/sessions/${sessionId}/terminate`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+
+  if (terminateAttempt.ok) {
+    return {
+      terminated: true,
+      method: 'terminate_post',
+      terminationVerified: true,
+      providerStillRunning: false,
+      deleteStatus: deleteAttempt.status,
+      terminateStatus: terminateAttempt.status,
+    };
+  }
+
+  const verifyAttempt = await browserbaseRawRequest(`/sessions/${sessionId}`, {
+    method: 'GET',
+  });
+
+  if (verifyAttempt.status === 404) {
+    return {
+      terminated: true,
+      method: 'verified_closed_not_found',
+      terminationVerified: true,
+      providerStillRunning: false,
+      deleteStatus: deleteAttempt.status,
+      terminateStatus: terminateAttempt.status,
+      verifyStatus: verifyAttempt.status,
+    };
+  }
+
+  if (verifyAttempt.ok) {
+    const payload = asObject(verifyAttempt.data);
+    const providerStatus = mapProviderStatus(payload.status ?? asObject(payload.data).status);
+    if (providerStatus === 'closed') {
+      return {
+        terminated: true,
+        method: 'verified_closed_status',
+        terminationVerified: true,
+        providerStillRunning: false,
+        deleteStatus: deleteAttempt.status,
+        terminateStatus: terminateAttempt.status,
+        verifyStatus: verifyAttempt.status,
+        verifyProviderStatus: providerStatus,
+      };
+    }
+
+    return {
+      terminated: false,
+      method: 'still_running',
+      terminationVerified: true,
+      providerStillRunning: true,
+      deleteStatus: deleteAttempt.status,
+      terminateStatus: terminateAttempt.status,
+      verifyStatus: verifyAttempt.status,
+      verifyProviderStatus: providerStatus,
+    };
+  }
+
+  return {
+    terminated: false,
+    method: 'unable_to_verify',
+    terminationVerified: false,
+    providerStillRunning: true,
+    deleteStatus: deleteAttempt.status,
+    terminateStatus: terminateAttempt.status,
+    verifyStatus: verifyAttempt.status,
+  };
+}
+
+export async function closeSessionWithPolicy(
+  input: CloseSessionWithPolicyInput,
+): Promise<CloseSessionWithPolicyResult> {
+  const allowUntracked = input.allowUntracked ?? false;
+
+  let trackedSession: BrowserSessionState | null = null;
+  try {
+    trackedSession = await sessionRepository.getOwned(input.sessionId, input.ownerId);
+  } catch (error) {
+    const code = error instanceof BrowserSessionError ? error.code : null;
+    const isStrictOwnershipError = code === 'SESSION_OWNERSHIP_MISMATCH' && !allowUntracked;
+    if (isStrictOwnershipError || !isCloseRecoverableError(error)) {
+      throw error;
+    }
+  }
+
+  try {
+    if (trackedSession) {
+      await sessionRepository.markClosing(input.sessionId, input.ownerId, input.reason);
+    }
+  } catch (error) {
+    if (error instanceof BrowserSessionError && error.code === 'SESSION_CLOSE_IN_PROGRESS') {
+      return {
+        accepted: true,
+        terminated: false,
+        terminationMethod: 'in_progress',
+        session: null,
+      };
+    }
+    throw error;
+  }
+
+  try {
+    const termination = await terminateProviderSession(input.sessionId);
+
+    let closedSession: BrowserSessionState | null = null;
+    if (trackedSession && termination.terminated) {
+      closedSession = await sessionRepository.markClosed(input.sessionId, {
+        reason: input.reason,
+        terminationMethod: termination.method,
+        terminationVerified: termination.terminationVerified,
+        providerStillRunning: termination.providerStillRunning,
+      });
+    } else if (trackedSession && !termination.terminated) {
+      closedSession = await sessionRepository.touch(input.sessionId, input.ownerId, trackedSession.status);
+    }
+
+    console.info('[browser] closeSessionWithPolicy', {
+      sessionId: input.sessionId,
+      ownerId: input.ownerId,
+      reason: input.reason ?? 'unspecified',
+      allowUntracked,
+      terminated: termination.terminated,
+      method: termination.method,
+      terminationVerified: termination.terminationVerified,
+      providerStillRunning: termination.providerStillRunning,
+      deleteStatus: termination.deleteStatus,
+      terminateStatus: termination.terminateStatus,
+      verifyStatus: termination.verifyStatus,
+      verifyProviderStatus: termination.verifyProviderStatus,
+      hadTrackedSession: !!trackedSession,
+    });
+
+    if (!trackedSession && termination.terminated) {
+      console.warn('[browser] provider session terminated without local tracking', {
+        sessionId: input.sessionId,
+        ownerId: input.ownerId,
+        reason: input.reason ?? 'unspecified',
+        method: termination.method,
+      });
+    }
+
+    return {
+      accepted: termination.terminated,
+      terminated: termination.terminated,
+      terminationMethod: termination.method,
+      terminationVerified: termination.terminationVerified,
+      providerStillRunning: termination.providerStillRunning,
+      session: closedSession,
+    };
+  } finally {
+    if (trackedSession) {
+      await sessionRepository.unmarkClosing(input.sessionId);
+    }
+  }
+}
+
+export async function closeSession(sessionId: string, ownerId: string): Promise<BrowserSessionState> {
+  const result = await closeSessionWithPolicy({
+    sessionId,
+    ownerId,
+    reason: 'manual_stop',
+    allowUntracked: false,
+  });
+
+  if (!result.terminated) {
+    throw new BrowserSessionError(
+      'BROWSER_PROVIDER_ERROR',
+      `Browser provider did not confirm termination for session ${sessionId}.`,
+    );
+  }
+
+  if (!result.session) {
+    throw new BrowserSessionError('SESSION_NOT_FOUND', `Session ${sessionId} was not found.`);
+  }
+
+  return result.session;
+}
+
+export async function getSession(sessionId: string, ownerId: string): Promise<BrowserSessionState> {
+  const current = await sessionRepository.getOwned(sessionId, ownerId);
+
+  const providerStatus = await browserbaseRequest(`/sessions/${sessionId}`, {
+    method: 'GET',
+  })
+    .then((result) => {
+      const payload = asObject(result);
+      return mapProviderStatus(payload.status ?? asObject(payload.data).status);
+    })
+    .catch(() => current.status);
+
+  if (providerStatus === 'closed') {
+    const closed: BrowserSessionState = {
+      ...current,
+      status: 'closed',
+      lastHeartbeatAt: new Date().toISOString(),
+    };
+    await sessionRepository.markClosed(sessionId, {
+      reason: 'manual_stop',
+      terminationMethod: 'provider_status_closed',
+      terminationVerified: true,
+      providerStillRunning: false,
+    });
+    return closed;
+  }
+
+  return sessionRepository.updateStatus(sessionId, ownerId, providerStatus);
+}
+
+export function touchSession(sessionId: string, ownerId: string): Promise<BrowserSessionState> {
+  return sessionRepository.touch(sessionId, ownerId);
+}
+
+export async function runBrowserSessionReaperTick(nowMs = Date.now()): Promise<number> {
+  const expiredSessions = await sessionRepository.listExpired(nowMs, BROWSER_REAPER_IDLE_CUTOFF_MS);
+
+  let closedCount = 0;
+  for (const session of expiredSessions) {
+    try {
+      const result = await closeSessionWithPolicy({
+        sessionId: session.sessionId,
+        ownerId: session.ownerId,
+        allowUntracked: true,
+        reason: 'reaper',
+      });
+
+      if (result.terminated) {
+        closedCount += 1;
+      }
+    } catch (error) {
+      console.warn('[browser] reaper close failed', {
+        sessionId: session.sessionId,
+        error: error instanceof Error ? error.message : error,
+      });
+    }
+  }
+
+  return closedCount;
+}
+
+export function startBrowserSessionReaper(): void {
+  if (reaperTimer) {
+    return;
+  }
+
+  reaperTimer = setInterval(() => {
+    runBrowserSessionReaperTick().catch((error) => {
+      console.warn('[browser] reaper tick failed', error);
+    });
+  }, BROWSER_REAPER_INTERVAL_MS);
+
+  if (typeof reaperTimer.unref === 'function') {
+    reaperTimer.unref();
+  }
+}
+
+export function stopBrowserSessionReaper(): void {
+  if (!reaperTimer) {
+    return;
+  }
+
+  clearInterval(reaperTimer);
+  reaperTimer = null;
+}
+
+export async function runNavigate(
+  sessionId: string,
+  ownerId: string,
+  url: string,
+): Promise<BrowserActionResult> {
+  await sessionRepository.getOwned(sessionId, ownerId);
+  const data = await stagehandNavigate(sessionId, url);
+  await sessionRepository.updateStatus(sessionId, ownerId, 'ready');
+
+  return {
+    success: true,
+    message: `Navigated to ${url}`,
+    data,
+  };
+}
+
+export async function runObserve(
+  sessionId: string,
+  ownerId: string,
+  instruction?: string,
+): Promise<BrowserActionResult> {
+  await sessionRepository.getOwned(sessionId, ownerId);
+  const data = await stagehandObserve(sessionId, instruction);
+  await sessionRepository.updateStatus(sessionId, ownerId, 'ready');
+
+  return {
+    success: true,
+    message: 'Observation completed.',
+    data,
+  };
+}
+
+export async function runExtract(
+  sessionId: string,
+  ownerId: string,
+  instruction: string,
+): Promise<BrowserActionResult> {
+  await sessionRepository.getOwned(sessionId, ownerId);
+  const data = await stagehandExtract(sessionId, instruction);
+  await sessionRepository.updateStatus(sessionId, ownerId, 'ready');
+
+  return {
+    success: true,
+    message: 'Extraction completed.',
+    data,
+  };
+}
+
+export async function runAct(
+  sessionId: string,
+  ownerId: string,
+  action: string,
+): Promise<BrowserActionResult> {
+  await sessionRepository.getOwned(sessionId, ownerId);
+  const data = await stagehandAct(sessionId, action);
+  await sessionRepository.updateStatus(sessionId, ownerId, 'ready');
+
+  return {
+    success: true,
+    message: `Action executed: ${action}`,
+    data,
+  };
+}

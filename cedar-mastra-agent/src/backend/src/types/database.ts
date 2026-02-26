@@ -41,6 +41,57 @@ export type Database = {
         }
         Relationships: []
       }
+      browser_sessions: {
+        Row: {
+          close_reason: string | null
+          closing_started_at: string | null
+          created_at: string
+          last_heartbeat_at: string
+          live_view_url: string
+          owner_id: string
+          provider: string
+          provider_still_running: boolean | null
+          session_id: string
+          status: string
+          target: string
+          termination_method: string | null
+          termination_verified: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          close_reason?: string | null
+          closing_started_at?: string | null
+          created_at?: string
+          last_heartbeat_at?: string
+          live_view_url: string
+          owner_id: string
+          provider: string
+          provider_still_running?: boolean | null
+          session_id: string
+          status: string
+          target: string
+          termination_method?: string | null
+          termination_verified?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          close_reason?: string | null
+          closing_started_at?: string | null
+          created_at?: string
+          last_heartbeat_at?: string
+          live_view_url?: string
+          owner_id?: string
+          provider?: string
+          provider_still_running?: boolean | null
+          session_id?: string
+          status?: string
+          target?: string
+          termination_method?: string | null
+          termination_verified?: boolean | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       course_campus_locations: {
         Row: {
           code: string

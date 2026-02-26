@@ -3,6 +3,7 @@ import { chatWorkflow } from './workflows/chatWorkflow';
 import { apiRoutes } from './apiRegistry';
 import { socAgent } from './agents/soc-agent';
 import { storage } from './memory';
+import { startBrowserSessionReaper, stopBrowserSessionReaper } from '../browser/browserService.js';
 
 /**
  * Main Mastra configuration
@@ -31,3 +32,19 @@ export const mastra = new Mastra({
     apiRoutes,
   },
 });
+
+startBrowserSessionReaper();
+
+let shutdownHookInstalled = false;
+if (!shutdownHookInstalled) {
+  shutdownHookInstalled = true;
+  process.once('SIGINT', () => {
+    stopBrowserSessionReaper();
+  });
+  process.once('SIGTERM', () => {
+    stopBrowserSessionReaper();
+  });
+  process.once('beforeExit', () => {
+    stopBrowserSessionReaper();
+  });
+}

@@ -14,6 +14,12 @@ import {
   checkScheduleConflicts,
   getPrerequisites,
   findRoomAvailability,
+  createBrowserSession,
+  closeBrowserSessionTool,
+  browserNavigate,
+  browserObserve,
+  browserExtract,
+  browserAct,
 } from './index.js';
 import { mastraDocsSearchTool } from './mastraDocsSearchTool.js';
 
@@ -101,6 +107,21 @@ const SearchResultItemSchema = z.object({
 
 export const SetSearchResultsSchema = z.object({
   results: z.array(SearchResultItemSchema),
+});
+
+const BrowserSessionSchema = z.object({
+  provider: z.literal('browserbase'),
+  sessionId: z.string().min(1),
+  liveViewUrl: z.string().url(),
+  target: z.enum(['degree_navigator']),
+  status: z.enum(['created', 'awaiting_login', 'ready', 'error', 'closed']),
+  ownerId: z.string().min(1),
+  createdAt: z.string().min(1),
+  lastHeartbeatAt: z.string().min(1),
+});
+
+export const SetBrowserSessionSchema = z.object({
+  session: BrowserSessionSchema.nullable(),
 });
 
 // Error response schema
@@ -196,6 +217,30 @@ export const appendSearchResultsTool = createMastraToolForStateSetter(
   },
 );
 
+export const setBrowserSessionTool = createMastraToolForStateSetter(
+  'browserSession',
+  'setBrowserSession',
+  SetBrowserSessionSchema,
+  {
+    description: 'Set the active browser session state used for embedded live view.',
+    toolId: 'setBrowserSession',
+    streamEventFn: streamJSONEvent,
+    errorSchema: ErrorResponseSchema,
+  },
+);
+
+export const clearBrowserSessionTool = createMastraToolForStateSetter(
+  'browserSession',
+  'clearBrowserSession',
+  z.object({}),
+  {
+    description: 'Clear the active browser session state.',
+    toolId: 'clearBrowserSession',
+    streamEventFn: streamJSONEvent,
+    errorSchema: ErrorResponseSchema,
+  },
+);
+
 export const requestAdditionalContextTool = createRequestAdditionalContextTool();
 
 /**
@@ -213,6 +258,14 @@ export const TOOL_REGISTRY = {
     getPrerequisites,
     findRoomAvailability,
   },
+  browser: {
+    createBrowserSession,
+    closeBrowserSessionTool,
+    browserNavigate,
+    browserObserve,
+    browserExtract,
+    browserAct,
+  },
   textManipulation: {
     changeTextTool,
     addNewTextLineTool,
@@ -223,6 +276,10 @@ export const TOOL_REGISTRY = {
     clearSearchResultsTool,
     setSearchResultsTool,
     appendSearchResultsTool,
+  },
+  browserState: {
+    setBrowserSessionTool,
+    clearBrowserSessionTool,
   },
   docs: {
     mastraDocsSearchTool,
@@ -239,6 +296,12 @@ export const SOC_TOOLS = [
   checkScheduleConflicts,
   getPrerequisites,
   findRoomAvailability,
+  createBrowserSession,
+  closeBrowserSessionTool,
+  browserNavigate,
+  browserObserve,
+  browserExtract,
+  browserAct,
 ];
 
 export const ALL_TOOLS = [
@@ -249,6 +312,8 @@ export const ALL_TOOLS = [
   clearSearchResultsTool,
   setSearchResultsTool,
   appendSearchResultsTool,
+  setBrowserSessionTool,
+  clearBrowserSessionTool,
   mastraDocsSearchTool,
   ...SOC_TOOLS,
 ];

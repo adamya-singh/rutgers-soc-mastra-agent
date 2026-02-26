@@ -10,7 +10,14 @@ import {
   checkScheduleConflicts,
   getPrerequisites,
   findRoomAvailability,
+  createBrowserSession,
+  closeBrowserSessionTool,
+  browserNavigate,
+  browserObserve,
+  browserExtract,
+  browserAct,
 } from '../mastra/tools/index.js';
+import { requiresConfirmation } from '../mastra/tools/browser/browser-act.js';
 
 /**
  * These tests verify the tool configurations and schemas are properly defined.
@@ -247,6 +254,41 @@ describe('Tools Configuration', () => {
         startTime: '5pm',
       });
       assert.ok(!invalidTime.success);
+    });
+  });
+
+  describe('browser tools', () => {
+    it('registers all browser tools with expected ids', () => {
+      assert.strictEqual(createBrowserSession.id, 'createBrowserSession');
+      assert.strictEqual(closeBrowserSessionTool.id, 'closeBrowserSession');
+      assert.strictEqual(browserNavigate.id, 'browserNavigate');
+      assert.strictEqual(browserObserve.id, 'browserObserve');
+      assert.strictEqual(browserExtract.id, 'browserExtract');
+      assert.strictEqual(browserAct.id, 'browserAct');
+    });
+
+    it('validates browser schemas', () => {
+      assert.ok(createBrowserSession.inputSchema.safeParse({}).success);
+      assert.ok(!closeBrowserSessionTool.inputSchema.safeParse({}).success);
+      assert.ok(browserNavigate.inputSchema.safeParse({
+        sessionId: 'abc',
+        url: 'https://dn.rutgers.edu/',
+      }).success);
+      assert.ok(!browserNavigate.inputSchema.safeParse({
+        sessionId: 'abc',
+        url: 'not-a-url',
+      }).success);
+      assert.ok(browserExtract.inputSchema.safeParse({
+        sessionId: 'abc',
+        instruction: 'Extract current major and completed requirements',
+      }).success);
+      assert.ok(browserObserve.inputSchema.safeParse({ sessionId: 'abc' }).success);
+    });
+
+    it('requires confirmation for sensitive actions', () => {
+      assert.ok(requiresConfirmation('submit final changes'));
+      assert.ok(requiresConfirmation('drop this course'));
+      assert.ok(!requiresConfirmation('scroll to requirement summary'));
     });
   });
 });

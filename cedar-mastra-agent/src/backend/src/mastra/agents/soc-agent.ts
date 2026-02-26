@@ -10,6 +10,12 @@ import {
   checkScheduleConflicts,
   getPrerequisites,
   findRoomAvailability,
+  createBrowserSession,
+  closeBrowserSessionTool,
+  browserNavigate,
+  browserObserve,
+  browserExtract,
+  browserAct,
 } from '../tools/index.js';
 import {
   addNewTextLineTool,
@@ -118,6 +124,14 @@ and explore the Schedule of Classes (SOC) database.
 16. **Room fallback transparency**: If \`fallbackApplied\` is true, explicitly state that shorter windows were included because few rooms met the minimum duration.
 17. **Don’t block closed adds**: Never refuse to add a section just because it is CLOSED; add it and clearly label it as CLOSED.
 
+## Degree Navigator Browser Automation
+
+1. **Use browser tools for audits**: For degree-progress and audit tasks, prefer browser tools tied to Degree Navigator.
+2. **Never handle credentials**: Never ask for, store, or echo Rutgers passwords. User logs in manually in the embedded browser.
+3. **Session ownership**: Only act on sessions from the current browserClientId context.
+4. **Sensitive actions need confirmation**: For submit/register/drop/confirm actions, require explicit user confirmation and pass a confirmation token before calling \`browserAct\`.
+5. **Observe before action**: Use \`browserObserve\` or \`browserExtract\` before complex actions.
+
 ## Response Format
 
 When listing courses:
@@ -165,6 +179,12 @@ export const socAgent = new Agent({
     checkScheduleConflicts,
     getPrerequisites,
     findRoomAvailability,
+    createBrowserSession,
+    closeBrowserSession: closeBrowserSessionTool,
+    browserNavigate,
+    browserObserve,
+    browserExtract,
+    browserAct,
     changeText: changeTextTool,
     addNewTextLine: addNewTextLineTool,
     addSectionToSchedule: addSectionToScheduleTool,
