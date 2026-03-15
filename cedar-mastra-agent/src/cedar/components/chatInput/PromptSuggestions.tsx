@@ -23,9 +23,8 @@ export const PromptSuggestions: React.FC<PromptSuggestionsProps> = ({
   onSelect,
   isVisible = true,
 }) => {
-  const [suggestions, setSuggestions] = useState<string[]>(() =>
-    pickRandomPrompts(prompts, count),
-  );
+  // Keep first render deterministic for SSR hydration.
+  const [suggestions, setSuggestions] = useState<string[]>(() => prompts.slice(0, count));
 
   useEffect(() => {
     if (isVisible) {

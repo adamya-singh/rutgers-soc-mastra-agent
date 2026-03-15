@@ -503,7 +503,17 @@ export async function createSession(target: BrowserTarget, ownerId: string): Pro
   }
 
   const status = mapProviderStatus(payload.status ?? asObject(payload.data).status);
-  await stagehandNavigate(sessionId, targetDefaultUrl(resolvedTarget)).catch(() => undefined);
+  try {
+    await stagehandNavigate(sessionId, targetDefaultUrl(resolvedTarget));
+  } catch (error) {
+    await terminateProviderSession(sessionId).catch(() => undefined);
+    throw new BrowserSessionError(
+      'BROWSER_PROVIDER_ERROR',
+      `Created Browserbase session ${sessionId}, but failed to open ${targetDefaultUrl(
+        resolvedTarget,
+      )}. ${error instanceof Error ? error.message : 'Unknown Stagehand error'}`,
+    );
+  }
   const liveViewUrl = await resolveEmbeddableLiveViewUrl(sessionId, payload);
 
   const session = await sessionRepository.create({
