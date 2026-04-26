@@ -13,6 +13,7 @@ const BROWSERBASE_API_BASE = process.env.BROWSERBASE_API_BASE ?? 'https://api.br
 const DEGREE_NAVIGATOR_URL = 'https://dn.rutgers.edu/';
 const BROWSER_REAPER_INTERVAL_MS = 10_000;
 const BROWSER_REAPER_IDLE_CUTOFF_MS = 60_000;
+const BROWSER_SESSION_TIMEOUT_SECONDS = 60 * 60;
 
 let sessionRepository: BrowserSessionRepository = createSupabaseBrowserSessionRepository();
 
@@ -29,8 +30,7 @@ export interface ProviderTerminationResult {
   method: string;
   terminationVerified: boolean;
   providerStillRunning: boolean;
-  deleteStatus?: number;
-  terminateStatus?: number;
+  releaseStatus?: number;
   verifyStatus?: number;
   verifyProviderStatus?: BrowserSessionState['status'];
 }
@@ -74,6 +74,23 @@ interface StagehandLike {
   act?: (input: unknown) => Promise<unknown>;
 }
 
+interface PlaywrightPageLike {
+  goto: (url: string, options?: { waitUntil?: string }) => Promise<unknown>;
+  title?: () => Promise<string>;
+}
+
+interface PlaywrightContextLike {
+  pages: () => PlaywrightPageLike[];
+  newPage: () => Promise<PlaywrightPageLike>;
+}
+
+interface PlaywrightBrowserLike {
+  contexts: () => PlaywrightContextLike[];
+  newContext: () => Promise<PlaywrightContextLike>;
+  disconnect?: () => void;
+  close: () => Promise<void>;
+}
+
 interface BrowserbaseRawResponse {
   ok: boolean;
   status: number;
@@ -107,10 +124,21 @@ function mapProviderStatus(input: unknown): BrowserSessionState['status'] {
   if (normalized.includes('running') || normalized.includes('active')) {
     return 'ready';
   }
-  if (normalized.includes('created') || normalized.includes('queued') || normalized.includes('starting')) {
+  if (
+    normalized.includes('created') ||
+    normalized.includes('pending') ||
+    normalized.includes('queued') ||
+    normalized.includes('starting')
+  ) {
     return 'awaiting_login';
   }
-  if (normalized.includes('complete') || normalized.includes('closed') || normalized.includes('ended')) {
+  if (
+    normalized.includes('complete') ||
+    normalized.includes('timed_out') ||
+    normalized.includes('timeout') ||
+    normalized.includes('closed') ||
+    normalized.includes('ended')
+  ) {
     return 'closed';
   }
 
@@ -119,6 +147,10 @@ function mapProviderStatus(input: unknown): BrowserSessionState['status'] {
   }
 
   return 'awaiting_login';
+}
+
+function isProviderTerminalStatus(status: BrowserSessionState['status']): boolean {
+  return status === 'closed' || status === 'error';
 }
 
 function asObject(value: unknown): Record<string, unknown> {
@@ -146,6 +178,20 @@ function findString(obj: Record<string, unknown>, keys: string[]): string | null
   }
 
   return null;
+}
+
+function getStagehandModelConfig(): { modelName: string; apiKey: string } {
+  const apiKey = process.env.STAGEHAND_MODEL_API_KEY ?? process.env.OPENAI_API_KEY;
+  const modelName = process.env.STAGEHAND_MODEL_NAME ?? 'gpt-4o-mini';
+
+  if (!apiKey) {
+    throw new BrowserSessionError(
+      'BROWSER_PROVIDER_ERROR',
+      'Stagehand model credentials are missing. Set STAGEHAND_MODEL_API_KEY or OPENAI_API_KEY before using browser observe/extract/act tools.',
+    );
+  }
+
+  return { modelName, apiKey };
 }
 
 async function browserbaseRawRequest(path: string, init: RequestInit): Promise<BrowserbaseRawResponse> {
@@ -265,6 +311,14 @@ function extractDebugLiveViewUrl(responseData: unknown): string | null {
   return null;
 }
 
+function extractConnectUrl(responseData: unknown): string | null {
+  const payload = asObject(responseData);
+  return (
+    findString(payload, ['connectUrl', 'connect_url']) ??
+    findString(asObject(payload.data), ['connectUrl', 'connect_url'])
+  );
+}
+
 function isEmbeddableLiveViewUrl(url: string, sessionId: string): boolean {
   return /^https?:\/\//i.test(url) && !isBareBrowserbaseSessionPage(url, sessionId);
 }
@@ -377,10 +431,9 @@ async function withStagehand<T>(
       browserbaseSessionID: sessionId,
     };
 
-    if (process.env.OPENAI_API_KEY) {
-      stagehandConfig.modelName = 'gpt-4o-mini';
-      stagehandConfig.modelClientOptions = { apiKey: process.env.OPENAI_API_KEY };
-    }
+    const modelConfig = getStagehandModelConfig();
+    stagehandConfig.modelName = modelConfig.modelName;
+    stagehandConfig.modelClientOptions = { apiKey: modelConfig.apiKey };
 
     stagehand = new (Stagehand as new (config: Record<string, unknown>) => StagehandLike)(stagehandConfig);
     if (typeof stagehand.init === 'function') {
@@ -419,6 +472,50 @@ async function stagehandNavigate(sessionId: string, url: string): Promise<{ url:
     const title = typeof page.title === 'function' ? await page.title() : undefined;
     return { url, title };
   });
+}
+
+async function playwrightNavigate(connectUrl: string, url: string): Promise<{ url: string; title?: string }> {
+  let browser: PlaywrightBrowserLike | null = null;
+
+  try {
+    const playwrightModule = (await importModule('playwright-core')) as {
+      chromium?: {
+        connectOverCDP?: (endpointURL: string) => Promise<PlaywrightBrowserLike>;
+      };
+    };
+    const chromium = playwrightModule.chromium;
+    if (!chromium || typeof chromium.connectOverCDP !== 'function') {
+      throw new BrowserSessionError(
+        'BROWSER_PROVIDER_ERROR',
+        'Playwright chromium.connectOverCDP is unavailable for Browserbase navigation.',
+      );
+    }
+
+    browser = await chromium.connectOverCDP(connectUrl);
+    const context = browser.contexts()[0] ?? (await browser.newContext());
+    const page = context.pages()[0] ?? (await context.newPage());
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+
+    const title = typeof page.title === 'function' ? await page.title() : undefined;
+    return { url, title };
+  } catch (error) {
+    if (error instanceof BrowserSessionError) {
+      throw error;
+    }
+
+    throw new BrowserSessionError(
+      'BROWSER_PROVIDER_ERROR',
+      `Playwright navigation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    );
+  } finally {
+    if (browser) {
+      if (typeof browser.disconnect === 'function') {
+        browser.disconnect();
+      } else {
+        await browser.close().catch(() => undefined);
+      }
+    }
+  }
 }
 
 async function stagehandObserve(sessionId: string, instruction?: string): Promise<unknown> {
@@ -487,6 +584,12 @@ export async function createSession(target: BrowserTarget, ownerId: string): Pro
     method: 'POST',
     body: JSON.stringify({
       projectId,
+      keepAlive: true,
+      timeout: BROWSER_SESSION_TIMEOUT_SECONDS,
+      userMetadata: {
+        target: resolvedTarget,
+        ownerId,
+      },
     }),
   });
 
@@ -503,58 +606,93 @@ export async function createSession(target: BrowserTarget, ownerId: string): Pro
   }
 
   const status = mapProviderStatus(payload.status ?? asObject(payload.data).status);
-  try {
-    await stagehandNavigate(sessionId, targetDefaultUrl(resolvedTarget));
-  } catch (error) {
-    await terminateProviderSession(sessionId).catch(() => undefined);
-    throw new BrowserSessionError(
-      'BROWSER_PROVIDER_ERROR',
-      `Created Browserbase session ${sessionId}, but failed to open ${targetDefaultUrl(
-        resolvedTarget,
-      )}. ${error instanceof Error ? error.message : 'Unknown Stagehand error'}`,
-    );
-  }
-  const liveViewUrl = await resolveEmbeddableLiveViewUrl(sessionId, payload);
-
-  const session = await sessionRepository.create({
+  let session = await sessionRepository.create({
     provider: 'browserbase',
     sessionId,
-    liveViewUrl,
+    liveViewUrl: deriveLiveViewUrl(sessionId, payload),
     target: resolvedTarget,
     status,
     ownerId,
   });
+
+  const connectUrl = extractConnectUrl(payload);
+  if (!connectUrl) {
+    const termination = await terminateProviderSession(sessionId).catch(() => null);
+    if (termination?.terminated) {
+      await sessionRepository.markClosed(sessionId, {
+        reason: 'manual_stop',
+        terminationMethod: termination.method,
+        terminationVerified: termination.terminationVerified,
+        providerStillRunning: termination.providerStillRunning,
+      });
+    }
+    console.warn('[browser] created session without connectUrl', {
+      sessionId,
+      ownerId,
+      termination,
+    });
+    throw new BrowserSessionError(
+      'BROWSER_PROVIDER_ERROR',
+      `Created Browserbase session ${sessionId}, but the create response did not include a connectUrl.`,
+    );
+  }
+
+  try {
+    await playwrightNavigate(connectUrl, targetDefaultUrl(resolvedTarget));
+    const liveViewUrl = await resolveEmbeddableLiveViewUrl(sessionId, payload);
+    session = await sessionRepository.create({
+      provider: 'browserbase',
+      sessionId,
+      liveViewUrl,
+      target: resolvedTarget,
+      status,
+      ownerId,
+    });
+  } catch (error) {
+    const termination = await terminateProviderSession(sessionId).catch((terminationError) => {
+      console.warn('[browser] failed to release session after launch error', {
+        sessionId,
+        ownerId,
+        error: terminationError instanceof Error ? terminationError.message : terminationError,
+      });
+      return null;
+    });
+    if (termination?.terminated) {
+      await sessionRepository.markClosed(sessionId, {
+        reason: 'manual_stop',
+        terminationMethod: termination.method,
+        terminationVerified: termination.terminationVerified,
+        providerStillRunning: termination.providerStillRunning,
+      });
+    }
+    throw new BrowserSessionError(
+      'BROWSER_PROVIDER_ERROR',
+      `Created Browserbase session ${sessionId}, but failed to open ${targetDefaultUrl(
+        resolvedTarget,
+      )}. ${error instanceof Error ? error.message : 'Unknown browser navigation error'}`,
+    );
+  }
+
   return sessionRepository.touch(session.sessionId, ownerId, 'awaiting_login');
 }
 
 export async function terminateProviderSession(sessionId: string): Promise<ProviderTerminationResult> {
-  const deleteAttempt = await browserbaseRawRequest(`/sessions/${sessionId}`, {
-    method: 'DELETE',
-  });
-
-  if (deleteAttempt.ok) {
-    return {
-      terminated: true,
-      method: 'delete',
-      terminationVerified: true,
-      providerStillRunning: false,
-      deleteStatus: deleteAttempt.status,
-    };
-  }
-
-  const terminateAttempt = await browserbaseRawRequest(`/sessions/${sessionId}/terminate`, {
+  const { projectId } = ensureBrowserbaseEnv();
+  const releaseAttempt = await browserbaseRawRequest(`/sessions/${sessionId}`, {
     method: 'POST',
-    body: JSON.stringify({}),
+    body: JSON.stringify({
+      projectId,
+      status: 'REQUEST_RELEASE',
+    }),
   });
 
-  if (terminateAttempt.ok) {
+  if (releaseAttempt.ok) {
     return {
       terminated: true,
-      method: 'terminate_post',
+      method: 'request_release',
       terminationVerified: true,
       providerStillRunning: false,
-      deleteStatus: deleteAttempt.status,
-      terminateStatus: terminateAttempt.status,
+      releaseStatus: releaseAttempt.status,
     };
   }
 
@@ -568,8 +706,7 @@ export async function terminateProviderSession(sessionId: string): Promise<Provi
       method: 'verified_closed_not_found',
       terminationVerified: true,
       providerStillRunning: false,
-      deleteStatus: deleteAttempt.status,
-      terminateStatus: terminateAttempt.status,
+      releaseStatus: releaseAttempt.status,
       verifyStatus: verifyAttempt.status,
     };
   }
@@ -577,14 +714,13 @@ export async function terminateProviderSession(sessionId: string): Promise<Provi
   if (verifyAttempt.ok) {
     const payload = asObject(verifyAttempt.data);
     const providerStatus = mapProviderStatus(payload.status ?? asObject(payload.data).status);
-    if (providerStatus === 'closed') {
+    if (isProviderTerminalStatus(providerStatus)) {
       return {
         terminated: true,
         method: 'verified_closed_status',
         terminationVerified: true,
         providerStillRunning: false,
-        deleteStatus: deleteAttempt.status,
-        terminateStatus: terminateAttempt.status,
+        releaseStatus: releaseAttempt.status,
         verifyStatus: verifyAttempt.status,
         verifyProviderStatus: providerStatus,
       };
@@ -595,8 +731,7 @@ export async function terminateProviderSession(sessionId: string): Promise<Provi
       method: 'still_running',
       terminationVerified: true,
       providerStillRunning: true,
-      deleteStatus: deleteAttempt.status,
-      terminateStatus: terminateAttempt.status,
+      releaseStatus: releaseAttempt.status,
       verifyStatus: verifyAttempt.status,
       verifyProviderStatus: providerStatus,
     };
@@ -607,8 +742,7 @@ export async function terminateProviderSession(sessionId: string): Promise<Provi
     method: 'unable_to_verify',
     terminationVerified: false,
     providerStillRunning: true,
-    deleteStatus: deleteAttempt.status,
-    terminateStatus: terminateAttempt.status,
+    releaseStatus: releaseAttempt.status,
     verifyStatus: verifyAttempt.status,
   };
 }
@@ -669,8 +803,7 @@ export async function closeSessionWithPolicy(
       method: termination.method,
       terminationVerified: termination.terminationVerified,
       providerStillRunning: termination.providerStillRunning,
-      deleteStatus: termination.deleteStatus,
-      terminateStatus: termination.terminateStatus,
+      releaseStatus: termination.releaseStatus,
       verifyStatus: termination.verifyStatus,
       verifyProviderStatus: termination.verifyProviderStatus,
       hadTrackedSession: !!trackedSession,

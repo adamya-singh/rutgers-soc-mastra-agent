@@ -123,8 +123,10 @@ describe('browser session API routes', () => {
       ownerId: 'owner_meta',
     });
 
+    const calls: Array<{ input: string; init?: RequestInit }> = [];
     try {
-      globalThis.fetch = (async () => {
+      globalThis.fetch = (async (input, init) => {
+        calls.push({ input: String(input), init });
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
       }) as typeof fetch;
 
@@ -155,9 +157,15 @@ describe('browser session API routes', () => {
 
       assert.strictEqual(body.accepted, true);
       assert.strictEqual(body.terminated, true);
-      assert.strictEqual(typeof body.terminationMethod, 'string');
+      assert.strictEqual(body.terminationMethod, 'request_release');
       assert.strictEqual(typeof body.terminationVerified, 'boolean');
       assert.strictEqual(typeof body.providerStillRunning, 'boolean');
+      assert.strictEqual(calls[0]?.input, 'https://api.browserbase.com/v1/sessions/session_meta_1');
+      assert.strictEqual(calls[0]?.init?.method, 'POST');
+      assert.deepStrictEqual(JSON.parse(String(calls[0]?.init?.body)), {
+        projectId: 'test_project_id',
+        status: 'REQUEST_RELEASE',
+      });
     } finally {
       resetBrowserSessionRepository();
       globalThis.fetch = originalFetch;

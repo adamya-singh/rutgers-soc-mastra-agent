@@ -169,7 +169,7 @@ export const socAgent = new Agent({
   // Anthropic (commented out - using Vertex AI instead):
   // model: 'anthropic/claude-sonnet-4-20250514',
   // Google Vertex AI (uses service account from GOOGLE_APPLICATION_CREDENTIALS):
-  model: vertex('gemini-3-flash-preview'),
+  model: vertex('gemini-3.1-pro-preview'),
   tools: {
     searchCourses,
     getCourseDetails,

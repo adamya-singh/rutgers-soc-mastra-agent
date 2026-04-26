@@ -531,6 +531,28 @@ export default function HomePage() {
   }, [browserSession, refreshSessionStatus]);
 
   React.useEffect(() => {
+    if (typeof window === 'undefined' || !browserSession) {
+      return;
+    }
+
+    const handleBrowserbaseMessage = (event: MessageEvent) => {
+      if (event.data !== 'browserbase-disconnected') {
+        return;
+      }
+
+      setBrowserSession(null);
+      setBrowserPaneStatus('idle');
+      setBrowserError('Browserbase live view disconnected. Launch a new session to continue.');
+      clearActiveBrowserSessionRecord();
+    };
+
+    window.addEventListener('message', handleBrowserbaseMessage);
+    return () => {
+      window.removeEventListener('message', handleBrowserbaseMessage);
+    };
+  }, [browserSession, clearActiveBrowserSessionRecord]);
+
+  React.useEffect(() => {
     if (typeof window === 'undefined') {
       return;
     }
