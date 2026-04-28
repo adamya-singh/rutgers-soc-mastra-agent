@@ -45,7 +45,7 @@ const Container3DButton: React.FC<Container3DButtonProps> = ({
 	};
 
 	return (
-		<button type='button'>
+		<button type='button' onClick={onClick}>
 			<Container3D
 				id={id}
 				color={color}
@@ -57,7 +57,6 @@ const Container3DButton: React.FC<Container3DButtonProps> = ({
 				motionProps={{
 					...defaultMotionProps,
 					...motionProps,
-					onClick,
 				}}>
 				<div
 					className={cn(

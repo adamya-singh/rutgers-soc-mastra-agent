@@ -17,7 +17,7 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tabs": "^1.1.13",
     "@supabase/supabase-js": "^2.49.1",
-    "@tiptap/react": "^3.4.2",
+    "@tiptap/react": "^2.26.1",
     "ai": "^5.0.44",
     "cedar-os": "^0.1.18",
     "class-variance-authority": "^0.7.1",
