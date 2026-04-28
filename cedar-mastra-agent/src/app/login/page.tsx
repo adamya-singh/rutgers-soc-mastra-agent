@@ -14,6 +14,15 @@ export default function LoginPage() {
   const [loading, setLoading] = React.useState(false);
   const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
 
+  // Pick up the user's chosen / system theme so login matches the rest of the app.
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = window.localStorage.getItem('theme');
+    const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+    const next = stored === 'light' || stored === 'dark' ? stored : prefersDark ? 'dark' : 'light';
+    document.documentElement.classList.toggle('dark', next === 'dark');
+  }, []);
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
@@ -57,139 +66,113 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-background">
-      <div className="mx-auto flex min-h-screen w-full max-w-5xl items-center px-6 py-16">
-        <div className="w-full">
-          <div className="mb-10 flex items-center justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Rutgers SOC</p>
-              <h1 className="mt-2 text-3xl font-semibold text-foreground">Sign in to continue</h1>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Use your email and password to access saved schedules and preferences.
-              </p>
-            </div>
-            <Link
-              href="/"
-              className="rounded-full border border-border bg-surface-1 px-4 py-2 text-sm font-medium text-foreground shadow-sm transition hover:border-border-subtle hover:bg-surface-2"
-            >
-              Back to home
-            </Link>
-          </div>
+    <div className="relative flex min-h-screen w-full items-center justify-center px-6 py-12">
+      <Link
+        href="/"
+        className="focus-ring absolute left-6 top-6 inline-flex items-center gap-1 rounded text-xs font-medium text-muted-foreground transition hover:text-foreground"
+      >
+        <span aria-hidden="true">←</span> Back
+      </Link>
 
-          <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="rounded-2xl border border-border bg-surface-2/80 p-8 shadow-elev-1 backdrop-blur">
-              <div className="flex rounded-full border border-border bg-surface-1 p-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('signin');
-                    setError(null);
-                    setSuccessMessage(null);
-                  }}
-                  className={`flex-1 rounded-full px-3 py-2 transition ${mode === 'signin' ? 'bg-surface-2 text-foreground shadow-sm' : ''}`}
-                >
-                  Sign in
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('signup');
-                    setError(null);
-                    setSuccessMessage(null);
-                  }}
-                  className={`flex-1 rounded-full px-3 py-2 transition ${mode === 'signup' ? 'bg-surface-2 text-foreground shadow-sm' : ''}`}
-                >
-                  Sign up
-                </button>
-              </div>
-
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                  <label className="text-sm font-medium text-foreground" htmlFor="email">
-                    Email
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    className="mt-2 w-full rounded-xl border border-border bg-surface-1 px-4 py-3 text-sm text-foreground shadow-sm outline-none transition focus:border-action focus:ring-2 focus:ring-action/20"
-                    placeholder="you@rutgers.edu"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-foreground" htmlFor="password">
-                    Password
-                  </label>
-                  <input
-                    id="password"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    className="mt-2 w-full rounded-xl border border-border bg-surface-1 px-4 py-3 text-sm text-foreground shadow-sm outline-none transition focus:border-action focus:ring-2 focus:ring-action/20"
-                    placeholder="••••••••"
-                  />
-                </div>
-
-                {successMessage && (
-                  <div className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">
-                    {successMessage}
-                  </div>
-                )}
-
-                {error && (
-                  <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                    {error}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex w-full items-center justify-center rounded-full bg-action px-5 py-3 text-sm font-semibold text-action-foreground shadow-action-glow transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  {loading
-                    ? mode === 'signup'
-                      ? 'Creating account...'
-                      : 'Signing in...'
-                    : mode === 'signup'
-                      ? 'Create account'
-                      : 'Sign in'}
-                </button>
-              </form>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-surface-1/70 p-8 shadow-sm">
-              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Why sign in?</p>
-              <h2 className="mt-3 text-xl font-semibold text-foreground">
-                Keep your schedule synced
-              </h2>
-              <p className="mt-3 text-sm text-muted-foreground">
-                Save your course plans across devices, pick up where you left off, and keep your
-                schedule preferences aligned with Cedar.
-              </p>
-              <div className="mt-6 space-y-3 text-sm text-foreground/80">
-                <div className="flex items-start gap-3">
-                  <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-action" />
-                  <span>Store schedules and timetable metadata securely.</span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-action" />
-                  <span>Unlock collaboration with advisors and peers.</span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-action" />
-                  <span>Get smarter recommendations from Cedar.</span>
-                </div>
-              </div>
-            </div>
-          </div>
+      <div className="w-full max-w-[400px]">
+        <div className="mb-7 flex items-center gap-2">
+          <span aria-hidden="true" className="h-2 w-2 rounded-sm bg-primary" />
+          <span className="text-sm font-semibold tracking-tight text-foreground">Rutgers SOC</span>
         </div>
+
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          {mode === 'signup' ? 'Create your account' : 'Sign in'}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {mode === 'signup'
+            ? 'Sign up to save schedules across devices.'
+            : 'Use your email and password to continue.'}
+        </p>
+
+        <div className="mt-6 inline-flex rounded border border-border bg-surface-2 p-0.5 text-xs">
+          <button
+            type="button"
+            onClick={() => {
+              setMode('signin');
+              setError(null);
+              setSuccessMessage(null);
+            }}
+            className={`focus-ring rounded px-3 py-1 transition ${mode === 'signin' ? 'bg-surface-1 text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            Sign in
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode('signup');
+              setError(null);
+              setSuccessMessage(null);
+            }}
+            className={`focus-ring rounded px-3 py-1 transition ${mode === 'signup' ? 'bg-surface-1 text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            Sign up
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground" htmlFor="email">
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className="focus-ring mt-1 w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-foreground outline-none transition focus:border-primary"
+              placeholder="you@rutgers.edu"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-muted-foreground" htmlFor="password">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+              required
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="focus-ring mt-1 w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-foreground outline-none transition focus:border-primary"
+              placeholder="••••••••"
+            />
+          </div>
+
+          {successMessage && (
+            <div className="rounded-md border border-success/30 bg-success/5 px-3 py-2 text-xs text-success">
+              {successMessage}
+            </div>
+          )}
+
+          {error && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="focus-ring flex w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading
+              ? mode === 'signup'
+                ? 'Creating account…'
+                : 'Signing in…'
+              : mode === 'signup'
+                ? 'Create account'
+                : 'Sign in'}
+          </button>
+        </form>
       </div>
     </div>
   );

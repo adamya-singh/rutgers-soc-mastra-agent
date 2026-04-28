@@ -3,7 +3,6 @@
 import React from 'react';
 import Link from 'next/link';
 import { z } from 'zod';
-import { AnimatePresence, motion } from 'motion/react';
 import {
   useRegisterState,
   useRegisterFrontendTool,
@@ -27,6 +26,7 @@ import {
 import { ScheduleGrid } from '@/components/schedule/ScheduleGrid';
 import { EmbeddedCedarChat } from '@/cedar/components/chatComponents/EmbeddedCedarChat';
 import { DebuggerPanel } from '@/cedar/components/debugger';
+import { MoonStar, Sun } from 'lucide-react';
 import {
   addSectionToSchedule,
   clearLocalSchedules,
@@ -140,9 +140,6 @@ export default function HomePage() {
   const [browserError, setBrowserError] = React.useState<string | null>(null);
   const [isStoppingSession, setIsStoppingSession] = React.useState(false);
   const [autoStopMessage, setAutoStopMessage] = React.useState<string | null>(null);
-  const [isDesktopLayout, setIsDesktopLayout] = React.useState(false);
-  const [isBrowserSectionInView, setIsBrowserSectionInView] = React.useState(false);
-
   const browserSectionRef = React.useRef<HTMLElement | null>(null);
   const hiddenTimeoutRef = React.useRef<number | null>(null);
   const idleTimeoutRef = React.useRef<number | null>(null);
@@ -164,44 +161,6 @@ export default function HomePage() {
     const identity = getClientIdentity();
     setBrowserClientId(identity.browserClientId);
   }, []);
-
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const mediaQuery = window.matchMedia('(min-width: 1280px)');
-    const updateDesktopLayout = () => setIsDesktopLayout(mediaQuery.matches);
-
-    updateDesktopLayout();
-    mediaQuery.addEventListener('change', updateDesktopLayout);
-
-    return () => {
-      mediaQuery.removeEventListener('change', updateDesktopLayout);
-    };
-  }, []);
-
-  React.useEffect(() => {
-    const sectionElement = browserSectionRef.current;
-    if (!sectionElement) {
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        setIsBrowserSectionInView(entry?.isIntersecting ?? false);
-      },
-      {
-        root: null,
-        threshold: 0.35,
-      },
-    );
-
-    observer.observe(sectionElement);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [browserSectionRef]);
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1162,48 +1121,46 @@ export default function HomePage() {
     },
   });
 
-  const shouldDockChatToBrowser = isBrowserSectionInView && isDesktopLayout;
-  const shouldRenderBrowserSectionChat = shouldDockChatToBrowser || (!isDesktopLayout && isBrowserSectionInView);
+  const hasResults = searchResults.length > 0;
 
   const renderContent = () => (
-    <div className="relative h-screen w-full overflow-hidden bg-background text-foreground">
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-        <div className="absolute -bottom-40 right-[-120px] h-[420px] w-[420px] rounded-full bg-[radial-gradient(circle_at_center,rgba(90,120,160,0.2),transparent_70%)] blur-3xl" />
-      </div>
+    <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
+      <header className="sticky top-0 z-30 border-b border-border bg-background">
+        <div className="mx-auto flex h-14 w-full max-w-[1400px] items-center justify-between px-4 sm:px-6">
+          <Link href="/" className="focus-ring -mx-1 inline-flex items-center gap-2 rounded px-1 py-1">
+            <span aria-hidden="true" className="h-2 w-2 rounded-sm bg-primary" />
+            <span className="text-sm font-semibold tracking-tight text-foreground">Rutgers SOC</span>
+          </Link>
 
-      <header className="pointer-events-none absolute left-0 right-0 top-0 z-20">
-        <div className="mx-6 mt-6 flex items-center justify-between rounded-xl border border-border bg-surface-1 px-5 py-3 shadow-elev-1">
-          <div className="flex items-center gap-6">
-            <div className="pointer-events-auto text-xs uppercase tracking-[0.28em] text-muted-foreground">
-              Rutgers SOC
-            </div>
-          </div>
-          <div className="pointer-events-auto">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+              aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+              className="focus-ring inline-flex h-8 w-8 items-center justify-center rounded text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <MoonStar className="h-4 w-4" />}
+            </button>
+            {userEmail ? (
               <button
                 type="button"
-                onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
-                className="rounded-full border border-border bg-surface-1 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground shadow-elev-1 transition hover:border-border-subtle hover:bg-surface-2"
+                onClick={() => setIsProfileOpen(true)}
+                className="focus-ring inline-flex h-8 items-center gap-2 rounded px-2 text-xs font-medium text-foreground transition hover:bg-surface-2"
               >
-                {theme === 'dark' ? 'Light' : 'Dark'}
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold uppercase text-primary">
+                  {(userEmail[0] ?? '?').toUpperCase()}
+                </span>
+                <span className="max-w-[160px] truncate text-muted-foreground">{userEmail}</span>
               </button>
-              {userEmail ? (
-                <button
-                  type="button"
-                  onClick={() => setIsProfileOpen(true)}
-                  className="rounded-full border border-border bg-surface-2/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground shadow-elev-1 transition hover:border-border-subtle hover:bg-surface-3"
-                >
-                  Profile
-                </button>
-              ) : (
-                <Link
-                  href="/login"
-                  className="rounded-full border border-border bg-surface-2/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground shadow-elev-1 transition hover:border-border-subtle hover:bg-surface-3"
-                >
-                  Sign in
-                </Link>
-              )}
-            </div>
+            ) : (
+              <Link
+                href="/login"
+                className="focus-ring inline-flex h-8 items-center rounded bg-primary px-3 text-xs font-medium text-primary-foreground transition hover:bg-primary/90"
+              >
+                Sign in
+              </Link>
+            )}
           </div>
         </div>
       </header>
@@ -1219,13 +1176,13 @@ export default function HomePage() {
       </div>
 
       <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
-        <DialogContent className="border border-border bg-surface-2 text-foreground shadow-elev-2 sm:max-w-[420px]">
+        <DialogContent className="border border-border bg-surface-1 text-foreground sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>Profile</DialogTitle>
             <DialogDescription>Signed in account</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="rounded-lg border border-border bg-surface-1 px-4 py-3 text-sm text-foreground/80">
+            <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-foreground">
               {userEmail ?? 'Unknown email'}
             </div>
             <button
@@ -1244,7 +1201,7 @@ export default function HomePage() {
                 setBrowserError(null);
                 setIsProfileOpen(false);
               }}
-              className="w-full rounded-lg border border-border bg-surface-1 px-4 py-2 text-sm font-semibold text-foreground shadow-elev-1 transition hover:border-border-subtle hover:bg-surface-2"
+              className="focus-ring w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm font-medium text-foreground transition hover:bg-surface-2"
             >
               Sign out
             </button>
@@ -1252,193 +1209,171 @@ export default function HomePage() {
         </DialogContent>
       </Dialog>
 
-      <div className="flex h-full flex-col pt-24">
-        <div className="flex-1 overflow-y-auto px-6 pb-10">
-          <div className="mx-auto max-w-[1600px] space-y-8">
-            <div className="grid w-full grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-              <div className="min-w-0">
-                <ScheduleGrid />
+      <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-4 sm:px-6 sm:py-6">
+        <section className="grid w-full grid-cols-1 items-stretch gap-4 sm:gap-6 lg:grid-cols-[minmax(320px,1fr)_minmax(0,1.8fr)] xl:grid-cols-[minmax(360px,1fr)_minmax(0,2fr)]">
+          <div className="flex min-w-0 flex-col gap-4 lg:h-full">
+            {hasResults && (
+              <div className="max-h-[360px] min-h-0 flex-shrink-0 lg:max-h-[42%]">
+                <SearchResults results={searchResults} onAddSection={handleAddSection} />
               </div>
+            )}
+            <div className="min-h-0 flex-1">
+              <div className="h-[min(640px,75vh)] lg:h-full">
+                <EmbeddedCedarChat title="Course Assistant" />
+              </div>
+            </div>
+          </div>
 
-              <div className="min-w-0 space-y-6">
-                <div className="min-h-[350px]">
-                  <SearchResults results={searchResults} onAddSection={handleAddSection} />
-                </div>
-                <div className="h-[600px]">
-                  <AnimatePresence initial={false} mode="wait">
-                    {!shouldRenderBrowserSectionChat ? (
-                      <motion.div
-                        key="top-chat"
-                        layoutId="course-assistant-chat-dock"
-                        className="h-full"
-                        initial={{ opacity: 0.85, y: 16 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0.65, y: -12 }}
-                        transition={{ duration: 0.24, ease: 'easeOut' }}
-                      >
-                        <EmbeddedCedarChat title="Course Assistant" />
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        key="top-chat-placeholder"
-                        className="flex h-full items-center justify-center rounded-xl border border-dashed border-border bg-surface-2/35 text-center text-sm text-muted-foreground"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                      >
-                        Chat is docked with the browser assistant while this section is in view.
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
+          <div className="min-w-0">
+            <ScheduleGrid />
+          </div>
+        </section>
+
+        {textLines.length > 0 && (
+          <div className="mt-6 rounded-md border border-border bg-surface-1 px-4 py-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Assistant Notes
+            </p>
+            <div className="mt-2 space-y-1 text-sm text-foreground/85">
+              {textLines.map((line, index) => (
+                <div key={`${line}-${index}`}>{line}</div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <section
+          id="degree-navigator"
+          ref={browserSectionRef}
+          className="mt-10 scroll-mt-20 border-t border-border pt-8"
+        >
+          <div className="mb-4 flex flex-col gap-1">
+            <h2 className="text-base font-semibold text-foreground">Degree Navigator</h2>
+            <p className="text-sm text-muted-foreground">
+              Launch a private browser session, sign in yourself, then let the assistant act inside it.
+            </p>
+          </div>
+
+          <div className="rounded-md border border-border bg-surface-1">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+              <div className="flex items-center gap-2">
+                <StatusDot status={browserPaneStatus} />
+                <span className="text-sm font-medium text-foreground">
+                  {getBrowserStatusLabel(browserPaneStatus)}
+                </span>
+                {browserSession && (
+                  <span className="ml-1 truncate text-xs text-muted-foreground">
+                    · {browserSession.sessionId.slice(0, 12)}…
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={launchDegreeNavigatorSession}
+                  disabled={browserPaneStatus === 'launching' || isStoppingSession}
+                  className="focus-ring inline-flex h-8 items-center rounded bg-primary px-3 text-xs font-medium text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
+                >
+                  {browserSession ? 'Reconnect' : 'Launch session'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => refreshSessionStatus()}
+                  disabled={!browserSession || browserPaneStatus === 'launching'}
+                  className="focus-ring inline-flex h-8 items-center rounded border border-border bg-surface-1 px-3 text-xs font-medium text-foreground transition hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Refresh
+                </button>
+                <button
+                  type="button"
+                  onClick={closeDegreeNavigatorSession}
+                  disabled={!browserSession || browserPaneStatus === 'launching' || isStoppingSession}
+                  className="focus-ring inline-flex h-8 items-center rounded border border-border bg-surface-1 px-3 text-xs font-medium text-destructive transition hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-40 disabled:text-muted-foreground"
+                >
+                  {isStoppingSession ? 'Stopping…' : 'Stop'}
+                </button>
               </div>
             </div>
 
-            {textLines.length > 0 && (
-              <div className="rounded-xl border border-border bg-surface-1/80 p-4 shadow-sm">
-                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Assistant Notes</p>
-                <div className="mt-2 space-y-1 text-sm text-foreground/85">
-                  {textLines.map((line, index) => (
-                    <div key={`${line}-${index}`}>{line}</div>
-                  ))}
-                </div>
+            {autoStopMessage && browserSession && (
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-warning/5 px-4 py-2 text-xs text-warning">
+                <span>{autoStopMessage}</span>
+                <button
+                  type="button"
+                  onClick={keepBrowserSessionAlive}
+                  className="focus-ring rounded px-2 py-1 text-xs font-medium underline-offset-2 hover:underline"
+                >
+                  Keep alive
+                </button>
               </div>
             )}
 
-            <section ref={browserSectionRef} className="space-y-4 pb-8">
-              <div className="rounded-2xl border border-border bg-surface-1/90 p-5 shadow-elev-1">
-                <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">Degree Navigator Browser Assistant</p>
-                <h2 className="mt-2 text-2xl font-semibold text-foreground">Student-controlled login, agent-assisted navigation</h2>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Start a browser session, sign in to Degree Navigator in the embedded view, then let the assistant observe and act within that same session.
+            {browserError && (
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-destructive/5 px-4 py-2 text-xs text-destructive">
+                <span>{browserError}</span>
+                {browserSession && (
+                  <button
+                    type="button"
+                    onClick={closeDegreeNavigatorSession}
+                    className="focus-ring rounded px-2 py-1 text-xs font-medium underline-offset-2 hover:underline"
+                  >
+                    Retry stop
+                  </button>
+                )}
+              </div>
+            )}
+
+            {!browserSession ? (
+              <div className="flex h-[min(620px,70vh)] flex-col items-center justify-center gap-2 px-6 text-center">
+                <p className="text-sm text-muted-foreground">
+                  No active session.{' '}
+                  <button
+                    type="button"
+                    onClick={launchDegreeNavigatorSession}
+                    disabled={browserPaneStatus === 'launching' || isStoppingSession}
+                    className="focus-ring rounded font-medium text-primary underline-offset-2 transition hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Launch to begin.
+                  </button>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Sign in inside the browser yourself; the assistant takes over from there.
                 </p>
               </div>
-
-              <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]">
-                <div className="rounded-2xl border border-border bg-surface-2/75 p-5 shadow-elev-1 backdrop-blur">
-                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Session Status</p>
-                      <p className="mt-1 text-sm font-semibold text-foreground">{getBrowserStatusLabel(browserPaneStatus)}</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={launchDegreeNavigatorSession}
-                        disabled={browserPaneStatus === 'launching' || isStoppingSession}
-                        className="rounded-full border border-border bg-surface-1 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-foreground transition hover:border-border-subtle hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        Launch Session
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => refreshSessionStatus()}
-                        disabled={!browserSession || browserPaneStatus === 'launching'}
-                        className="rounded-full border border-border bg-surface-1 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-foreground transition hover:border-border-subtle hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        Refresh
-                      </button>
-                      <button
-                        type="button"
-                        onClick={closeDegreeNavigatorSession}
-                        disabled={!browserSession || browserPaneStatus === 'launching' || isStoppingSession}
-                        className="rounded-full border border-destructive/70 bg-destructive/15 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-destructive transition hover:border-destructive hover:bg-destructive/20 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {isStoppingSession ? 'Stopping...' : 'Stop Session'}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="mb-4 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-xs font-medium text-destructive/90">
-                    Stop Session ends the Browserbase run and stops billing immediately.
-                  </div>
-
-                  {autoStopMessage && browserSession && (
-                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-                      <span className="text-amber-200">{autoStopMessage}</span>
-                      <button
-                        type="button"
-                        onClick={keepBrowserSessionAlive}
-                        className="rounded-full border border-amber-300/40 bg-amber-500/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-100 transition hover:border-amber-200/60 hover:bg-amber-500/25"
-                      >
-                        Keep Alive
-                      </button>
-                    </div>
-                  )}
-
-                  {browserError && (
-                    <div className="mb-4 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                      <div>{browserError}</div>
-                      {browserSession && (
-                        <button
-                          type="button"
-                          onClick={closeDegreeNavigatorSession}
-                          className="mt-3 rounded-full border border-destructive/60 bg-destructive/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-destructive transition hover:border-destructive hover:bg-destructive/20"
-                        >
-                          Retry Stop Session
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {!browserSession ? (
-                    <div className="flex min-h-[560px] flex-col items-center justify-center rounded-xl border border-dashed border-border bg-surface-1 px-8 py-8 text-center">
-                      <p className="text-sm font-medium text-foreground">No active browser session</p>
-                      <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-                        Click <strong>Launch Session</strong> to create a Browserbase session. Then sign in inside the browser pane. The agent can help only after your manual login.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="rounded-lg border border-border bg-surface-1 px-3 py-2 text-xs text-muted-foreground">
-                        Session ID: <span className="font-mono text-foreground">{browserSession.sessionId}</span>
-                      </div>
-                      <div className="overflow-hidden rounded-xl border border-border bg-surface-1">
-                        <iframe
-                          src={browserSession.liveViewUrl}
-                          title="Degree Navigator Browser Session"
-                          className="h-[620px] w-full"
-                          allow="fullscreen; clipboard-read; clipboard-write"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="min-w-0">
-                  <AnimatePresence initial={false} mode="wait">
-                    {shouldRenderBrowserSectionChat ? (
-                      <motion.div
-                        key="browser-chat"
-                        layoutId={isDesktopLayout ? 'course-assistant-chat-dock' : undefined}
-                        className="h-[620px]"
-                        initial={{ opacity: 0.85, y: 18 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0.6, y: -14 }}
-                        transition={{ duration: 0.24, ease: 'easeOut' }}
-                      >
-                        <EmbeddedCedarChat title="Course Assistant" />
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        key="browser-chat-hint"
-                        className="flex h-[620px] items-center justify-center rounded-xl border border-border bg-surface-2/50 p-6 text-center text-sm text-muted-foreground"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                      >
-                        Scroll this section into view to dock chat beside the browser assistant.
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-            </section>
+            ) : (
+              <iframe
+                src={browserSession.liveViewUrl}
+                title="Degree Navigator Browser Session"
+                className="block h-[min(620px,70vh)] w-full"
+                allow="fullscreen; clipboard-read; clipboard-write"
+              />
+            )}
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   );
 
   return renderContent();
+}
+
+function StatusDot({ status }: { status: BrowserPaneStatus }) {
+  const tone = (() => {
+    switch (status) {
+      case 'ready':
+        return 'bg-success';
+      case 'awaiting_login':
+      case 'launching':
+        return 'bg-warning';
+      case 'error':
+        return 'bg-destructive';
+      case 'idle':
+      default:
+        return 'bg-muted-foreground/50';
+    }
+  })();
+
+  const animate = status === 'launching' || status === 'awaiting_login' ? 'animate-pulse' : '';
+
+  return <span className={`inline-block h-2 w-2 rounded-full ${tone} ${animate}`} />;
 }

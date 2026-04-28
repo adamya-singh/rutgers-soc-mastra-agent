@@ -595,21 +595,22 @@ export const ScheduleGrid: React.FC = () => {
 
   return (
     <section className="w-full">
-      <div className="rounded-xl border border-border bg-surface-2 shadow-elev-1">
+      <div className="overflow-hidden rounded-md border border-border bg-surface-1">
         {/* -------- Toolbar -------- */}
         <div className="border-b border-border px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             {/* Left: Schedule name (inline-editable) + schedule picker + credit pill */}
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               {/* Schedule picker dropdown */}
               <DropdownMenu.Root>
                 <DropdownMenu.Trigger asChild>
                   <button
                     type="button"
-                    className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-muted-foreground transition hover:bg-surface-1"
+                    className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
                     title="Switch schedule"
+                    aria-label="Switch schedule"
                   >
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="opacity-60">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                       <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </button>
@@ -666,21 +667,21 @@ export const ScheduleGrid: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsEditingName(true)}
-                  className="truncate text-sm font-semibold text-foreground transition hover:text-action/80"
+                  className="focus-ring max-w-[220px] truncate rounded px-1 py-0.5 text-sm font-semibold text-foreground transition hover:bg-surface-2"
                   title="Click to rename"
                 >
                   {scheduleName || 'Untitled'}
                 </button>
               )}
 
-              {/* Term / campus label */}
-              <span className="hidden text-xs text-muted-foreground sm:inline">
-                · Spring {schedule.termYear} – {schedule.campus}
+              {/* Term subtitle */}
+              <span className="text-xs text-muted-foreground">
+                Spring {schedule.termYear} · {schedule.campus}
               </span>
 
-              {/* Credit total pill */}
+              {/* Credit total */}
               {totalCredits > 0 && (
-                <span className="rounded-full bg-action/10 px-2 py-0.5 text-xs font-semibold text-action">
+                <span className="rounded border border-border px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
                   {totalCredits} cr
                 </span>
               )}
@@ -688,7 +689,7 @@ export const ScheduleGrid: React.FC = () => {
 
             {/* Right: Save + overflow menu + status */}
             <div className="flex items-center gap-2">
-              <span className={`hidden text-[11px] font-semibold uppercase tracking-wider sm:inline ${scheduleStatusTone}`}>
+              <span className={`hidden text-xs sm:inline ${scheduleStatusTone}`}>
                 {scheduleStatusLabel}
               </span>
 
@@ -696,7 +697,7 @@ export const ScheduleGrid: React.FC = () => {
                 type="button"
                 onClick={() => void syncActiveSchedule()}
                 disabled={!isLoggedIn || !activeEntry || syncState === 'saving'}
-                className="h-8 rounded-full bg-action px-4 text-xs font-semibold text-action-foreground shadow-action-glow transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                className="focus-ring inline-flex h-7 items-center rounded bg-primary px-3 text-xs font-medium text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
               >
                 {syncState === 'saving' ? 'Saving…' : 'Save'}
               </button>
@@ -706,8 +707,9 @@ export const ScheduleGrid: React.FC = () => {
                 <DropdownMenu.Trigger asChild>
                   <button
                     type="button"
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-foreground transition hover:bg-surface-1"
+                    className="focus-ring flex h-7 w-7 items-center justify-center rounded text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
                     title="More actions"
+                    aria-label="More actions"
                   >
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                       <circle cx="8" cy="3" r="1.2" />
@@ -784,13 +786,13 @@ export const ScheduleGrid: React.FC = () => {
         </div>
 
         {/* -------- Grid + Sidebar -------- */}
-        <div className="flex flex-col lg:flex-row">
+        <div className="flex flex-col xl:flex-row">
           <div className="flex-1 overflow-x-auto">
-            <div className="min-w-[860px] p-4">
+            <div className="min-w-[560px] p-3 sm:p-4">
               <div
                 className="relative grid rounded-lg border border-border bg-surface-1"
                 style={{
-                  gridTemplateColumns: '72px repeat(6, minmax(0, 1fr))',
+                  gridTemplateColumns: '56px repeat(6, minmax(0, 1fr))',
                   gridTemplateRows: `40px repeat(${TOTAL_SLOTS}, 28px)`,
                 }}
               >
@@ -867,80 +869,70 @@ export const ScheduleGrid: React.FC = () => {
                 ))}
 
                 {blocks.length === 0 && (
-                  <div className="col-start-2 col-end-[-1] row-start-2 row-end-[-1] flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="opacity-40">
-                      <rect x="3" y="4" width="18" height="18" rx="2" />
-                      <line x1="3" y1="10" x2="21" y2="10" />
-                      <line x1="9" y1="4" x2="9" y2="10" />
-                      <line x1="15" y1="4" x2="15" y2="10" />
-                    </svg>
-                    <span>Your schedule is empty.</span>
-                    <span className="text-xs">Ask the assistant to search for courses to get started.</span>
+                  <div className="pointer-events-none col-start-2 col-end-[-1] row-start-2 row-end-[-1] flex items-center justify-center">
+                    <p className="text-sm text-muted-foreground">
+                      Your week is empty. Ask the assistant to add courses.
+                    </p>
                   </div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* -------- Online + Sunday sidebar -------- */}
-          <aside
-            className={`border-t border-border bg-surface-1/80 transition-all lg:border-l lg:border-t-0 ${sidebarOpen ? 'w-full lg:w-72' : 'w-full lg:w-10'}`}
-          >
-            <div className="p-3">
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="flex w-full items-center justify-between rounded-lg px-1 py-1 text-sm transition hover:bg-surface-2"
-              >
-                {sidebarOpen && (
-                  <div className="flex items-baseline gap-2">
-                    <h3 className="text-xs font-semibold text-foreground">Online + Sunday</h3>
-                    <span className="text-[11px] text-muted-foreground">
-                      {sidebarItems.length > 0 ? `${sidebarItems.length} items` : ''}
-                    </span>
-                  </div>
-                )}
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className={`text-muted-foreground transition-transform ${sidebarOpen ? '' : 'rotate-180'}`}
+          {/* -------- Online + Sunday sidebar (only when populated) -------- */}
+          {sidebarItems.length > 0 && (
+            <aside
+              className={`border-t border-border xl:border-l xl:border-t-0 ${sidebarOpen ? 'w-full xl:w-64' : 'w-full xl:w-10'}`}
+            >
+              <div className="p-3">
+                <button
+                  type="button"
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  className="focus-ring flex w-full items-center justify-between rounded px-1 py-1 text-xs transition hover:bg-surface-2"
                 >
-                  <path d="M10 4l-4 4 4 4" />
-                </svg>
-              </button>
-
-              {sidebarOpen && (
-                <div className="mt-2 space-y-2">
-                  {sidebarItems.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-border bg-surface-2 px-3 py-3 text-xs text-muted-foreground">
-                      No online or Sunday meetings yet.
+                  {sidebarOpen && (
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-xs font-medium text-foreground">Online + Sunday</span>
+                      <span className="text-[11px] text-muted-foreground">{sidebarItems.length}</span>
                     </div>
-                  ) : (
-                    sidebarItems.map((item) => (
+                  )}
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={`text-muted-foreground transition-transform ${sidebarOpen ? '' : 'rotate-180'}`}
+                  >
+                    <path d="M10 4l-4 4 4 4" />
+                  </svg>
+                </button>
+
+                {sidebarOpen && (
+                  <div className="mt-2 space-y-1.5">
+                    {sidebarItems.map((item) => (
                       <div
                         key={item.key}
-                        className="group rounded-lg border border-border bg-surface-2 px-3 py-2"
+                        className="group rounded border border-border px-2.5 py-2"
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                          <div className="flex items-center gap-2 text-xs font-medium text-foreground">
                             <span>{item.label}</span>
                             {item.isClosed && (
-                              <span className="rounded-full border border-red-400/40 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-red-200">
-                                FULL
+                              <span className="rounded border border-destructive/30 bg-destructive/10 px-1 py-0.5 text-[9px] font-medium uppercase text-destructive">
+                                Full
                               </span>
                             )}
                           </div>
                           <button
                             type="button"
                             onClick={() => handleRemoveSection(item.indexNumber)}
-                            className="rounded-md p-1 text-muted-foreground opacity-0 transition hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+                            className="focus-ring rounded p-1 text-muted-foreground opacity-0 transition hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
                             title="Remove section"
+                            aria-label="Remove section"
                           >
                             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                               <line x1="4" y1="4" x2="12" y2="12" />
@@ -955,18 +947,18 @@ export const ScheduleGrid: React.FC = () => {
                           className={
                             item.muted
                               ? 'text-[11px] text-muted-foreground'
-                              : 'text-[11px] text-foreground'
+                              : 'text-[11px] text-foreground/80'
                           }
                         >
                           {item.detail}
                         </div>
                       </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          </aside>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </aside>
+          )}
         </div>
       </div>
 
