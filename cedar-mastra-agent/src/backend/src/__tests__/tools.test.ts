@@ -274,6 +274,9 @@ describe('Tools Configuration', () => {
         sessionId: 'abc',
         url: 'https://dn.rutgers.edu/',
       }).success);
+      assert.ok(browserNavigate.inputSchema.safeParse({
+        url: 'https://dn.rutgers.edu/',
+      }).success);
       assert.ok(!browserNavigate.inputSchema.safeParse({
         sessionId: 'abc',
         url: 'not-a-url',
@@ -282,7 +285,11 @@ describe('Tools Configuration', () => {
         sessionId: 'abc',
         instruction: 'Extract current major and completed requirements',
       }).success);
+      assert.ok(browserExtract.inputSchema.safeParse({
+        instruction: 'Extract current major and completed requirements',
+      }).success);
       assert.ok(browserObserve.inputSchema.safeParse({ sessionId: 'abc' }).success);
+      assert.ok(browserObserve.inputSchema.safeParse({}).success);
     });
 
     it('requires confirmation for sensitive actions', () => {

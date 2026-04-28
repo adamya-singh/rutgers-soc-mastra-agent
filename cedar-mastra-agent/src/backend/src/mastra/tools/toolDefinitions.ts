@@ -143,6 +143,18 @@ export const addNewTextLineTool = createMastraToolForFrontendTool(
   },
 );
 
+export const ensureDegreeNavigatorSessionTool = createMastraToolForFrontendTool(
+  'ensureDegreeNavigatorSession',
+  z.object({}),
+  {
+    description:
+      'Open or reuse the Browserbase Degree Navigator session displayed in the embedded browser pane. Use this before browser automation when the user asks to open or use the browser.',
+    toolId: 'ensureDegreeNavigatorSession',
+    streamEventFn: streamJSONEvent,
+    errorSchema: ErrorResponseSchema,
+  },
+);
+
 // Create backend tools for the state setter
 export const changeTextTool = createMastraToolForStateSetter(
   'mainText', // The state key
@@ -278,6 +290,7 @@ export const TOOL_REGISTRY = {
     appendSearchResultsTool,
   },
   browserState: {
+    ensureDegreeNavigatorSessionTool,
     setBrowserSessionTool,
     clearBrowserSessionTool,
   },
@@ -307,6 +320,7 @@ export const SOC_TOOLS = [
 export const ALL_TOOLS = [
   changeTextTool,
   addNewTextLineTool,
+  ensureDegreeNavigatorSessionTool,
   addSectionToScheduleTool,
   removeSectionFromScheduleTool,
   clearSearchResultsTool,

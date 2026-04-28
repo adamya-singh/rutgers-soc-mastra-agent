@@ -38,6 +38,7 @@ export interface MarkClosedMetadata {
 }
 
 export interface BrowserSessionRepository {
+  assertReady?(): Promise<void>;
   create(input: Omit<BrowserSessionState, 'createdAt' | 'lastHeartbeatAt'>): Promise<BrowserSessionState>;
   getOwned(sessionId: string, ownerId: string): Promise<BrowserSessionState>;
   get(sessionId: string): Promise<BrowserSessionState | null>;
@@ -149,6 +150,21 @@ export function createSupabaseBrowserSessionRepository(
   }
 
   return {
+    async assertReady() {
+      const supabase = getSupabaseServiceClient();
+      const { error } = await supabase
+        .from('browser_sessions')
+        .select('session_id')
+        .limit(1);
+
+      if (error) {
+        throw new BrowserSessionError(
+          'BROWSER_PROVIDER_ERROR',
+          `Browser session repository is not writable with the configured Supabase service key: ${error.message}`,
+        );
+      }
+    },
+
     async create(input) {
       const timestamp = new Date(now()).toISOString();
       const supabase = getSupabaseServiceClient();
@@ -373,6 +389,10 @@ export function createInMemoryBrowserSessionRepository(
   }
 
   return {
+    async assertReady() {
+      return undefined;
+    },
+
     async create(input) {
       const timestamp = new Date(now()).toISOString();
       const session: BrowserSessionState = {

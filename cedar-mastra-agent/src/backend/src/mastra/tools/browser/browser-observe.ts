@@ -1,13 +1,16 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 import { runObserve } from '../../../browser/browserService.js';
-import { requireBrowserClientIdFromRuntime } from '../../../browser/runtimeContext.js';
+import {
+  requireBrowserClientIdFromRuntime,
+  requireBrowserSessionIdFromRuntime,
+} from '../../../browser/runtimeContext.js';
 
 export const BROWSER_OBSERVE_DESCRIPTION = `Observe the current page in the active remote browser session.
-Use to gather context before any action.`;
+Use to gather context before any action. If sessionId is omitted, the current embedded browserSession from context is used.`;
 
 export const browserObserveInputSchema = z.object({
-  sessionId: z.string().min(1),
+  sessionId: z.string().min(1).optional(),
   instruction: z.string().optional(),
 });
 
@@ -24,6 +27,7 @@ export const browserObserve = createTool({
   outputSchema: browserObserveOutputSchema,
   execute: async ({ context, runtimeContext }) => {
     const ownerId = requireBrowserClientIdFromRuntime(runtimeContext);
-    return runObserve(context.sessionId, ownerId, context.instruction);
+    const sessionId = requireBrowserSessionIdFromRuntime(runtimeContext, context.sessionId);
+    return runObserve(sessionId, ownerId, context.instruction);
   },
 });

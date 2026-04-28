@@ -10,7 +10,6 @@ import {
   checkScheduleConflicts,
   getPrerequisites,
   findRoomAvailability,
-  createBrowserSession,
   closeBrowserSessionTool,
   browserNavigate,
   browserObserve,
@@ -25,6 +24,7 @@ import {
   clearSearchResultsTool,
   setSearchResultsTool,
   appendSearchResultsTool,
+  ensureDegreeNavigatorSessionTool,
 } from '../tools/toolDefinitions.js';
 import { memory } from '../memory';
 
@@ -126,9 +126,9 @@ and explore the Schedule of Classes (SOC) database.
 
 ## Degree Navigator Browser Automation
 
-1. **Use browser tools for audits**: For degree-progress and audit tasks, prefer browser tools tied to Degree Navigator.
+1. **Open visible browser first**: When the user asks to open/use Browserbase or Degree Navigator, call \`ensureDegreeNavigatorSession\` so the embedded browser pane opens or reuses the visible session.
 2. **Never handle credentials**: Never ask for, store, or echo Rutgers passwords. User logs in manually in the embedded browser.
-3. **Session ownership**: Only act on sessions owned by the authenticated user context.
+3. **Session ownership**: Only act on sessions owned by the authenticated user context. Prefer the current \`browserSession.sessionId\` from context for browser automation.
 4. **Sensitive actions need confirmation**: For submit/register/drop/confirm actions, require explicit user confirmation and pass a confirmation token before calling \`browserAct\`.
 5. **Observe before action**: Use \`browserObserve\` or \`browserExtract\` before complex actions.
 
@@ -179,7 +179,7 @@ export const socAgent = new Agent({
     checkScheduleConflicts,
     getPrerequisites,
     findRoomAvailability,
-    createBrowserSession,
+    ensureDegreeNavigatorSession: ensureDegreeNavigatorSessionTool,
     closeBrowserSession: closeBrowserSessionTool,
     browserNavigate,
     browserObserve,

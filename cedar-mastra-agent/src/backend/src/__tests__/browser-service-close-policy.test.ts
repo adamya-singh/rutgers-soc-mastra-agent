@@ -233,6 +233,29 @@ describe('browserService close policy', () => {
     assert.strictEqual(result.verifyProviderStatus, 'error');
   });
 
+  it('checks repository access before creating a Browserbase session', async () => {
+    const calls: Array<{ input: string; init?: RequestInit }> = [];
+    setBrowserSessionRepository({
+      ...repository,
+      assertReady: async () => {
+        throw new BrowserSessionError(
+          'BROWSER_PROVIDER_ERROR',
+          'Browser session repository is not writable with the configured Supabase service key: permission denied for table browser_sessions',
+        );
+      },
+    });
+    globalThis.fetch = (async (input, init) => {
+      calls.push({ input: String(input), init });
+      return jsonResponse(201, { id: 'session_should_not_exist' });
+    }) as typeof fetch;
+
+    await assert.rejects(
+      () => createSession('degree_navigator', 'owner_preflight_fail'),
+      /repository is not writable/,
+    );
+    assert.strictEqual(calls.length, 0, 'Browserbase should not be called when repository preflight fails');
+  });
+
   it('releases and marks a tracked session closed when launch navigation fails', async () => {
     const calls: Array<{ input: string; init?: RequestInit }> = [];
     globalThis.fetch = (async (input, init) => {

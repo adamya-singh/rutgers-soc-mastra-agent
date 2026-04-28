@@ -42,6 +42,29 @@ function resolveBrowserClientIdFromUnknown(value: unknown): string | undefined {
   return undefined;
 }
 
+function resolveBrowserSessionIdFromUnknown(value: unknown): string | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+
+  const record = value as Record<string, unknown>;
+  const direct = record.sessionId;
+  if (typeof direct === 'string' && direct.trim().length > 0) {
+    return direct;
+  }
+
+  const nested = record.browserSession;
+  if (nested && typeof nested === 'object') {
+    const nestedRecord = nested as Record<string, unknown>;
+    const nestedSessionId = nestedRecord.sessionId;
+    if (typeof nestedSessionId === 'string' && nestedSessionId.trim().length > 0) {
+      return nestedSessionId;
+    }
+  }
+
+  return undefined;
+}
+
 export function extractBrowserClientIdFromAdditionalContext(additionalContext: unknown): string | null {
   if (!additionalContext || typeof additionalContext !== 'object') {
     return null;
@@ -73,6 +96,29 @@ export function extractBrowserClientIdFromAdditionalContext(additionalContext: u
   return null;
 }
 
+export function extractBrowserSessionIdFromAdditionalContext(additionalContext: unknown): string | null {
+  if (!additionalContext || typeof additionalContext !== 'object') {
+    return null;
+  }
+
+  const context = additionalContext as AdditionalContext;
+  const fromPrimaryKey = resolveBrowserSessionIdFromUnknown(
+    readContextValue(context.browserSession),
+  );
+  if (fromPrimaryKey) {
+    return fromPrimaryKey;
+  }
+
+  for (const rawEntry of Object.values(context)) {
+    const resolved = resolveBrowserSessionIdFromUnknown(readContextValue(rawEntry));
+    if (resolved) {
+      return resolved;
+    }
+  }
+
+  return null;
+}
+
 export function requireBrowserClientIdFromRuntime(runtimeContext: {
   get: (key: string) => unknown;
 }): string {
@@ -92,4 +138,26 @@ export function requireBrowserClientIdFromRuntime(runtimeContext: {
   }
 
   return browserClientId;
+}
+
+export function requireBrowserSessionIdFromRuntime(
+  runtimeContext: {
+    get: (key: string) => unknown;
+  },
+  explicitSessionId?: string,
+): string {
+  if (typeof explicitSessionId === 'string' && explicitSessionId.trim().length > 0) {
+    return explicitSessionId;
+  }
+
+  const additionalContext = runtimeContext.get('additionalContext');
+  const browserSessionId = extractBrowserSessionIdFromAdditionalContext(additionalContext);
+  if (!browserSessionId) {
+    throw new BrowserSessionError(
+      'MISSING_BROWSER_SESSION_ID',
+      'Missing active browser session. Open the embedded browser before using browser tools.',
+    );
+  }
+
+  return browserSessionId;
 }

@@ -70,12 +70,11 @@ export default function RootLayout({
   const llmProvider = {
     provider: 'mastra' as const,
     baseURL: process.env.NEXT_PUBLIC_MASTRA_URL || 'http://localhost:4111',
-    headers: authState.accessToken
-      ? {
-          Authorization: `Bearer ${authState.accessToken}`,
-        }
-      : undefined,
+    apiKey: authState.accessToken ?? undefined,
   } as ProviderConfig;
+  const cedarCopilotKey = authState.accessToken
+    ? `authenticated:${authState.userId ?? 'unknown'}`
+    : `anonymous:${identity.userId}`;
 
   return (
     <html lang="en">
@@ -83,6 +82,7 @@ export default function RootLayout({
         className={`${spaceGrotesk.variable} ${plexSans.variable} ${jetbrainsMono.variable} antialiased`}
       >
         <CedarCopilot
+          key={cedarCopilotKey}
           userId={authState.userId ?? identity.userId}
           threadId={identity.threadId}
           llmProvider={llmProvider}

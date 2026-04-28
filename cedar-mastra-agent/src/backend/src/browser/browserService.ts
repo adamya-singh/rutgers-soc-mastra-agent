@@ -605,6 +605,7 @@ async function stagehandAct(sessionId: string, action: string): Promise<unknown>
 export async function createSession(target: BrowserTarget, ownerId: string): Promise<BrowserSessionState> {
   const resolvedTarget = validateTarget(target);
   const { projectId } = ensureBrowserbaseEnv();
+  await sessionRepository.assertReady?.();
 
   const providerData = await browserbaseRequest('/sessions', {
     method: 'POST',
@@ -632,14 +633,26 @@ export async function createSession(target: BrowserTarget, ownerId: string): Pro
   }
 
   const status = mapProviderStatus(payload.status ?? asObject(payload.data).status);
-  let session = await sessionRepository.create({
-    provider: 'browserbase',
-    sessionId,
-    liveViewUrl: deriveLiveViewUrl(sessionId, payload),
-    target: resolvedTarget,
-    status,
-    ownerId,
-  });
+  let session: BrowserSessionState;
+  try {
+    session = await sessionRepository.create({
+      provider: 'browserbase',
+      sessionId,
+      liveViewUrl: deriveLiveViewUrl(sessionId, payload),
+      target: resolvedTarget,
+      status,
+      ownerId,
+    });
+  } catch (error) {
+    await terminateProviderSession(sessionId).catch((terminationError) => {
+      console.warn('[browser] failed to release session after repository create error', {
+        sessionId,
+        ownerId,
+        error: terminationError instanceof Error ? terminationError.message : terminationError,
+      });
+    });
+    throw error;
+  }
 
   const connectUrl = extractConnectUrl(payload);
   if (!connectUrl) {

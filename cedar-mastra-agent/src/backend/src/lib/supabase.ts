@@ -8,6 +8,22 @@ import type { Database } from '../types/database.js';
 let _supabase: SupabaseClient<Database> | null = null;
 let _supabaseService: SupabaseClient<Database> | null = null;
 
+function readJwtRole(token: string): string | null {
+  const [, payload] = token.split('.');
+  if (!payload) {
+    return null;
+  }
+
+  try {
+    const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString()) as {
+      role?: unknown;
+    };
+    return typeof decoded.role === 'string' ? decoded.role : null;
+  } catch {
+    return null;
+  }
+}
+
 export function getSupabaseClient(): SupabaseClient<Database> {
   if (_supabase) {
     return _supabase;
@@ -51,6 +67,13 @@ export function getSupabaseServiceClient(): SupabaseClient<Database> {
   if (!process.env.SUPABASE_URL || !serviceKey) {
     throw new Error(
       'Missing Supabase service environment variables: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required',
+    );
+  }
+
+  const serviceRole = readJwtRole(serviceKey);
+  if (serviceRole && serviceRole !== 'service_role') {
+    throw new Error(
+      `SUPABASE_SERVICE_ROLE_KEY must be a service_role key for backend-only tables; received role "${serviceRole}"`,
     );
   }
 

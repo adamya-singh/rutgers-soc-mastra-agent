@@ -26,6 +26,13 @@ describe('toolDefinitions SOC registry', () => {
     );
   });
 
+  it('includes visible browser session tool in browser state registry', () => {
+    assert.ok(
+      'ensureDegreeNavigatorSessionTool' in TOOL_REGISTRY.browserState,
+      'TOOL_REGISTRY.browserState should include ensureDegreeNavigatorSessionTool',
+    );
+  });
+
   it('includes browser tools in SOC_TOOLS', () => {
     const hasBrowserSessionTool = SOC_TOOLS.some((tool) => tool.id === 'createBrowserSession');
     const hasBrowserActTool = SOC_TOOLS.some((tool) => tool.id === 'browserAct');

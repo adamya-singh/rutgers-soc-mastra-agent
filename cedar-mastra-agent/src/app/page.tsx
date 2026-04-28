@@ -117,6 +117,12 @@ function getBrowserStatusLabel(status: BrowserPaneStatus): string {
   }
 }
 
+function isUsableBrowserSession(
+  session: BrowserSessionState | null,
+): session is BrowserSessionState {
+  return Boolean(session && session.status !== 'closed' && session.status !== 'error');
+}
+
 export default function HomePage() {
   const [theme, setTheme] = React.useState<'light' | 'dark'>('dark');
 
@@ -433,9 +439,18 @@ export default function HomePage() {
     ],
   );
 
-  const launchDegreeNavigatorSession = React.useCallback(async () => {
+  const ensureDegreeNavigatorSession = React.useCallback(async (): Promise<BrowserSessionState | null> => {
+    if (isUsableBrowserSession(browserSession)) {
+      setBrowserError(null);
+      setBrowserPaneStatus(getBrowserPaneStatus(browserSession));
+      if (userId) {
+        persistActiveBrowserSession(browserSession, userId);
+      }
+      return browserSession;
+    }
+
     if (isStoppingSession) {
-      return;
+      return null;
     }
 
     setBrowserError(null);
@@ -443,8 +458,9 @@ export default function HomePage() {
 
     if (!userId) {
       setBrowserPaneStatus('error');
-      setBrowserError('Sign in before launching Degree Navigator.');
-      return;
+      const message = 'Sign in before launching Degree Navigator.';
+      setBrowserError(message);
+      throw new Error(message);
     }
 
     try {
@@ -462,11 +478,27 @@ export default function HomePage() {
       setBrowserSession(result.session);
       setBrowserPaneStatus(getBrowserPaneStatus(result.session));
       persistActiveBrowserSession(result.session, userId);
+      return result.session;
     } catch (error) {
       setBrowserPaneStatus('error');
       setBrowserError(error instanceof Error ? error.message : 'Failed to create browser session.');
+      throw error;
     }
-  }, [callBrowserSessionApi, isStoppingSession, persistActiveBrowserSession, userId]);
+  }, [
+    browserSession,
+    callBrowserSessionApi,
+    isStoppingSession,
+    persistActiveBrowserSession,
+    userId,
+  ]);
+
+  const launchDegreeNavigatorSession = React.useCallback(async () => {
+    try {
+      await ensureDegreeNavigatorSession();
+    } catch {
+      // ensureDegreeNavigatorSession already surfaced the error in browserError.
+    }
+  }, [ensureDegreeNavigatorSession]);
 
   const closeDegreeNavigatorSession = React.useCallback(async () => {
     if (!browserSession) {
@@ -1103,11 +1135,12 @@ export default function HomePage() {
   });
 
   useRegisterFrontendTool({
-    name: 'launchDegreeNavigatorSession',
-    description: 'Launch a Browserbase session and load Degree Navigator in the embedded browser pane.',
+    name: 'ensureDegreeNavigatorSession',
+    description:
+      'Open or reuse the Browserbase Degree Navigator session displayed in the embedded browser pane.',
     argsSchema: z.object({}),
     execute: async () => {
-      await launchDegreeNavigatorSession();
+      await ensureDegreeNavigatorSession();
     },
   });
 
