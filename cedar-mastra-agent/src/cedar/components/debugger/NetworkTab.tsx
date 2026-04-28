@@ -16,16 +16,39 @@ export const NetworkTab: React.FC<NetworkTabProps> = ({
 	);
 	const scrollRef = useRef<HTMLDivElement>(null);
 
+	const serializeError = (error: Error): Record<string, unknown> => {
+		const record = error as Error & Record<string, unknown>;
+		return {
+			name: error.name,
+			message: error.message,
+			...(error.stack ? { stack: error.stack } : {}),
+			...(record.code !== undefined ? { code: record.code } : {}),
+			...(record.status !== undefined ? { status: record.status } : {}),
+			...(record.statusText !== undefined ? { statusText: record.statusText } : {}),
+			...(record.details !== undefined ? { details: record.details } : {}),
+			...(record.cause !== undefined ? { cause: record.cause } : {}),
+		};
+	};
+
 	// Helper function to safely stringify JSON with fallback to sanitizeJson
 	const safeStringify = (obj: unknown, indent = 2): string => {
 		try {
-			return JSON.stringify(obj, null, indent);
+			return JSON.stringify(
+				obj,
+				(_key, value) => (value instanceof Error ? serializeError(value) : value),
+				indent
+			);
 		} catch (error) {
 			// If JSON.stringify fails due to circular references or non-serializable objects,
 			// use sanitizeJson to create a safe representation
 			try {
 				const sanitized = sanitizeJson(obj as object);
-				return JSON.stringify(sanitized, null, indent);
+				return JSON.stringify(
+					sanitized,
+					(_key, value) =>
+						value instanceof Error ? serializeError(value) : value,
+					indent
+				);
 			} catch {
 				// If even sanitization fails, return a safe error message
 				return `[Error serializing object: ${
@@ -562,8 +585,7 @@ export const NetworkTab: React.FC<NetworkTabProps> = ({
 														Error:
 													</div>
 													<pre className='text-xs bg-red-100 dark:bg-red-900/20 p-2 rounded overflow-x-auto text-red-700 dark:text-red-300'>
-														{log.data.error.message ||
-															safeStringify(log.data.error)}
+														{safeStringify(log.data.error)}
 													</pre>
 												</div>
 											)}

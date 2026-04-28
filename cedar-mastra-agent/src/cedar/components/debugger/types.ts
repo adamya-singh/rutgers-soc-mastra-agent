@@ -1,6 +1,17 @@
 // Shared types for debugger components
 import type { registeredState } from 'cedar-os';
 
+export interface SerializedError {
+	name?: string;
+	message: string;
+	stack?: string;
+	code?: unknown;
+	status?: unknown;
+	statusText?: unknown;
+	details?: unknown;
+	cause?: unknown;
+}
+
 export interface DebugLogEntry {
 	id: string;
 	timestamp: Date;
@@ -17,7 +28,7 @@ export interface DebugLogEntry {
 	data: {
 		params?: Record<string, unknown>;
 		response?: Record<string, unknown>;
-		error?: Error;
+		error?: Error | SerializedError;
 		streamContent?: string;
 		streamObjects?: object[];
 		completedItems?: (string | object)[];

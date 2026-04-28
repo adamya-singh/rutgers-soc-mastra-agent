@@ -36,6 +36,7 @@ import {
   saveSchedule,
 } from '@/lib/scheduleStorage';
 import { getClientIdentity } from '@/lib/clientIdentity';
+import { buildMastraApiUrl } from '@/lib/mastraConfig';
 
 type BrowserTarget = 'degree_navigator';
 type BrowserSessionStatus = 'created' | 'awaiting_login' | 'ready' | 'error' | 'closed';
@@ -79,7 +80,6 @@ interface PersistedBrowserSessionRecord {
   updatedAt: string;
 }
 
-const MASTRA_BASE_URL = process.env.NEXT_PUBLIC_MASTRA_URL || 'http://localhost:4111';
 const ACTIVE_BROWSER_SESSION_STORAGE_KEY = 'active_browser_session';
 const HIDDEN_TIMEOUT_MS = 30_000;
 const IDLE_TIMEOUT_MS = 60_000;
@@ -265,7 +265,7 @@ export default function HomePage() {
         throw new Error('Sign in before using browser sessions.');
       }
 
-      const response = await fetch(`${MASTRA_BASE_URL}${path}`, {
+      const response = await fetch(buildMastraApiUrl(path), {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -317,7 +317,7 @@ export default function HomePage() {
         allowUntracked: true,
         accessToken,
       };
-      const endpoint = `${MASTRA_BASE_URL}/browser/session/close-beacon`;
+      const endpoint = buildMastraApiUrl('/browser/session/close-beacon');
       const body = JSON.stringify(payload);
       const blob = new Blob([body], { type: 'text/plain;charset=UTF-8' });
 

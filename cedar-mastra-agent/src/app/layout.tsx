@@ -6,6 +6,7 @@ import { messageRenderers } from '@/cedar/messageRenderers';
 import React from 'react';
 import { getClientIdentity } from '@/lib/clientIdentity';
 import { supabaseClient } from '@/lib/supabaseClient';
+import { MASTRA_BASE_URL, MASTRA_CHAT_ROUTE } from '@/lib/mastraConfig';
 
 const spaceGrotesk = Space_Grotesk({
   variable: '--font-space-grotesk',
@@ -69,7 +70,8 @@ export default function RootLayout({
 
   const llmProvider = {
     provider: 'mastra' as const,
-    baseURL: process.env.NEXT_PUBLIC_MASTRA_URL || 'http://localhost:4111',
+    baseURL: MASTRA_BASE_URL,
+    chatPath: MASTRA_CHAT_ROUTE,
     apiKey: authState.accessToken ?? undefined,
   } as ProviderConfig;
   const cedarCopilotKey = authState.accessToken

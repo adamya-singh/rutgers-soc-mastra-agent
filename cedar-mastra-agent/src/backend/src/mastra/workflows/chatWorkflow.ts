@@ -30,6 +30,46 @@ export const ChatOutputSchema = z.object({
 
 export type ChatOutput = z.infer<typeof ChatOutputSchema>;
 
+type AdditionalContextEntry = {
+  data?: unknown;
+};
+
+type AdditionalContextMap = Record<string, AdditionalContextEntry | AdditionalContextEntry[] | unknown>;
+
+const MODEL_VISIBLE_CONTEXT_KEYS = ['mainText', 'browserClientId', 'browserSession'] as const;
+
+function readAdditionalContextValue(entry: unknown): unknown {
+  if (!entry) {
+    return undefined;
+  }
+
+  const first = Array.isArray(entry) ? entry[0] : entry;
+  if (!first || typeof first !== 'object') {
+    return first;
+  }
+
+  const record = first as AdditionalContextEntry;
+  return record.data ?? first;
+}
+
+export function buildModelVisibleAdditionalContext(additionalContext: unknown): Record<string, unknown> {
+  if (!additionalContext || typeof additionalContext !== 'object') {
+    return {};
+  }
+
+  const context = additionalContext as AdditionalContextMap;
+  const compactContext: Record<string, unknown> = {};
+
+  for (const key of MODEL_VISIBLE_CONTEXT_KEYS) {
+    const value = readAdditionalContextValue(context[key]);
+    if (value !== undefined) {
+      compactContext[key] = value;
+    }
+  }
+
+  return compactContext;
+}
+
 const callAgent = createStep({
   id: 'callAgent',
   description: 'Invoke the chat agent with the user prompt using stream',
@@ -66,9 +106,10 @@ const callAgent = createStep({
     runtimeContext.set('streamController', streamController);
     runtimeContext.set('authenticatedUserId', authenticatedUserId);
 
+    const modelVisibleAdditionalContext = buildModelVisibleAdditionalContext(additionalContext);
     const messages = [
       'User message: ' + prompt,
-      'Additional context (for background knowledge): ' + JSON.stringify(additionalContext),
+      'Additional context (for background knowledge): ' + JSON.stringify(modelVisibleAdditionalContext),
     ];
 
     let responseText = '';
