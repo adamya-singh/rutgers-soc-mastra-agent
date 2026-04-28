@@ -37,8 +37,8 @@ Backend env vars (Mastra service):
 - `BROWSERBASE_API_KEY`
 - `BROWSERBASE_PROJECT_ID`
 - `BROWSERBASE_API_BASE` (optional override, defaults to `https://api.browserbase.com/v1`)
-- `STAGEHAND_MODEL_API_KEY` or `OPENAI_API_KEY` (required for browser observe/extract/act tools)
-- `STAGEHAND_MODEL_NAME` (optional, defaults to `gpt-4o-mini`)
+- `STAGEHAND_MODEL_PROVIDER=vertex` to run browser observe/extract/act tools through Vertex/Gemini, or `STAGEHAND_MODEL_API_KEY` / `OPENAI_API_KEY` for API-key-backed Stagehand models
+- `STAGEHAND_MODEL_NAME` optional; defaults to `vertex/gemini-3-flash-preview` for Vertex mode and `gpt-4o-mini` for API-key mode
 
 Browserbase sessions are created with `keepAlive: true` so the embedded Live View remains available while the student signs in manually. The app releases those sessions with Browserbase's `REQUEST_RELEASE` API when the user clicks Stop Session, when auto-stop runs, or when the backend reaper closes stale sessions.
 

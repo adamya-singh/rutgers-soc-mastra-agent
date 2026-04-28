@@ -105,6 +105,22 @@ interface BrowserbaseRawResponse {
   data: unknown;
 }
 
+type StagehandApiKeyModelConfig = {
+  provider: 'apiKey';
+  modelName: string;
+  apiKey: string;
+};
+
+type StagehandVertexModelConfig = {
+  provider: 'vertex';
+  modelName: string;
+  project: string;
+  location: string;
+  keyFilename?: string;
+};
+
+export type StagehandModelConfig = StagehandApiKeyModelConfig | StagehandVertexModelConfig;
+
 let reaperTimer: ReturnType<typeof setInterval> | null = null;
 
 function ensureBrowserbaseEnv(): { apiKey: string; projectId: string } {
@@ -187,18 +203,81 @@ function findString(obj: Record<string, unknown>, keys: string[]): string | null
   return null;
 }
 
-function getStagehandModelConfig(): { modelName: string; apiKey: string } {
+export function getStagehandModelConfig(): StagehandModelConfig {
+  const provider = process.env.STAGEHAND_MODEL_PROVIDER?.toLowerCase();
   const apiKey = process.env.STAGEHAND_MODEL_API_KEY ?? process.env.OPENAI_API_KEY;
-  const modelName = process.env.STAGEHAND_MODEL_NAME ?? 'gpt-4o-mini';
+  const hasVertexEnv = Boolean(
+    process.env.GOOGLE_VERTEX_PROJECT ||
+      process.env.GOOGLE_VERTEX_LOCATION ||
+      process.env.GOOGLE_APPLICATION_CREDENTIALS,
+  );
 
-  if (!apiKey) {
+  if (provider && provider !== 'vertex' && provider !== 'apikey' && provider !== 'api-key') {
     throw new BrowserSessionError(
       'BROWSER_PROVIDER_ERROR',
-      'Stagehand model credentials are missing. Set STAGEHAND_MODEL_API_KEY or OPENAI_API_KEY before using browser observe/extract/act tools.',
+      `Unsupported STAGEHAND_MODEL_PROVIDER "${provider}". Use "vertex" or omit it for API-key-backed models.`,
     );
   }
 
-  return { modelName, apiKey };
+  if (provider === 'vertex' || (!provider && !apiKey && hasVertexEnv)) {
+    const modelName = process.env.STAGEHAND_MODEL_NAME ?? 'vertex/gemini-3-flash-preview';
+    if (!modelName.startsWith('vertex/')) {
+      throw new BrowserSessionError(
+        'BROWSER_PROVIDER_ERROR',
+        'Stagehand Vertex model names must use the vertex/ prefix, for example STAGEHAND_MODEL_NAME=vertex/gemini-3-flash-preview.',
+      );
+    }
+
+    return {
+      provider: 'vertex',
+      modelName,
+      project: process.env.GOOGLE_VERTEX_PROJECT ?? 'concise-foundry-465822-d7',
+      location: process.env.GOOGLE_VERTEX_LOCATION ?? 'global',
+      keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    };
+  }
+
+  if (apiKey) {
+    return {
+      provider: 'apiKey',
+      modelName: process.env.STAGEHAND_MODEL_NAME ?? 'gpt-4o-mini',
+      apiKey,
+    };
+  }
+
+  throw new BrowserSessionError(
+    'BROWSER_PROVIDER_ERROR',
+    [
+      'Stagehand model credentials are missing for browser observe/extract/act tools.',
+      'Set STAGEHAND_MODEL_API_KEY or OPENAI_API_KEY for API-key-backed models,',
+      'or set STAGEHAND_MODEL_PROVIDER=vertex with GOOGLE_VERTEX_PROJECT, GOOGLE_VERTEX_LOCATION,',
+      'and Application Default Credentials via GOOGLE_APPLICATION_CREDENTIALS locally or a Cloud Run service account.',
+    ].join(' '),
+  );
+}
+
+function applyStagehandModelConfig(
+  stagehandConfig: Record<string, unknown>,
+  modelConfig: StagehandModelConfig,
+): void {
+  if (modelConfig.provider === 'apiKey') {
+    stagehandConfig.modelName = modelConfig.modelName;
+    stagehandConfig.modelClientOptions = { apiKey: modelConfig.apiKey };
+    return;
+  }
+
+  const model: Record<string, unknown> = {
+    modelName: modelConfig.modelName,
+    project: modelConfig.project,
+    location: modelConfig.location,
+  };
+
+  if (modelConfig.keyFilename) {
+    model.googleAuthOptions = { keyFilename: modelConfig.keyFilename };
+  }
+
+  stagehandConfig.experimental = true;
+  stagehandConfig.model = model;
 }
 
 async function browserbaseRawRequest(path: string, init: RequestInit): Promise<BrowserbaseRawResponse> {
@@ -457,9 +536,7 @@ async function withStagehand<T>(
       browserbaseSessionID: sessionId,
     };
 
-    const modelConfig = getStagehandModelConfig();
-    stagehandConfig.modelName = modelConfig.modelName;
-    stagehandConfig.modelClientOptions = { apiKey: modelConfig.apiKey };
+    applyStagehandModelConfig(stagehandConfig, getStagehandModelConfig());
 
     stagehand = new (Stagehand as new (config: Record<string, unknown>) => StagehandLike)(stagehandConfig);
     if (typeof stagehand.init === 'function') {

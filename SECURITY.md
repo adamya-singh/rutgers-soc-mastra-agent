@@ -91,8 +91,9 @@ Backend-only settings:
 - `GOOGLE_VERTEX_PROJECT`
 - `GOOGLE_VERTEX_LOCATION`
 - `GOOGLE_APPLICATION_CREDENTIALS` for local development, or a service account attached to Cloud Run
-- `STAGEHAND_MODEL_API_KEY` or `OPENAI_API_KEY` if `browserObserve`, `browserExtract`, or `browserAct` are enabled
-- `STAGEHAND_MODEL_NAME` optional
+- `STAGEHAND_MODEL_PROVIDER=vertex` if `browserObserve`, `browserExtract`, or `browserAct` should use Vertex/Gemini
+- `STAGEHAND_MODEL_API_KEY` or `OPENAI_API_KEY` as an alternative for API-key-backed Stagehand models
+- `STAGEHAND_MODEL_NAME` optional; use the `vertex/` prefix for Vertex models
 
 Frontend settings:
 

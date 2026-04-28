@@ -168,8 +168,8 @@ Backend environment variables:
 - `BROWSERBASE_API_KEY`
 - `BROWSERBASE_PROJECT_ID`
 - `BROWSERBASE_API_BASE` optional, defaults to `https://api.browserbase.com/v1`
-- `STAGEHAND_MODEL_API_KEY` or `OPENAI_API_KEY` for Stagehand-backed browser observe/extract/act tools
-- `STAGEHAND_MODEL_NAME` optional, defaults to `gpt-4o-mini`
+- `STAGEHAND_MODEL_PROVIDER=vertex` for Stagehand-backed browser observe/extract/act tools through Vertex/Gemini, or `STAGEHAND_MODEL_API_KEY` / `OPENAI_API_KEY` for API-key-backed models
+- `STAGEHAND_MODEL_NAME` optional; defaults to `vertex/gemini-3-flash-preview` for Vertex mode and `gpt-4o-mini` for API-key mode
 
 Frontend environment variables:
 
