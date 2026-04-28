@@ -57,6 +57,7 @@ export type Database = {
           termination_method: string | null
           termination_verified: boolean | null
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           close_reason?: string | null
@@ -73,6 +74,7 @@ export type Database = {
           termination_method?: string | null
           termination_verified?: boolean | null
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           close_reason?: string | null
@@ -89,6 +91,7 @@ export type Database = {
           termination_method?: string | null
           termination_verified?: boolean | null
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }

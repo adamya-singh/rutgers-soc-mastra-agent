@@ -30,7 +30,7 @@ An AI-powered course scheduling assistant for Rutgers University students. The a
 
 ### Core Principles
 
-- **Anonymous-first**: Users can build schedules without logging in
+- **Anonymous-first for browsing/schedule building**: Users can browse courses and build local schedules without logging in; AI chat and browser automation require Supabase auth.
 - **AI-assisted**: Natural language queries for complex course searches
 - **Visual scheduling**: Intuitive drag-and-drop grid with conflict detection
 - **Award-winning design**: Modern, polished, premium user experience
@@ -49,7 +49,6 @@ An AI-powered course scheduling assistant for Rutgers University students. The a
 │                      Anonymous Usage                             │
 │  • Search/browse courses                                         │
 │  • Add sections to schedule (localStorage)                       │
-│  • Chat with AI assistant                                        │
 │  • Export schedule (image, index list)                          │
 └─────────────────────────────────────────────────────────────────┘
                               │
@@ -431,7 +430,7 @@ This context is injected into every message automatically.
 |---------|-----------|-----------|
 | Browse courses | ✅ | ✅ |
 | Build schedule | ✅ (localStorage) | ✅ (database) |
-| Chat with AI | ✅ | ✅ |
+| Chat with AI | ❌ | ✅ |
 | Export schedule | ✅ | ✅ |
 | Save multiple schedules | ❌ | ✅ |
 | Favorite courses | ❌ | ✅ |

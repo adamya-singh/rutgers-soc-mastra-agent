@@ -14,7 +14,8 @@ export type BrowserSessionErrorCode =
   | 'SESSION_CLOSE_IN_PROGRESS'
   | 'BROWSER_PROVIDER_ERROR'
   | 'MISSING_BROWSER_CLIENT_ID'
-  | 'INVALID_BROWSER_TARGET';
+  | 'INVALID_BROWSER_TARGET'
+  | 'INVALID_BROWSER_URL';
 
 export type BrowserSessionCloseReason =
   | 'manual_stop'

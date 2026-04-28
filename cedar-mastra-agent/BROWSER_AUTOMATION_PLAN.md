@@ -17,8 +17,8 @@ This gives you the UX you want (browser pane in page + agent control) while avoi
 - **Frontend UX**: Cedar state + `iframe` that points to Browserbase Live View URL
 
 ## Architecture
-1. Frontend requests `createBrowserSession` tool.
-2. Backend creates remote session and returns `{ sessionId, liveViewUrl }`.
+1. Signed-in frontend requests `createBrowserSession` with a Supabase bearer token.
+2. Backend verifies the token, derives the authenticated Supabase user, creates a remote session, and returns `{ sessionId, liveViewUrl }`.
 3. Frontend stores session state and renders iframe pane with `liveViewUrl`.
 4. User logs in manually in iframe (no credential collection by your app).
 5. Agent executes browser tools against that `sessionId`:
@@ -26,7 +26,7 @@ This gives you the UX you want (browser pane in page + agent control) while avoi
    - `browserObserve`
    - `browserExtract`
    - `browserAct` (guarded)
-6. For high-risk actions (submit/register/drop), require explicit human confirmation in chat before execution.
+6. For high-risk actions (submit/register/drop), require explicit human confirmation and a server-issued single-use confirmation token before execution.
 
 ## Rutgers-specific guardrails
 - Treat **WebReg registration submit** as restricted: require a final explicit confirm step and warn about policy risk.
@@ -50,8 +50,10 @@ interface BrowserSessionState {
   provider: 'browserbase';
   sessionId: string;
   liveViewUrl: string;
-  target: 'degree_navigator' | 'webreg';
+  target: 'degree_navigator';
   status: 'created' | 'awaiting_login' | 'ready' | 'error' | 'closed';
+  ownerId: string; // server-derived Supabase user id
+  createdAt: string;
   lastHeartbeatAt: string;
 }
 ```
@@ -69,7 +71,7 @@ browserAct({ sessionId, action, requireConfirmationToken })
 ## Human-in-the-loop policy
 - `browserAct` checks whether action is sensitive (`submit`, `register`, `drop`, `confirm`).
 - If sensitive and no confirmation token, return a structured `needs_confirmation` response.
-- Agent asks user for explicit confirmation and retries with token.
+- Agent asks user for explicit confirmation and retries with the server-issued token.
 
 ## Delivery phases
 1. **Phase 1 (fast POC)**
@@ -79,7 +81,7 @@ browserAct({ sessionId, action, requireConfirmationToken })
    - Add structured `observe/extract/act` tools
    - Add confirmation gate and audit logs
 3. **Phase 3 (production hardening)**
-   - Per-user session ownership checks
+   - Per-user session ownership checks using authenticated Supabase `user_id`
    - Redaction and minimal retention
    - Rate limiting and failure recovery
 

@@ -33,6 +33,7 @@ Backend env vars (Mastra service):
 - `GOOGLE_VERTEX_LOCATION`
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_SERVICE_KEY`
 - `BROWSERBASE_API_KEY`
 - `BROWSERBASE_PROJECT_ID`
 - `BROWSERBASE_API_BASE` (optional override, defaults to `https://api.browserbase.com/v1`)
@@ -40,6 +41,14 @@ Backend env vars (Mastra service):
 - `STAGEHAND_MODEL_NAME` (optional, defaults to `gpt-4o-mini`)
 
 Browserbase sessions are created with `keepAlive: true` so the embedded Live View remains available while the student signs in manually. The app releases those sessions with Browserbase's `REQUEST_RELEASE` API when the user clicks Stop Session, when auto-stop runs, or when the backend reaper closes stale sessions.
+
+Current backend deployment:
+
+- Cloud Run service: `rutgers-agent-mastra-backend`
+- Region: `us-east4`
+- URL: `https://rutgers-agent-mastra-backend-496012954691.us-east4.run.app`
+- Runtime service account: `rutgers-agent-mastra-backend@concise-foundry-465822-d7.iam.gserviceaccount.com`
+- Required secret binding: `SUPABASE_SERVICE_ROLE_KEY=supabase-service-role-key:latest`
 
 Frontend env vars (Next.js app):
 
@@ -153,13 +162,22 @@ gcloud run deploy rutgers-agent-mastra-backend \
   --region us-east4 \
   --platform managed \
   --service-account rutgers-agent-mastra-backend@concise-foundry-465822-d7.iam.gserviceaccount.com \
-  --set-env-vars "GOOGLE_VERTEX_PROJECT=concise-foundry-465822-d7,GOOGLE_VERTEX_LOCATION=global,SUPABASE_URL=https://cokisotftjntuswdfuhc.supabase.co,SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNva2lzb3RmdGpudHVzd2RmdWhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwMjY4OTQsImV4cCI6MjA4MzYwMjg5NH0.BU9D9cMt_j2Gd5HYf8Xccd02cq5SGSJk-EBVJZIyBCU"
+  --set-env-vars "GOOGLE_VERTEX_PROJECT=concise-foundry-465822-d7,GOOGLE_VERTEX_LOCATION=global,SUPABASE_URL=https://cokisotftjntuswdfuhc.supabase.co,SUPABASE_ANON_KEY=<anon-key>" \
+  --set-secrets "SUPABASE_SERVICE_ROLE_KEY=supabase-service-role-key:latest"
 ```
 
 Successful deployment reference:
 - Service: `rutgers-agent-mastra-backend`
 - Revision: `rutgers-agent-mastra-backend-00002-q95`
 - URL: `https://rutgers-agent-mastra-backend-496012954691.us-east4.run.app`
+
+To update only the service-role secret binding on an existing Cloud Run service:
+
+```bash
+gcloud run services update rutgers-agent-mastra-backend \
+  --region us-east4 \
+  --update-secrets SUPABASE_SERVICE_ROLE_KEY=supabase-service-role-key:latest
+```
 
 Permission note:
 - Deploy permissions apply to the active `gcloud` account, not the runtime service account.
@@ -204,8 +222,27 @@ If GET returns 404/405, that can still indicate service reachability.
 curl -N -X POST https://rutgers-agent-mastra-backend-496012954691.us-east4.run.app/chat/stream \
   -H "Content-Type: application/json" \
   -H "Accept: text/event-stream" \
-  -d '{"prompt":"Hello","temperature":0.2,"maxTokens":64,"systemPrompt":"You are a helpful assistant."}'
+  -H "Authorization: Bearer <supabase-access-token>" \
+  -d '{"prompt":"Hello","temperature":0.2,"maxTokens":64}'
 ```
+
+The `/chat/stream` endpoint requires a valid Supabase access token. Missing or invalid bearer tokens should return `401`.
+
+---
+
+## 8.5) Supabase Migrations
+
+The security migrations have been applied to the Supabase project:
+
+- `20260428034924 harden_browser_sessions`
+- `20260428034930 lock_down_soc_catalog`
+
+Expected database state:
+
+- `public.browser_sessions.user_id` exists and stores authenticated Supabase user ownership.
+- `public.browser_sessions` has RLS enabled with a backend-only deny-all frontend policy.
+- `anon` and `authenticated` have no direct grants on `public.browser_sessions`.
+- SOC catalog tables such as `courses`, `sections`, and `meeting_times` are read-only for `anon` and `authenticated`.
 
 ---
 
@@ -238,10 +275,10 @@ If there are network errors:
 
 ## 11) Production hardening (recommended)
 
-- Move sensitive values to Secret Manager and reference from Cloud Run.
+- Keep sensitive values in Secret Manager and reference them from Cloud Run.
 - Add Cloud Monitoring alerts for backend latency/error rate.
 - Configure Cloud Run min instances for reduced cold start.
-- Add backend auth (JWT/API key/IAM) before broad public traffic.
+- Backend routes already verify Supabase bearer tokens; monitor `401`/`403` rates for auth issues.
 - Configure custom domain + SSL for frontend App Hosting.
 
 ---

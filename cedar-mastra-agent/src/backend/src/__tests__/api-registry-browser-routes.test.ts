@@ -7,8 +7,38 @@ import {
   setBrowserSessionRepository,
 } from '../browser/browserService.js';
 import { BrowserSessionRepository, createInMemoryBrowserSessionRepository } from '../browser/sessionRepository.js';
+import { setAuthTokenVerifier } from '../auth/supabaseAuth.js';
+
+const TEST_USER_ID = '00000000-0000-4000-8000-000000000001';
+
+function jsonResponder(payload: unknown, status: number): Response {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+function withAuthReq<T extends { json?: () => Promise<unknown>; text?: () => Promise<string> }>(req: T): T & {
+  header: (name: string) => string | undefined;
+} {
+  return {
+    ...req,
+    header: (name: string) => (name.toLowerCase() === 'authorization' ? 'Bearer test_token' : undefined),
+  };
+}
 
 describe('browser session API routes', () => {
+  setAuthTokenVerifier(async (token) => {
+    if (token !== 'test_token') {
+      throw new Error('unexpected token');
+    }
+
+    return {
+      userId: TEST_USER_ID,
+      email: 'student@example.com',
+    };
+  });
+
   it('registers create/status/close/close-beacon browser session endpoints', () => {
     const byPath = new Map(apiRoutes.map((route) => [route.path, route]));
 
@@ -52,17 +82,13 @@ describe('browser session API routes', () => {
           },
           text: async () =>
             JSON.stringify({
-              browserClientId: 'owner_1',
               sessionId: 'session_unknown_1',
               reason: 'pagehide',
               allowUntracked: true,
+              accessToken: 'test_token',
             }),
         },
-        json: (payload: unknown, status: number) =>
-          new Response(JSON.stringify(payload), {
-            status,
-            headers: { 'Content-Type': 'application/json' },
-          }),
+        json: jsonResponder,
       } as never);
 
       assert.strictEqual(response.status, 200);
@@ -87,13 +113,11 @@ describe('browser session API routes', () => {
     try {
       response = await closeRoute.handler({
         req: {
-          json: async () => ({ sessionId: 'session_1' }),
-        },
-        json: (payload: unknown, status: number) =>
-          new Response(JSON.stringify(payload), {
-            status,
-            headers: { 'Content-Type': 'application/json' },
+          ...withAuthReq({
+            json: async () => ({ reason: 'manual_stop' }),
           }),
+        },
+        json: jsonResponder,
       } as never);
     } finally {
       console.error = originalConsoleError;
@@ -120,7 +144,7 @@ describe('browser session API routes', () => {
       liveViewUrl: 'https://example.com/live',
       target: 'degree_navigator',
       status: 'ready',
-      ownerId: 'owner_meta',
+      ownerId: TEST_USER_ID,
     });
 
     const calls: Array<{ input: string; init?: RequestInit }> = [];
@@ -132,18 +156,15 @@ describe('browser session API routes', () => {
 
       const response = await closeRoute.handler({
         req: {
+          ...withAuthReq({
           json: async () => ({
-            browserClientId: 'owner_meta',
             sessionId: 'session_meta_1',
             reason: 'manual_stop',
             allowUntracked: false,
           }),
-        },
-        json: (payload: unknown, status: number) =>
-          new Response(JSON.stringify(payload), {
-            status,
-            headers: { 'Content-Type': 'application/json' },
           }),
+        },
+        json: jsonResponder,
       } as never);
 
       assert.strictEqual(response.status, 200);
@@ -172,5 +193,19 @@ describe('browser session API routes', () => {
       process.env.BROWSERBASE_API_KEY = originalApiKey;
       process.env.BROWSERBASE_PROJECT_ID = originalProjectId;
     }
+  });
+
+  it('rejects strict browser routes without a bearer token', async () => {
+    const statusRoute = apiRoutes.find((route) => route.path === '/browser/session/status');
+    assert.ok(statusRoute?.handler, 'Missing status route handler');
+
+    const response = await statusRoute.handler({
+      req: {
+        json: async () => ({ sessionId: 'session_1' }),
+      },
+      json: jsonResponder,
+    } as never);
+
+    assert.strictEqual(response.status, 401);
   });
 });

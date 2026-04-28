@@ -29,6 +29,7 @@ import { EmbeddedCedarChat } from '@/cedar/components/chatComponents/EmbeddedCed
 import { DebuggerPanel } from '@/cedar/components/debugger';
 import {
   addSectionToSchedule,
+  clearLocalSchedules,
   dispatchScheduleUpdated,
   loadSchedule,
   removeSectionFromSchedule,
@@ -74,7 +75,7 @@ interface BrowserCloseApiResponse {
 
 interface PersistedBrowserSessionRecord {
   sessionId: string;
-  browserClientId: string;
+  userId: string;
   updatedAt: string;
 }
 
@@ -123,6 +124,8 @@ export default function HomePage() {
   const [textLines, setTextLines] = React.useState<string[]>([]);
   const [searchResults, setSearchResults] = React.useState<SearchResultItem[]>([]);
   const [userEmail, setUserEmail] = React.useState<string | null>(null);
+  const [userId, setUserId] = React.useState<string | null>(null);
+  const [accessToken, setAccessToken] = React.useState<string | null>(null);
   const [isProfileOpen, setIsProfileOpen] = React.useState(false);
 
   const [browserClientId, setBrowserClientId] = React.useState<string>(() => getClientIdentity().browserClientId);
@@ -215,19 +218,25 @@ export default function HomePage() {
 
   React.useEffect(() => {
     let isMounted = true;
-    supabaseClient.auth.getUser().then(({ data, error }) => {
+    supabaseClient.auth.getSession().then(({ data, error }) => {
       if (!isMounted) return;
       if (error) {
         console.warn('Failed to read auth state', error);
         setUserEmail(null);
+        setUserId(null);
+        setAccessToken(null);
         return;
       }
-      setUserEmail(data.user?.email ?? null);
+      setUserEmail(data.session?.user?.email ?? null);
+      setUserId(data.session?.user?.id ?? null);
+      setAccessToken(data.session?.access_token ?? null);
     });
 
     const { data: authListener } = supabaseClient.auth.onAuthStateChange(
       (_event, session) => {
         setUserEmail(session?.user?.email ?? null);
+        setUserId(session?.user?.id ?? null);
+        setAccessToken(session?.access_token ?? null);
       },
     );
 
@@ -246,9 +255,14 @@ export default function HomePage() {
         | '/browser/session/close-beacon',
       payload: object,
     ): Promise<BrowserSessionApiResponse | BrowserCloseApiResponse> => {
+      if (!accessToken) {
+        throw new Error('Sign in before using browser sessions.');
+      }
+
       const response = await fetch(`${MASTRA_BASE_URL}${path}`, {
         method: 'POST',
         headers: {
+          Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
@@ -262,17 +276,17 @@ export default function HomePage() {
 
       return json as BrowserSessionApiResponse | BrowserCloseApiResponse;
     },
-    [],
+    [accessToken],
   );
 
-  const persistActiveBrowserSession = React.useCallback((session: BrowserSessionState, ownerId: string) => {
+  const persistActiveBrowserSession = React.useCallback((session: BrowserSessionState, authenticatedUserId: string) => {
     if (typeof window === 'undefined') {
       return;
     }
 
     const record: PersistedBrowserSessionRecord = {
       sessionId: session.sessionId,
-      browserClientId: ownerId,
+      userId: authenticatedUserId,
       updatedAt: new Date().toISOString(),
     };
     window.localStorage.setItem(ACTIVE_BROWSER_SESSION_STORAGE_KEY, JSON.stringify(record));
@@ -286,12 +300,16 @@ export default function HomePage() {
   }, []);
 
   const sendCloseBeacon = React.useCallback(
-    (record: { sessionId: string; browserClientId: string }, reason: BrowserCloseReason) => {
+    (record: { sessionId: string }, reason: BrowserCloseReason) => {
+      if (!accessToken) {
+        return;
+      }
+
       const payload = {
-        browserClientId: record.browserClientId,
         sessionId: record.sessionId,
         reason,
         allowUntracked: true,
+        accessToken,
       };
       const endpoint = `${MASTRA_BASE_URL}/browser/session/close-beacon`;
       const body = JSON.stringify(payload);
@@ -313,19 +331,17 @@ export default function HomePage() {
         }).catch(() => undefined);
       }
     },
-    [],
+    [accessToken],
   );
 
   const closeSessionByIds = React.useCallback(
     async (options: {
       sessionId: string;
-      ownerId: string;
       reason: BrowserCloseReason;
       allowUntracked?: boolean;
       silent?: boolean;
     }): Promise<BrowserCloseApiResponse> => {
       const result = (await callBrowserSessionApi('/browser/session/close', {
-        browserClientId: options.ownerId,
         sessionId: options.sessionId,
         reason: options.reason,
         allowUntracked: options.allowUntracked ?? false,
@@ -355,12 +371,10 @@ export default function HomePage() {
       allowUntracked?: boolean;
       silent?: boolean;
       sessionId?: string;
-      ownerId?: string;
     }): Promise<boolean> => {
       const sessionId = options.sessionId ?? browserSession?.sessionId;
-      const ownerId = options.ownerId ?? browserClientId;
 
-      if (!sessionId || !ownerId) {
+      if (!sessionId) {
         return false;
       }
 
@@ -377,7 +391,6 @@ export default function HomePage() {
 
       try {
         const result = await closeSessionByIds({
-          ownerId,
           sessionId,
           reason: options.reason,
           allowUntracked: options.allowUntracked ?? false,
@@ -415,7 +428,6 @@ export default function HomePage() {
     },
     [
       browserSession,
-      browserClientId,
       clearActiveBrowserSessionRecord,
       closeSessionByIds,
     ],
@@ -429,27 +441,32 @@ export default function HomePage() {
     setBrowserError(null);
     setBrowserPaneStatus('launching');
 
+    if (!userId) {
+      setBrowserPaneStatus('error');
+      setBrowserError('Sign in before launching Degree Navigator.');
+      return;
+    }
+
     try {
       const result = (await callBrowserSessionApi('/browser/session/create', {
-        browserClientId,
         target: 'degree_navigator',
       })) as BrowserSessionApiResponse;
 
       if (process.env.NODE_ENV !== 'production') {
         console.info('[browser-ui] launch success', {
           sessionId: result.session.sessionId,
-          ownerId: browserClientId,
+          userId,
         });
       }
 
       setBrowserSession(result.session);
       setBrowserPaneStatus(getBrowserPaneStatus(result.session));
-      persistActiveBrowserSession(result.session, browserClientId);
+      persistActiveBrowserSession(result.session, userId);
     } catch (error) {
       setBrowserPaneStatus('error');
       setBrowserError(error instanceof Error ? error.message : 'Failed to create browser session.');
     }
-  }, [browserClientId, callBrowserSessionApi, isStoppingSession, persistActiveBrowserSession]);
+  }, [callBrowserSessionApi, isStoppingSession, persistActiveBrowserSession, userId]);
 
   const closeDegreeNavigatorSession = React.useCallback(async () => {
     if (!browserSession) {
@@ -479,7 +496,6 @@ export default function HomePage() {
 
       try {
         const result = (await callBrowserSessionApi('/browser/session/status', {
-          browserClientId,
           sessionId: browserSession.sessionId,
         })) as BrowserSessionApiResponse;
 
@@ -492,7 +508,9 @@ export default function HomePage() {
 
         setBrowserSession(result.session);
         setBrowserPaneStatus(getBrowserPaneStatus(result.session));
-        persistActiveBrowserSession(result.session, browserClientId);
+        if (userId) {
+          persistActiveBrowserSession(result.session, userId);
+        }
       } catch (error) {
         setBrowserPaneStatus('error');
         setBrowserError(error instanceof Error ? error.message : 'Failed to refresh browser session status.');
@@ -500,10 +518,10 @@ export default function HomePage() {
     },
     [
       browserSession,
-      browserClientId,
       callBrowserSessionApi,
       clearActiveBrowserSessionRecord,
       persistActiveBrowserSession,
+      userId,
     ],
   );
 
@@ -574,15 +592,19 @@ export default function HomePage() {
       return;
     }
 
-    if (!parsed?.sessionId || !parsed?.browserClientId) {
+    if (!parsed?.sessionId || !parsed?.userId) {
       window.localStorage.removeItem(ACTIVE_BROWSER_SESSION_STORAGE_KEY);
+      return;
+    }
+
+    if (!userId || parsed.userId !== userId) {
       return;
     }
 
     if (process.env.NODE_ENV !== 'production') {
       console.info('[browser-ui] startup cleanup candidate', {
         sessionId: parsed.sessionId,
-        ownerId: parsed.browserClientId,
+        userId: parsed.userId,
       });
     }
 
@@ -592,14 +614,13 @@ export default function HomePage() {
         allowUntracked: true,
         silent: true,
         sessionId: parsed.sessionId,
-        ownerId: parsed.browserClientId,
       });
 
       if (result.terminated) {
         clearActiveBrowserSessionRecord();
       }
     })();
-  }, [clearActiveBrowserSessionRecord, closeSessionByIds]);
+  }, [clearActiveBrowserSessionRecord, closeSessionByIds, userId]);
 
   React.useEffect(() => {
     if (typeof window === 'undefined' || !browserSession) {
@@ -616,7 +637,6 @@ export default function HomePage() {
       sendCloseBeacon(
         {
           sessionId: browserSession.sessionId,
-          browserClientId,
         },
         reason,
       );
@@ -632,7 +652,7 @@ export default function HomePage() {
       window.removeEventListener('pagehide', onPageHide);
       window.removeEventListener('beforeunload', onBeforeUnload);
     };
-  }, [browserSession, browserClientId, sendCloseBeacon]);
+  }, [browserSession, sendCloseBeacon]);
 
   React.useEffect(() => {
     const clearHiddenTimeout = () => {
@@ -1178,7 +1198,17 @@ export default function HomePage() {
             <button
               type="button"
               onClick={async () => {
+                await closeBrowserSessionWithReason({
+                  reason: 'manual_stop',
+                  allowUntracked: false,
+                  silent: true,
+                });
                 await supabaseClient.auth.signOut();
+                clearActiveBrowserSessionRecord();
+                clearLocalSchedules();
+                setBrowserSession(null);
+                setBrowserPaneStatus('idle');
+                setBrowserError(null);
                 setIsProfileOpen(false);
               }}
               className="w-full rounded-lg border border-border bg-surface-1 px-4 py-2 text-sm font-semibold text-foreground shadow-elev-1 transition hover:border-border-subtle hover:bg-surface-2"

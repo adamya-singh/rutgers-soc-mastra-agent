@@ -54,6 +54,7 @@ GOOGLE_VERTEX_LOCATION=us-central1
 # Supabase
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
 3. **Start the development servers:**
@@ -83,25 +84,14 @@ This runs both the Next.js frontend and Mastra backend concurrently:
 
 ## API Endpoints (Mastra backend)
 
-### Non-streaming Chat
-
-```bash
-POST /chat/execute-function
-Content-Type: application/json
-
-{
-  "prompt": "Hello, how can you help me?",
-  "temperature": 0.7,
-  "maxTokens": 1000,
-  "systemPrompt": "You are a helpful assistant."
-}
-```
+Mastra backend routes are authenticated. Include the current Supabase access token as a bearer token.
 
 ### Streaming Chat
 
-```bash
-POST /chat/execute-function/stream
+```http
+POST /chat/stream
 Content-Type: application/json
+Authorization: Bearer <supabase-access-token>
 
 {
   "prompt": "Tell me a story",
@@ -109,7 +99,21 @@ Content-Type: application/json
 }
 ```
 
-Returns Server-Sent Events with:
+### Browser Session APIs
+
+```http
+POST /browser/session/create
+Content-Type: application/json
+Authorization: Bearer <supabase-access-token>
+
+{
+  "target": "degree_navigator"
+}
+```
+
+Browser session ownership is derived from the verified Supabase user. Do not send or trust browser-local IDs for authorization.
+
+The chat stream returns Server-Sent Events with:
 
 - **JSON Objects**: `{ type: 'stage_update', status: 'update_begin', message: 'Generating response...'}`
 - **Text Chunks**: Streamed AI response text

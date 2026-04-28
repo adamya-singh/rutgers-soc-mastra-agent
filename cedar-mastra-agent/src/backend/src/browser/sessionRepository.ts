@@ -1,4 +1,4 @@
-import { getSupabaseClient } from '../lib/supabase.js';
+import { getSupabaseServiceClient } from '../lib/supabase.js';
 import {
   BrowserSessionCloseReason,
   BrowserSessionError,
@@ -19,6 +19,7 @@ type BrowserSessionRow = {
   target: string;
   status: BrowserSessionState['status'];
   owner_id: string;
+  user_id: string | null;
   created_at: string;
   last_heartbeat_at: string;
   closing_started_at: string | null;
@@ -60,7 +61,7 @@ function mapRowToSession(row: BrowserSessionRow): BrowserSessionState {
     liveViewUrl: row.live_view_url,
     target: row.target,
     status: row.status,
-    ownerId: row.owner_id,
+    ownerId: row.user_id ?? row.owner_id,
     createdAt: row.created_at,
     lastHeartbeatAt: row.last_heartbeat_at,
   };
@@ -76,7 +77,7 @@ function getErrorCode(error: unknown): string | null {
 }
 
 async function fetchBySessionId(sessionId: string): Promise<BrowserSessionRow | null> {
-  const supabase = getSupabaseClient();
+  const supabase = getSupabaseServiceClient();
   const { data, error } = await supabase
     .from('browser_sessions')
     .select('*')
@@ -103,7 +104,7 @@ export function createSupabaseBrowserSessionRepository(
       throw new BrowserSessionError('SESSION_NOT_FOUND', `Session ${sessionId} was not found.`);
     }
 
-    if (row.owner_id !== ownerId) {
+    if ((row.user_id ?? row.owner_id) !== ownerId) {
       throw new BrowserSessionError(
         'SESSION_OWNERSHIP_MISMATCH',
         `Session ${sessionId} does not belong to this browser client.`,
@@ -111,7 +112,7 @@ export function createSupabaseBrowserSessionRepository(
     }
 
     if (now() - new Date(row.last_heartbeat_at).getTime() > ttlMs) {
-      const supabase = getSupabaseClient();
+      const supabase = getSupabaseServiceClient();
       await supabase.from('browser_sessions').delete().eq('session_id', sessionId);
       throw new BrowserSessionError('SESSION_EXPIRED', `Session ${sessionId} has expired.`);
     }
@@ -126,7 +127,7 @@ export function createSupabaseBrowserSessionRepository(
   ): Promise<BrowserSessionState> {
     const existing = await getOwned(sessionId, ownerId);
     const timestamp = new Date(now()).toISOString();
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseServiceClient();
 
     const { data, error } = await supabase
       .from('browser_sessions')
@@ -136,7 +137,7 @@ export function createSupabaseBrowserSessionRepository(
         updated_at: timestamp,
       })
       .eq('session_id', sessionId)
-      .eq('owner_id', ownerId)
+      .eq('user_id', ownerId)
       .select('*')
       .single();
 
@@ -150,7 +151,7 @@ export function createSupabaseBrowserSessionRepository(
   return {
     async create(input) {
       const timestamp = new Date(now()).toISOString();
-      const supabase = getSupabaseClient();
+      const supabase = getSupabaseServiceClient();
       const { data, error } = await supabase
         .from('browser_sessions')
         .upsert(
@@ -161,6 +162,7 @@ export function createSupabaseBrowserSessionRepository(
             target: input.target,
             status: input.status,
             owner_id: input.ownerId,
+            user_id: input.ownerId,
             created_at: timestamp,
             last_heartbeat_at: timestamp,
             closing_started_at: null,
@@ -195,7 +197,7 @@ export function createSupabaseBrowserSessionRepository(
 
     async listExpired(nowMs, cutoffMs) {
       const cutoffIso = new Date(nowMs - cutoffMs).toISOString();
-      const supabase = getSupabaseClient();
+      const supabase = getSupabaseServiceClient();
       const { data, error } = await supabase
         .from('browser_sessions')
         .select('*')
@@ -211,7 +213,7 @@ export function createSupabaseBrowserSessionRepository(
 
     async markClosing(sessionId, ownerId, reason) {
       const timestamp = new Date(now()).toISOString();
-      const supabase = getSupabaseClient();
+      const supabase = getSupabaseServiceClient();
 
       const { data, error } = await supabase
         .from('browser_sessions')
@@ -221,7 +223,7 @@ export function createSupabaseBrowserSessionRepository(
           updated_at: timestamp,
         })
         .eq('session_id', sessionId)
-        .eq('owner_id', ownerId)
+        .eq('user_id', ownerId)
         .is('closing_started_at', null)
         .neq('status', 'closed')
         .select('*')
@@ -241,7 +243,7 @@ export function createSupabaseBrowserSessionRepository(
         throw new BrowserSessionError('SESSION_NOT_FOUND', `Session ${sessionId} was not found.`);
       }
 
-      if (row.owner_id !== ownerId) {
+      if ((row.user_id ?? row.owner_id) !== ownerId) {
         throw new BrowserSessionError(
           'SESSION_OWNERSHIP_MISMATCH',
           `Session ${sessionId} does not belong to this browser client.`,
@@ -267,7 +269,7 @@ export function createSupabaseBrowserSessionRepository(
 
     async unmarkClosing(sessionId) {
       const timestamp = new Date(now()).toISOString();
-      const supabase = getSupabaseClient();
+      const supabase = getSupabaseServiceClient();
       const { error } = await supabase
         .from('browser_sessions')
         .update({
@@ -283,7 +285,7 @@ export function createSupabaseBrowserSessionRepository(
 
     async markClosed(sessionId, metadata = {}) {
       const timestamp = new Date(now()).toISOString();
-      const supabase = getSupabaseClient();
+      const supabase = getSupabaseServiceClient();
 
       const { data, error } = await supabase
         .from('browser_sessions')
@@ -314,7 +316,7 @@ export function createSupabaseBrowserSessionRepository(
     },
 
     async deleteSession(sessionId) {
-      const supabase = getSupabaseClient();
+      const supabase = getSupabaseServiceClient();
       const { error } = await supabase.from('browser_sessions').delete().eq('session_id', sessionId);
 
       if (error) {

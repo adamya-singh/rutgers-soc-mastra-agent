@@ -14,11 +14,11 @@ export const ChatInputSchema = z.object({
   prompt: z.string(),
   temperature: z.number().optional(),
   maxTokens: z.number().optional(),
-  systemPrompt: z.string().optional(),
   streamController: z.instanceof(ReadableStreamDefaultController).optional(),
   additionalContext: z.any().optional(),
   resourceId: z.string().optional(),
   threadId: z.string().optional(),
+  authenticatedUserId: z.string().optional(),
 });
 
 export const ChatOutputSchema = z.object({
@@ -40,23 +40,31 @@ const callAgent = createStep({
       prompt,
       temperature,
       maxTokens,
-      systemPrompt,
       streamController,
       additionalContext,
       resourceId,
       threadId,
+      authenticatedUserId,
     } = inputData;
 
     if (!streamController) {
       throw new Error('Stream controller is required');
     }
 
-    console.log('Chat workflow received input data', inputData);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Chat workflow received request', {
+        promptLength: prompt.length,
+        hasAdditionalContext: Boolean(additionalContext),
+        resourceId,
+        threadId,
+      });
+    }
 
     // Create runtime context with additionalContext and streamController
     const runtimeContext = new RuntimeContext();
     runtimeContext.set('additionalContext', additionalContext);
     runtimeContext.set('streamController', streamController);
+    runtimeContext.set('authenticatedUserId', authenticatedUserId);
 
     const messages = [
       'User message: ' + prompt,
@@ -70,8 +78,6 @@ const callAgent = createStep({
      * and properly handle different event types such as text-delta, tool calls, etc.
      */
     const streamResult = await socAgent.stream(messages, {
-      // If system prompt is provided, overwrite the default system prompt for this agent
-      ...(systemPrompt ? ({ instructions: systemPrompt } as const) : {}),
       modelSettings: {
         temperature,
         maxOutputTokens: maxTokens,
@@ -98,10 +104,12 @@ const callAgent = createStep({
 
     const usage = await streamResult.usage;
 
-    console.log('Chat workflow result', {
-      content: responseText,
-      usage: usage,
-    });
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Chat workflow result', {
+        contentLength: responseText.length,
+        usage,
+      });
+    }
 
     return {
       content: responseText,

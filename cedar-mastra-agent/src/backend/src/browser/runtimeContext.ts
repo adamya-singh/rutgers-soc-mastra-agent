@@ -76,13 +76,18 @@ export function extractBrowserClientIdFromAdditionalContext(additionalContext: u
 export function requireBrowserClientIdFromRuntime(runtimeContext: {
   get: (key: string) => unknown;
 }): string {
+  const authenticatedUserId = runtimeContext.get('authenticatedUserId');
+  if (typeof authenticatedUserId === 'string' && authenticatedUserId.trim().length > 0) {
+    return authenticatedUserId;
+  }
+
   const additionalContext = runtimeContext.get('additionalContext');
   const browserClientId = extractBrowserClientIdFromAdditionalContext(additionalContext);
 
   if (!browserClientId) {
     throw new BrowserSessionError(
       'MISSING_BROWSER_CLIENT_ID',
-      'Missing browserClientId in additional context. Subscribe browserClientId on the frontend before browser tool usage.',
+      'Missing authenticated user context for browser tool usage.',
     );
   }
 

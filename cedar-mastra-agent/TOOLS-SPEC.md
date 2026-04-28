@@ -1763,8 +1763,9 @@ and explore the Schedule of Classes (SOC) database.
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=eyJ...your-anon-key
 
-# Optional: Service role key for admin operations
-SUPABASE_SERVICE_KEY=eyJ...your-service-key
+# Required on the backend for backend-only tables such as browser_sessions
+SUPABASE_SERVICE_ROLE_KEY=eyJ...your-service-role-key
+# SUPABASE_SERVICE_KEY is also accepted as a backwards-compatible alias.
 ```
 
 ### Package Dependencies

@@ -11,7 +11,7 @@ describe('browserAct confirmation guard', () => {
         action: 'submit degree audit request',
       },
       runtimeContext: {
-        get: () => undefined,
+        get: (key: string) => (key === 'authenticatedUserId' ? 'user_123' : undefined),
       },
     } as never);
 
@@ -19,5 +19,6 @@ describe('browserAct confirmation guard', () => {
     assert.strictEqual(result?.success, false);
     assert.strictEqual(result?.needsConfirmation, true);
     assert.strictEqual(result?.confirmationRequiredFor, 'submit degree audit request');
+    assert.strictEqual(typeof result?.confirmationToken, 'string');
   });
 });

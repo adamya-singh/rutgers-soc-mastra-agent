@@ -18,6 +18,11 @@ import {
   getSession,
 } from '../browser/browserService.js';
 import { BrowserSessionError } from '../browser/types.js';
+import {
+  AuthError,
+  requireAuthenticatedUser,
+  requireAuthenticatedUserWithFallbackToken,
+} from '../auth/supabaseAuth.js';
 
 // Helper function to convert Zod schema to OpenAPI schema
 function toOpenApiSchema(schema: unknown) {
@@ -25,6 +30,10 @@ function toOpenApiSchema(schema: unknown) {
 }
 
 function handleBrowserError(c: { json: (payload: unknown, status: number) => Response }, error: unknown) {
+  if (error instanceof AuthError) {
+    return c.json({ error: error.message }, error.status);
+  }
+
   if (error instanceof ZodError) {
     return c.json(
       {
@@ -42,7 +51,8 @@ function handleBrowserError(c: { json: (payload: unknown, status: number) => Res
     if (
       error.code === 'SESSION_OWNERSHIP_MISMATCH' ||
       error.code === 'MISSING_BROWSER_CLIENT_ID' ||
-      error.code === 'INVALID_BROWSER_TARGET'
+      error.code === 'INVALID_BROWSER_TARGET' ||
+      error.code === 'INVALID_BROWSER_URL'
     ) {
       return c.json({ error: error.message, code: error.code }, 403);
     }
@@ -58,6 +68,36 @@ function handleBrowserError(c: { json: (payload: unknown, status: number) => Res
   }
 
   return c.json({ error: 'Internal error' }, 500);
+}
+
+function handleRouteError(c: { json: (payload: unknown, status: number) => Response }, error: unknown) {
+  if (error instanceof AuthError) {
+    return c.json({ error: error.message }, error.status);
+  }
+
+  if (error instanceof ZodError) {
+    return c.json(
+      {
+        error: 'Invalid request payload.',
+        details: error.flatten(),
+      },
+      400,
+    );
+  }
+
+  if (error instanceof Error) {
+    return c.json({ error: error.message }, 500);
+  }
+
+  return c.json({ error: 'Internal error' }, 500);
+}
+
+function logUnexpectedRouteError(error: unknown): void {
+  if (error instanceof AuthError || error instanceof ZodError || error instanceof BrowserSessionError) {
+    return;
+  }
+
+  console.error(error);
 }
 
 /**
@@ -83,15 +123,13 @@ export const apiRoutes = [
     },
     handler: async (c) => {
       try {
+        const authenticatedUser = await requireAuthenticatedUser(c);
         const body = await c.req.json();
         const {
           prompt,
           temperature,
           maxTokens,
-          systemPrompt,
           additionalContext,
-          resourceId,
-          threadId,
         } = ChatInputSchema.parse(body);
 
         return createSSEStream(async (controller) => {
@@ -101,11 +139,11 @@ export const apiRoutes = [
               prompt,
               temperature,
               maxTokens,
-              systemPrompt,
               streamController: controller,
               additionalContext,
-              resourceId,
-              threadId,
+              resourceId: authenticatedUser.userId,
+              threadId: authenticatedUser.userId,
+              authenticatedUserId: authenticatedUser.userId,
             },
           });
 
@@ -115,8 +153,8 @@ export const apiRoutes = [
           }
         });
       } catch (error) {
-        console.error(error);
-        return c.json({ error: error instanceof Error ? error.message : 'Internal error' }, 500);
+        logUnexpectedRouteError(error);
+        return handleRouteError(c, error);
       }
     },
   }),
@@ -143,12 +181,13 @@ export const apiRoutes = [
     },
     handler: async (c) => {
       try {
+        const authenticatedUser = await requireAuthenticatedUser(c);
         const body = await c.req.json();
-        const { browserClientId, target } = CreateBrowserSessionRequestSchema.parse(body);
-        const session = await createSession(target, browserClientId);
+        const { target } = CreateBrowserSessionRequestSchema.parse(body);
+        const session = await createSession(target, authenticatedUser.userId);
         return c.json({ session }, 200);
       } catch (error) {
-        console.error(error);
+        logUnexpectedRouteError(error);
         return handleBrowserError(c, error);
       }
     },
@@ -176,12 +215,13 @@ export const apiRoutes = [
     },
     handler: async (c) => {
       try {
+        const authenticatedUser = await requireAuthenticatedUser(c);
         const body = await c.req.json();
-        const { browserClientId, sessionId } = StatusBrowserSessionRequestSchema.parse(body);
-        const session = await getSession(sessionId, browserClientId);
+        const { sessionId } = StatusBrowserSessionRequestSchema.parse(body);
+        const session = await getSession(sessionId, authenticatedUser.userId);
         return c.json({ session }, 200);
       } catch (error) {
-        console.error(error);
+        logUnexpectedRouteError(error);
         return handleBrowserError(c, error);
       }
     },
@@ -209,17 +249,18 @@ export const apiRoutes = [
     },
     handler: async (c) => {
       try {
+        const authenticatedUser = await requireAuthenticatedUser(c);
         const body = await c.req.json();
-        const { browserClientId, sessionId, reason, allowUntracked } = CloseBrowserSessionWithPolicyRequestSchema.parse(body);
+        const { sessionId, reason, allowUntracked } = CloseBrowserSessionWithPolicyRequestSchema.parse(body);
         const result = await closeSessionWithPolicy({
           sessionId,
-          ownerId: browserClientId,
+          ownerId: authenticatedUser.userId,
           reason,
           allowUntracked,
         });
         return c.json(result, 200);
       } catch (error) {
-        console.error(error);
+        logUnexpectedRouteError(error);
         return handleBrowserError(c, error);
       }
     },
@@ -258,17 +299,18 @@ export const apiRoutes = [
           rawBody = text ? JSON.parse(text) : {};
         }
 
-        const { browserClientId, sessionId, reason, allowUntracked } = CloseBrowserSessionBeaconRequestSchema.parse(rawBody);
+        const { sessionId, reason, allowUntracked, accessToken } = CloseBrowserSessionBeaconRequestSchema.parse(rawBody);
+        const authenticatedUser = await requireAuthenticatedUserWithFallbackToken(c, accessToken);
         const result = await closeSessionWithPolicy({
           sessionId,
-          ownerId: browserClientId,
+          ownerId: authenticatedUser.userId,
           reason,
           allowUntracked,
         });
 
         return c.json({ accepted: true, terminated: result.terminated }, 200);
       } catch (error) {
-        console.error(error);
+        logUnexpectedRouteError(error);
         return c.json({ accepted: true, terminated: false }, 200);
       }
     },

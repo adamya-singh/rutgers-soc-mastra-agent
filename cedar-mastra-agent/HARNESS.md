@@ -48,14 +48,14 @@ Memory is configured in [`src/backend/src/mastra/memory.ts`](src/backend/src/mas
 The chat workflow sends the agent:
 
 - The current user prompt.
-- Optional `temperature`, `maxTokens`, and `systemPrompt` overrides from the chat request.
-- `resourceId` and `threadId` for memory scoping when both are present.
+- Optional `temperature` and `maxTokens` controls from the chat request.
+- Server-derived `resourceId` and `threadId` based on the authenticated Supabase user.
 - Serialized `additionalContext` from Cedar as background knowledge.
 
 The frontend subscribes these state values into agent context:
 
 - `mainText`: visible in chat context.
-- `browserClientId`: hidden in chat UI, used for Browserbase session ownership.
+- `browserClientId`: hidden in chat UI, retained as non-authoritative client context.
 - `browserSession`: hidden in chat UI, contains current Browserbase session metadata.
 
 The frontend also registers `searchResults` as Cedar state, but it is used as a mutable UI target rather than subscribed into agent context.
@@ -120,16 +120,16 @@ Browserbase is used as a remote browser runtime so Rutgers pages do not need to 
 
 The session flow is:
 
-1. The frontend calls `/browser/session/create` with `browserClientId` and target `degree_navigator`.
-2. The backend creates a Browserbase session with `keepAlive: true`, a bounded timeout, and `userMetadata`.
+1. The signed-in frontend calls `/browser/session/create` with a Supabase bearer token and target `degree_navigator`.
+2. The backend verifies the token, derives the Supabase `user_id`, creates a Browserbase session with `keepAlive: true`, a bounded timeout, and `userMetadata`.
 3. The backend opens `https://dn.rutgers.edu/` through the Browserbase connection.
 4. The backend resolves an embeddable Live View URL.
 5. The frontend stores `browserSession` and renders the Live View URL in an iframe.
 6. The user logs in manually inside the Browserbase iframe.
-7. The agent can use browser tools against the same session, scoped by `browserClientId`.
+7. The agent can use browser tools against the same session, scoped by the authenticated Supabase user.
 8. Stop Session, auto-stop, startup cleanup, close beacon, or the backend reaper release the Browserbase session with `REQUEST_RELEASE`.
 
-Browserbase sessions are tracked in the backend session repository. Session ownership is enforced by `browserClientId`. The frontend keeps an active-session record in local storage so stale sessions can be cleaned up on startup.
+Browserbase sessions are tracked in the backend session repository. Session ownership is enforced by server-derived Supabase `user_id`; `browserClientId` is retained only as non-authoritative client context. The frontend keeps an active-session record in local storage so stale sessions can be cleaned up on startup.
 
 `browserObserve`, `browserExtract`, and `browserAct` use Stagehand and require model credentials. Initial Degree Navigator navigation uses a non-LLM browser connection so a model key is not required just to launch the Live View.
 
@@ -147,8 +147,8 @@ The backend registers these HTTP routes in [`src/backend/src/mastra/apiRegistry.
 
 - The agent should not ask for, store, or echo Rutgers passwords.
 - Rutgers login occurs manually inside Browserbase Live View.
-- Browser actions are scoped to the current `browserClientId`.
-- Sensitive browser actions require explicit user confirmation before `browserAct` is called.
+- Browser actions are scoped to the authenticated Supabase user.
+- Sensitive browser actions require explicit user confirmation and a server-issued confirmation token before `browserAct` executes.
 - The agent should observe or extract before complex browser actions.
 - Memory is process-local, ephemeral, and limited to the last 5 messages.
 - Search result and schedule tools can mutate frontend-local UI state.
@@ -164,6 +164,7 @@ Backend environment variables:
 - `GOOGLE_APPLICATION_CREDENTIALS`
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_SERVICE_KEY`
 - `BROWSERBASE_API_KEY`
 - `BROWSERBASE_PROJECT_ID`
 - `BROWSERBASE_API_BASE` optional, defaults to `https://api.browserbase.com/v1`

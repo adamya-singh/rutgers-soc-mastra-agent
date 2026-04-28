@@ -2,6 +2,10 @@ import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 import { runAct } from '../../../browser/browserService.js';
 import { requireBrowserClientIdFromRuntime } from '../../../browser/runtimeContext.js';
+import {
+  consumeActionConfirmation,
+  createActionConfirmation,
+} from '../../../browser/actionConfirmation.js';
 
 export const BROWSER_ACT_DESCRIPTION = `Perform an action in the active remote browser session.
 Sensitive actions require explicit confirmationToken.`;
@@ -20,6 +24,8 @@ export const browserActOutputSchema = z.object({
   data: z.unknown().optional(),
   needsConfirmation: z.boolean().optional(),
   confirmationRequiredFor: z.string().optional(),
+  confirmationToken: z.string().optional(),
+  confirmationExpiresAt: z.string().optional(),
 });
 
 export function requiresConfirmation(action: string): boolean {
@@ -32,17 +38,34 @@ export const browserAct = createTool({
   inputSchema: browserActInputSchema,
   outputSchema: browserActOutputSchema,
   execute: async ({ context, runtimeContext }) => {
-    if (requiresConfirmation(context.action) && !context.confirmationToken) {
-      return {
-        success: false,
-        needsConfirmation: true,
-        confirmationRequiredFor: context.action,
-        message:
-          'This action may submit or alter records. Ask the user for explicit confirmation and pass confirmationToken before retrying.',
-      };
+    const ownerId = requireBrowserClientIdFromRuntime(runtimeContext);
+    if (requiresConfirmation(context.action)) {
+      if (!context.confirmationToken) {
+        const confirmation = createActionConfirmation({
+          userId: ownerId,
+          sessionId: context.sessionId,
+          action: context.action,
+        });
+
+        return {
+          success: false,
+          needsConfirmation: true,
+          confirmationRequiredFor: context.action,
+          confirmationToken: confirmation.token,
+          confirmationExpiresAt: confirmation.expiresAt,
+          message:
+            'This action may submit or alter records. Ask the user for explicit confirmation and pass confirmationToken before retrying.',
+        };
+      }
+
+      consumeActionConfirmation({
+        token: context.confirmationToken,
+        userId: ownerId,
+        sessionId: context.sessionId,
+        action: context.action,
+      });
     }
 
-    const ownerId = requireBrowserClientIdFromRuntime(runtimeContext);
     return runAct(context.sessionId, ownerId, context.action);
   },
 });

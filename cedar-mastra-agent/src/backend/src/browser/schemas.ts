@@ -22,12 +22,10 @@ export const BrowserSessionStateSchema = z.object({
 });
 
 export const CreateBrowserSessionRequestSchema = z.object({
-  browserClientId: z.string().min(1, 'browserClientId is required'),
   target: BrowserTargetSchema.default('degree_navigator'),
 });
 
 export const StatusBrowserSessionRequestSchema = z.object({
-  browserClientId: z.string().min(1, 'browserClientId is required'),
   sessionId: z.string().min(1, 'sessionId is required'),
 });
 
@@ -44,17 +42,16 @@ export const BrowserSessionCloseReasonSchema = z.enum([
 ]);
 
 export const CloseBrowserSessionWithPolicyRequestSchema = z.object({
-  browserClientId: z.string().min(1, 'browserClientId is required'),
   sessionId: z.string().min(1, 'sessionId is required'),
   reason: BrowserSessionCloseReasonSchema.optional(),
   allowUntracked: z.boolean().default(false),
 });
 
 export const CloseBrowserSessionBeaconRequestSchema = z.object({
-  browserClientId: z.string().min(1, 'browserClientId is required'),
   sessionId: z.string().min(1, 'sessionId is required'),
   reason: BrowserSessionCloseReasonSchema.optional(),
   allowUntracked: z.boolean().default(true),
+  accessToken: z.string().min(1).optional(),
 });
 
 export const BrowserSessionResponseSchema = z.object({

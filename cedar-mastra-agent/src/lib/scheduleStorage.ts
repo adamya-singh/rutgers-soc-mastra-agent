@@ -205,6 +205,13 @@ const saveScheduleWorkspace = (workspace: ScheduleWorkspace) => {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace));
 };
 
+export const clearLocalSchedules = () => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.removeItem(STORAGE_KEY);
+  window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+  window.dispatchEvent(new Event(SCHEDULE_UPDATED_EVENT));
+};
+
 const replaceScheduleEntry = (workspace: ScheduleWorkspace, entry: ScheduleEntry) => {
   const index = workspace.schedules.findIndex((item) => item.id === entry.id);
   if (index === -1) {

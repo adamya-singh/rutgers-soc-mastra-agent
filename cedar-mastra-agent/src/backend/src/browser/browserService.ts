@@ -11,6 +11,13 @@ import {
 
 const BROWSERBASE_API_BASE = process.env.BROWSERBASE_API_BASE ?? 'https://api.browserbase.com/v1';
 const DEGREE_NAVIGATOR_URL = 'https://dn.rutgers.edu/';
+const ALLOWED_BROWSER_HOSTS = new Set([
+  'dn.rutgers.edu',
+  'degree-navigator.rutgers.edu',
+  'cas.rutgers.edu',
+  'idps.rutgers.edu',
+  'weblogin.rutgers.edu',
+]);
 const BROWSER_REAPER_INTERVAL_MS = 10_000;
 const BROWSER_REAPER_IDLE_CUTOFF_MS = 60_000;
 const BROWSER_SESSION_TIMEOUT_SECONDS = 60 * 60;
@@ -384,6 +391,25 @@ function targetDefaultUrl(target: BrowserTarget): string {
       return DEGREE_NAVIGATOR_URL;
     default:
       return DEGREE_NAVIGATOR_URL;
+  }
+}
+
+function assertAllowedBrowserUrl(url: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new BrowserSessionError('INVALID_BROWSER_URL', `Invalid browser URL: ${url}`);
+  }
+
+  if (parsed.protocol !== 'https:') {
+    throw new BrowserSessionError('INVALID_BROWSER_URL', 'Browser navigation only supports HTTPS URLs.');
+  }
+
+  const host = parsed.hostname.toLowerCase();
+  const isAllowed = ALLOWED_BROWSER_HOSTS.has(host) || host.endsWith('.rutgers.edu');
+  if (!isAllowed) {
+    throw new BrowserSessionError('INVALID_BROWSER_URL', `Browser navigation is not allowed for host ${host}.`);
   }
 }
 
@@ -946,6 +972,7 @@ export async function runNavigate(
   ownerId: string,
   url: string,
 ): Promise<BrowserActionResult> {
+  assertAllowedBrowserUrl(url);
   await sessionRepository.getOwned(sessionId, ownerId);
   const data = await stagehandNavigate(sessionId, url);
   await sessionRepository.updateStatus(sessionId, ownerId, 'ready');

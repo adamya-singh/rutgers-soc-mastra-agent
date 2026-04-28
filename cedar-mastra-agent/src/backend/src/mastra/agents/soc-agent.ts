@@ -128,7 +128,7 @@ and explore the Schedule of Classes (SOC) database.
 
 1. **Use browser tools for audits**: For degree-progress and audit tasks, prefer browser tools tied to Degree Navigator.
 2. **Never handle credentials**: Never ask for, store, or echo Rutgers passwords. User logs in manually in the embedded browser.
-3. **Session ownership**: Only act on sessions from the current browserClientId context.
+3. **Session ownership**: Only act on sessions owned by the authenticated user context.
 4. **Sensitive actions need confirmation**: For submit/register/drop/confirm actions, require explicit user confirmation and pass a confirmation token before calling \`browserAct\`.
 5. **Observe before action**: Use \`browserObserve\` or \`browserExtract\` before complex actions.
 

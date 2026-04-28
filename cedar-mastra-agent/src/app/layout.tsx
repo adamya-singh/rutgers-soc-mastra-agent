@@ -5,6 +5,7 @@ import { CedarCopilot, ProviderConfig } from 'cedar-os';
 import { messageRenderers } from '@/cedar/messageRenderers';
 import React from 'react';
 import { getClientIdentity } from '@/lib/clientIdentity';
+import { supabaseClient } from '@/lib/supabaseClient';
 
 const spaceGrotesk = Space_Grotesk({
   variable: '--font-space-grotesk',
@@ -31,15 +32,50 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const [identity, setIdentity] = React.useState(() => getClientIdentity());
+  const [authState, setAuthState] = React.useState<{
+    userId: string | null;
+    accessToken: string | null;
+  }>({
+    userId: null,
+    accessToken: null,
+  });
 
   React.useEffect(() => {
     setIdentity(getClientIdentity());
   }, []);
 
-  const llmProvider: ProviderConfig = {
+  React.useEffect(() => {
+    let isMounted = true;
+    supabaseClient.auth.getSession().then(({ data }) => {
+      if (!isMounted) return;
+      setAuthState({
+        userId: data.session?.user.id ?? null,
+        accessToken: data.session?.access_token ?? null,
+      });
+    });
+
+    const { data: authListener } = supabaseClient.auth.onAuthStateChange((_event, session) => {
+      setAuthState({
+        userId: session?.user.id ?? null,
+        accessToken: session?.access_token ?? null,
+      });
+    });
+
+    return () => {
+      isMounted = false;
+      authListener?.subscription.unsubscribe();
+    };
+  }, []);
+
+  const llmProvider = {
     provider: 'mastra' as const,
     baseURL: process.env.NEXT_PUBLIC_MASTRA_URL || 'http://localhost:4111',
-  };
+    headers: authState.accessToken
+      ? {
+          Authorization: `Bearer ${authState.accessToken}`,
+        }
+      : undefined,
+  } as ProviderConfig;
 
   return (
     <html lang="en">
@@ -47,7 +83,7 @@ export default function RootLayout({
         className={`${spaceGrotesk.variable} ${plexSans.variable} ${jetbrainsMono.variable} antialiased`}
       >
         <CedarCopilot
-          userId={identity.userId}
+          userId={authState.userId ?? identity.userId}
           threadId={identity.threadId}
           llmProvider={llmProvider}
           messageRenderers={messageRenderers}
