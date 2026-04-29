@@ -17,7 +17,7 @@
   "dependencies": {
     "@ai-sdk/google-vertex": "^3.0.97",
     "@browserbasehq/sdk": "^2.6.0",
-    "@browserbasehq/stagehand": "^2.2.0",
+    "@browserbasehq/stagehand": "^3.3.0",
     "@cedar-os/backend": "^0.0.12",
     "@mastra/core": "^0.24.9",
     "@mastra/evals": "^0.14.4",

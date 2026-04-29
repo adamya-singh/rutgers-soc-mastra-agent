@@ -169,7 +169,9 @@ Backend environment variables:
 - `BROWSERBASE_PROJECT_ID`
 - `BROWSERBASE_API_BASE` optional, defaults to `https://api.browserbase.com/v1`
 - `STAGEHAND_MODEL_PROVIDER=vertex` for Stagehand-backed browser observe/extract/act tools through Vertex/Gemini, or `STAGEHAND_MODEL_API_KEY` / `OPENAI_API_KEY` for API-key-backed models
-- `STAGEHAND_MODEL_NAME` optional; defaults to `vertex/gemini-3-flash-preview` for Vertex mode and `gpt-4o-mini` for API-key mode
+- `STAGEHAND_MODEL_NAME=vertex/gemini-3.1-pro-preview` recommended for Vertex-backed Degree Navigator extraction; if omitted, Vertex mode falls back to `vertex/gemini-3-flash-preview`, and API-key mode falls back to `gpt-4o-mini`
+
+When using Vertex mode, keep the `vertex/` prefix in `STAGEHAND_MODEL_NAME`; the backend removes the prefix before calling the Vertex AI SDK.
 
 Frontend environment variables:
 

@@ -1,3 +1,4 @@
+import { createVertex } from '@ai-sdk/google-vertex';
 import {
   BrowserSessionRepository,
   createSupabaseBrowserSessionRepository,
@@ -70,6 +71,9 @@ interface StagehandPageLike {
   goto?: (url: string, options?: { waitUntil?: string }) => Promise<void>;
   title?: () => Promise<string>;
   url?: () => string;
+  observe?: (input?: unknown) => Promise<unknown>;
+  extract?: (input?: unknown) => Promise<unknown>;
+  act?: (input: unknown) => Promise<unknown>;
 }
 
 interface StagehandLike {
@@ -120,6 +124,10 @@ type StagehandVertexModelConfig = {
 };
 
 export type StagehandModelConfig = StagehandApiKeyModelConfig | StagehandVertexModelConfig;
+
+type StagehandModuleLike = Record<string, unknown> & {
+  AISdkClient?: new (config: { model: unknown }) => unknown;
+};
 
 let reaperTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -259,6 +267,7 @@ export function getStagehandModelConfig(): StagehandModelConfig {
 function applyStagehandModelConfig(
   stagehandConfig: Record<string, unknown>,
   modelConfig: StagehandModelConfig,
+  stagehandModule: StagehandModuleLike,
 ): void {
   if (modelConfig.provider === 'apiKey') {
     stagehandConfig.modelName = modelConfig.modelName;
@@ -266,18 +275,32 @@ function applyStagehandModelConfig(
     return;
   }
 
-  const model: Record<string, unknown> = {
-    modelName: modelConfig.modelName,
+  const AISdkClient = stagehandModule.AISdkClient;
+  if (typeof AISdkClient !== 'function') {
+    throw new BrowserSessionError(
+      'BROWSER_PROVIDER_ERROR',
+      'Stagehand AISdkClient constructor was not found; Vertex/Gemini browser automation requires @browserbasehq/stagehand to export AISdkClient.',
+    );
+  }
+
+  const vertexConfig: {
+    project: string;
+    location: string;
+    googleAuthOptions?: { keyFilename: string };
+  } = {
     project: modelConfig.project,
     location: modelConfig.location,
   };
 
   if (modelConfig.keyFilename) {
-    model.googleAuthOptions = { keyFilename: modelConfig.keyFilename };
+    vertexConfig.googleAuthOptions = { keyFilename: modelConfig.keyFilename };
   }
 
+  const vertex = createVertex(vertexConfig);
+  const vertexModelName = modelConfig.modelName.replace(/^vertex\//, '');
+
   stagehandConfig.experimental = true;
-  stagehandConfig.model = model;
+  stagehandConfig.llmClient = new AISdkClient({ model: vertex(vertexModelName) });
 }
 
 async function browserbaseRawRequest(path: string, init: RequestInit): Promise<BrowserbaseRawResponse> {
@@ -516,7 +539,7 @@ async function withStagehand<T>(
 
   let stagehand: StagehandLike | null = null;
   try {
-    const stagehandModule = (await importModule('@browserbasehq/stagehand')) as Record<string, unknown>;
+    const stagehandModule = (await importModule('@browserbasehq/stagehand')) as StagehandModuleLike;
     const Stagehand =
       stagehandModule.Stagehand ??
       (stagehandModule.default as { Stagehand?: unknown } | undefined)?.Stagehand ??
@@ -536,7 +559,7 @@ async function withStagehand<T>(
       browserbaseSessionID: sessionId,
     };
 
-    applyStagehandModelConfig(stagehandConfig, getStagehandModelConfig());
+    applyStagehandModelConfig(stagehandConfig, getStagehandModelConfig(), stagehandModule);
 
     stagehand = new (Stagehand as new (config: Record<string, unknown>) => StagehandLike)(stagehandConfig);
     if (typeof stagehand.init === 'function') {
@@ -628,6 +651,18 @@ async function stagehandObserve(sessionId: string, instruction?: string): Promis
     }
 
     const page = stagehand.page;
+    if (page && typeof page.observe === 'function') {
+      if (!instruction) {
+        return page.observe();
+      }
+
+      try {
+        return await page.observe({ instruction });
+      } catch {
+        return page.observe(instruction);
+      }
+    }
+
     if (!page) {
       return { notice: 'Stagehand observe unavailable and no page object found.' };
     }
@@ -655,6 +690,15 @@ async function stagehandExtract(sessionId: string, instruction: string): Promise
       }
     }
 
+    const page = stagehand.page;
+    if (page && typeof page.extract === 'function') {
+      try {
+        return await page.extract({ instruction });
+      } catch {
+        return page.extract(instruction);
+      }
+    }
+
     throw new BrowserSessionError(
       'BROWSER_PROVIDER_ERROR',
       'Stagehand extract capability is unavailable for this runtime.',
@@ -669,6 +713,15 @@ async function stagehandAct(sessionId: string, action: string): Promise<unknown>
         return await stagehand.act({ action });
       } catch {
         return stagehand.act(action);
+      }
+    }
+
+    const page = stagehand.page;
+    if (page && typeof page.act === 'function') {
+      try {
+        return await page.act({ action });
+      } catch {
+        return page.act(action);
       }
     }
 
