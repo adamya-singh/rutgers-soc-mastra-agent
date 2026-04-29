@@ -9,6 +9,15 @@ import {
 
 type DegreeNavigatorProfileDbRow = Tables<'degree_navigator_profiles'>;
 type DegreeNavigatorProfileInsert = TablesInsert<'degree_navigator_profiles'>;
+type SupabaseServiceClient = ReturnType<typeof getSupabaseServiceClient>;
+
+let getSupabaseServiceClientForRepository = getSupabaseServiceClient;
+
+export function setDegreeNavigatorProfileSupabaseClientFactoryForTest(
+  factory: (() => SupabaseServiceClient) | null,
+): void {
+  getSupabaseServiceClientForRepository = factory ?? getSupabaseServiceClient;
+}
 
 function asJson(value: unknown): Json {
   return value as Json;
@@ -77,7 +86,7 @@ export async function upsertDegreeNavigatorProfile(
   userId: string,
   input: DegreeNavigatorCapture,
 ): Promise<DegreeNavigatorProfileRow> {
-  const supabase = getSupabaseServiceClient();
+  const supabase = getSupabaseServiceClientForRepository();
   const payload = buildPayload(userId, input);
   const { data, error } = await supabase
     .from('degree_navigator_profiles')
@@ -95,7 +104,7 @@ export async function upsertDegreeNavigatorProfile(
 export async function getDegreeNavigatorProfile(
   userId: string,
 ): Promise<DegreeNavigatorProfileRow | null> {
-  const supabase = getSupabaseServiceClient();
+  const supabase = getSupabaseServiceClientForRepository();
   const { data, error } = await supabase
     .from('degree_navigator_profiles')
     .select('*')
@@ -107,4 +116,18 @@ export async function getDegreeNavigatorProfile(
   }
 
   return data ? mapRow(data) : null;
+}
+
+export async function deleteDegreeNavigatorProfile(userId: string): Promise<boolean> {
+  const supabase = getSupabaseServiceClientForRepository();
+  const { count, error } = await supabase
+    .from('degree_navigator_profiles')
+    .delete({ count: 'exact' })
+    .eq('user_id', userId);
+
+  if (error) {
+    throw new Error(`Failed to delete Degree Navigator profile: ${error.message}`);
+  }
+
+  return count === null ? true : count > 0;
 }

@@ -279,6 +279,12 @@ describe('browserService close policy', () => {
     const createBody = JSON.parse(String(calls[0]?.init?.body));
     assert.strictEqual(createBody.keepAlive, true);
     assert.strictEqual(createBody.timeout, 3600);
+    assert.deepStrictEqual(createBody.browserSettings, {
+      viewport: {
+        width: 1024,
+        height: 620,
+      },
+    });
     assert.deepStrictEqual(createBody.userMetadata, {
       target: 'degree_navigator',
       ownerId: 'owner_launch_fail',

@@ -102,8 +102,22 @@ const HIDDEN_TIMEOUT_MS = 30_000;
 const IDLE_TIMEOUT_MS = 60_000;
 const DEGREE_NAVIGATOR_SYNC_POLL_MS = 2500;
 const DEGREE_NAVIGATOR_SYNC_TIMEOUT_MS = 5 * 60_000;
-const DEGREE_NAVIGATOR_SYNC_PROMPT =
-  'Read my Degree Navigator information from the active browser session and sync it to the application. Extract my student profile, declared programs, audits, transcript terms, and run notes, then save it with saveDegreeNavigatorProfile.';
+const DEGREE_NAVIGATOR_SYNC_PROMPT = `Read my Degree Navigator information from the active browser session and sync the complete capture to the application.
+
+Use read-only browser observation/extraction across as many Degree Navigator views as needed before saving. Do not stop at the transcript page if audit/program report pages are available.
+
+Extract and normalize all fields supported by saveDegreeNavigatorProfile:
+- Student profile and freshness fields: name, RUID, NetID, school code/name, declared graduation month/year, degree credits earned, cumulative GPA, planned course count, capturedAt, and sourceSessionId when available.
+- All declared programs of study with code, title, campus, and kind.
+- Every audit/program report, including programCode, title, versionTerm/report term, completedCredits when shown, completedRequirements counts, overallStatus, GPA label/value/status/quality points/credits, conditions, notes, and unusedCourses.
+- Every requirement in every audit, including code, title, status, summary, completedCount, totalCount, neededCount, applied/listed courses, stillNeeded labels with courseOptions, and requirement notes.
+- Every course reference with courseCode, real title when visible, campus, credits, grade/status, specialCode, repeatedCourseCode, usedAs mappings, termLabel, and rawText when it preserves Degree Navigator details.
+- Every transcript, AP credit, placement, and other term with label/year/termName/termCode/source and all courses. Prefer real course titles from link metadata or transcript details; do not save "N/A" titles when real titles are visible.
+- Run notes: advisory disclaimer, extraction warnings, unavailable routes, and any route/page that could not be captured.
+
+Do not save placeholder audit data such as "Basic Details Extraction", "Mock Requirement", or incomplete audit shells when real audit data is visible. If a section is unavailable, record that in runNotes rather than inventing data.
+
+After building the most complete capture, call saveDegreeNavigatorProfile exactly once.`;
 
 function getBrowserPaneStatus(session: BrowserSessionState | null): BrowserPaneStatus {
   if (!session) {
@@ -1262,7 +1276,6 @@ export default function HomePage() {
     },
   });
 
-  const hasResults = searchResults.length > 0;
   const isDegreeNavigatorSyncBusy =
     degreeNavigatorSyncStatus === 'launching' ||
     degreeNavigatorSyncStatus === 'waiting_for_login' ||
@@ -1380,14 +1393,14 @@ export default function HomePage() {
 
       <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-4 sm:px-6 sm:py-6">
         <section className="grid w-full grid-cols-1 items-stretch gap-4 sm:gap-6 lg:grid-cols-[minmax(320px,1fr)_minmax(0,1.8fr)] xl:grid-cols-[minmax(360px,1fr)_minmax(0,2fr)]">
-          <div className="flex min-w-0 flex-col gap-4 lg:h-full">
-            {hasResults && (
-              <div className="max-h-[360px] min-h-0 flex-shrink-0 lg:max-h-[42%]">
-                <SearchResults results={searchResults} onAddSection={handleAddSection} />
-              </div>
-            )}
-            <div className="min-h-0 flex-1 overflow-hidden">
-              <div className="h-[min(640px,75vh)] min-h-0 overflow-hidden">
+          <div className="relative h-[min(640px,75vh)] min-w-0 lg:h-auto lg:min-h-0">
+            <div className="flex h-full min-w-0 flex-col gap-4 lg:absolute lg:inset-0">
+              <SearchResults
+                results={searchResults}
+                className="min-h-[132px] max-h-[360px] flex-shrink-0 lg:max-h-[42%]"
+                onAddSection={handleAddSection}
+              />
+              <div className="min-h-0 flex-1 overflow-hidden">
                 <EmbeddedCedarChat title="Course Assistant" />
               </div>
             </div>

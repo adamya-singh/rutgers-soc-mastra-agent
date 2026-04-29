@@ -59,6 +59,7 @@ export type SearchResultItem = {
 interface SearchResultsProps {
   results: SearchResultItem[];
   title?: string;
+  className?: string;
   onAddSection?: (payload: {
     section: SearchResultSection;
     termYear?: number;
@@ -215,8 +216,8 @@ function ResultCard({
                 <p className="mb-2 text-xs text-muted-foreground">{result.misc.body}</p>
               )}
               <dl className="grid gap-x-3 gap-y-1 sm:grid-cols-[minmax(0,110px)_minmax(0,1fr)]">
-                {(result.details ?? result.misc?.fields ?? []).map((detail) => (
-                  <React.Fragment key={`${result.id}-${detail.label}`}>
+                {(result.details ?? result.misc?.fields ?? []).map((detail, index) => (
+                  <React.Fragment key={`${result.id}-${detail.label}-${index}`}>
                     <dt className="text-xs text-muted-foreground">{detail.label}</dt>
                     <dd className="text-xs text-foreground/85">{detail.value}</dd>
                   </React.Fragment>
@@ -240,14 +241,13 @@ function ResultCard({
 export function SearchResults({
   results,
   title = 'Results',
+  className = '',
   onAddSection,
 }: SearchResultsProps) {
-  if (results.length === 0) {
-    return null;
-  }
-
   return (
-    <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-md border border-border bg-surface-1">
+    <section
+      className={`flex min-h-0 flex-col overflow-hidden rounded-md border border-border bg-surface-1 ${className}`}
+    >
       <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2">
         <div className="flex items-baseline gap-2">
           <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -258,9 +258,15 @@ export function SearchResults({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {results.map((result) => (
-          <ResultCard key={result.id} result={result} onAddSection={onAddSection} />
-        ))}
+        {results.length > 0 ? (
+          results.map((result) => (
+            <ResultCard key={result.id} result={result} onAddSection={onAddSection} />
+          ))
+        ) : (
+          <div className="flex h-full min-h-[88px] items-center justify-center px-4 py-6 text-center text-xs text-muted-foreground">
+            Search results will appear here.
+          </div>
+        )}
       </div>
     </section>
   );

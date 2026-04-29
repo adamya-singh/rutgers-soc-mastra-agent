@@ -1,7 +1,7 @@
 import { registerApiRoute } from '@mastra/core/server';
 import { ChatInputSchema, chatWorkflow } from './workflows/chatWorkflow';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { ZodError } from 'zod';
+import { z, ZodError } from 'zod';
 import { createSSEStream } from '../utils/streamUtils';
 import {
   CloseBrowserSessionBeaconRequestSchema,
@@ -31,9 +31,14 @@ import {
   UpsertDegreeNavigatorProfileRequestSchema,
 } from '../degree-navigator/schemas.js';
 import {
+  deleteDegreeNavigatorProfile,
   getDegreeNavigatorProfile,
   upsertDegreeNavigatorProfile,
 } from '../degree-navigator/repository.js';
+
+const ClearDegreeNavigatorProfileResponseSchema = z.object({
+  cleared: z.boolean(),
+});
 
 // Helper function to convert Zod schema to OpenAPI schema
 function toOpenApiSchema(schema: unknown) {
@@ -222,6 +227,31 @@ export const apiRoutes = [
         const capture = UpsertDegreeNavigatorProfileRequestSchema.parse(body);
         const profile = await upsertDegreeNavigatorProfile(authenticatedUser.userId, capture);
         return c.json({ profile }, 200);
+      } catch (error) {
+        logUnexpectedRouteError(error);
+        return handleRouteError(c, error);
+      }
+    },
+  }),
+  registerApiRoute('/degree-navigator/profile', {
+    method: 'DELETE',
+    openapi: {
+      responses: {
+        200: {
+          description: 'Cleared the saved Degree Navigator profile for the authenticated user',
+          content: {
+            'application/json': {
+              schema: toOpenApiSchema(ClearDegreeNavigatorProfileResponseSchema),
+            },
+          },
+        },
+      },
+    },
+    handler: async (c) => {
+      try {
+        const authenticatedUser = await requireAuthenticatedUser(c);
+        const cleared = await deleteDegreeNavigatorProfile(authenticatedUser.userId);
+        return c.json({ cleared }, 200);
       } catch (error) {
         logUnexpectedRouteError(error);
         return handleRouteError(c, error);

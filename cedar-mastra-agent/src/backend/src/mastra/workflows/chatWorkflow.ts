@@ -119,6 +119,7 @@ const callAgent = createStep({
      * and properly handle different event types such as text-delta, tool calls, etc.
      */
     const streamResult = await socAgent.stream(messages, {
+      maxSteps: 50,
       modelSettings: {
         temperature,
         maxOutputTokens: maxTokens,

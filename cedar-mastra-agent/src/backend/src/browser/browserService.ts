@@ -32,6 +32,10 @@ const RUTGERS_LOGIN_HOSTS = new Set([
 const BROWSER_REAPER_INTERVAL_MS = 10_000;
 const BROWSER_REAPER_IDLE_CUTOFF_MS = 60_000;
 const BROWSER_SESSION_TIMEOUT_SECONDS = 60 * 60;
+const DEGREE_NAVIGATOR_BROWSER_VIEWPORT = {
+  width: 1024,
+  height: 620,
+} as const;
 
 let sessionRepository: BrowserSessionRepository = createSupabaseBrowserSessionRepository();
 
@@ -908,6 +912,9 @@ export async function createSession(target: BrowserTarget, ownerId: string): Pro
       projectId,
       keepAlive: true,
       timeout: BROWSER_SESSION_TIMEOUT_SECONDS,
+      browserSettings: {
+        viewport: DEGREE_NAVIGATOR_BROWSER_VIEWPORT,
+      },
       userMetadata: {
         target: resolvedTarget,
         ownerId,

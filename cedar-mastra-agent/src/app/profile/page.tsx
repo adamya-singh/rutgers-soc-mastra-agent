@@ -141,6 +141,10 @@ interface DegreeNavigatorProfileResponse {
   profile: DegreeNavigatorProfileRow | null;
 }
 
+interface ClearDegreeNavigatorProfileResponse {
+  cleared: boolean;
+}
+
 function applyStoredTheme() {
   if (typeof window === 'undefined') return;
   const stored = window.localStorage.getItem('theme');
@@ -248,7 +252,9 @@ export default function ProfilePage() {
   const [account, setAccount] = React.useState<AccountInfo | null>(null);
   const [degreeProfile, setDegreeProfile] = React.useState<DegreeNavigatorProfileRow | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isClearingDegreeProfile, setIsClearingDegreeProfile] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     applyStoredTheme();
@@ -260,6 +266,7 @@ export default function ProfilePage() {
     async function loadProfile() {
       setIsLoading(true);
       setError(null);
+      setSuccessMessage(null);
 
       const [{ data: sessionData, error: sessionError }, { data: userData, error: userError }] =
         await Promise.all([
@@ -322,6 +329,53 @@ export default function ProfilePage() {
     await supabaseClient.auth.signOut();
     clearLocalSchedules();
     router.push('/login');
+  };
+
+  const clearDegreeNavigatorProfile = async () => {
+    if (!degreeProfile || isClearingDegreeProfile) return;
+
+    const confirmed = window.confirm(
+      'Clear all saved Degree Navigator information from your profile? This removes saved student profile, programs, audits, transcript terms, and run notes from the app.',
+    );
+    if (!confirmed) return;
+
+    setIsClearingDegreeProfile(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const { data, error: sessionError } = await supabaseClient.auth.getSession();
+      const accessToken = data.session?.access_token;
+      if (sessionError || !accessToken) {
+        throw new Error(sessionError?.message ?? 'Sign in again before clearing Degree Navigator information.');
+      }
+
+      const response = await fetch(buildMastraApiUrl('/degree-navigator/profile'), {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      const json = (await response.json()) as ClearDegreeNavigatorProfileResponse & { error?: string };
+      if (!response.ok) {
+        throw new Error(json.error ?? `Degree Navigator clear request failed (${response.status})`);
+      }
+
+      setDegreeProfile(null);
+      setSuccessMessage(
+        json.cleared
+          ? 'Degree Navigator information cleared from your profile.'
+          : 'No saved Degree Navigator information was found.',
+      );
+    } catch (clearError) {
+      setError(
+        clearError instanceof Error
+          ? clearError.message
+          : 'Unable to clear Degree Navigator information.',
+      );
+    } finally {
+      setIsClearingDegreeProfile(false);
+    }
   };
 
   const completedRequirementCount = React.useMemo(
@@ -400,6 +454,14 @@ export default function ProfilePage() {
               </Link>
               <button
                 type="button"
+                onClick={clearDegreeNavigatorProfile}
+                disabled={!degreeProfile || isClearingDegreeProfile}
+                className="focus-ring inline-flex h-10 items-center rounded-md border border-destructive/30 bg-surface-1 px-4 text-sm font-medium text-destructive transition hover:bg-destructive/10 disabled:cursor-not-allowed disabled:border-border disabled:text-muted-foreground disabled:opacity-50"
+              >
+                {isClearingDegreeProfile ? 'Clearing...' : 'Clear Degree Navigator info'}
+              </button>
+              <button
+                type="button"
                 onClick={signOut}
                 className="focus-ring inline-flex h-10 items-center rounded-md border border-border bg-surface-1 px-4 text-sm font-medium text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
               >
@@ -412,6 +474,12 @@ export default function ProfilePage() {
         {error && (
           <div className="mt-6 rounded-xl border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive">
             {error}
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="mt-6 rounded-xl border border-success/25 bg-success/5 px-4 py-3 text-sm text-success">
+            {successMessage}
           </div>
         )}
 
