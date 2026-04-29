@@ -5,6 +5,8 @@ import { extractBrowserSessionIdFromAdditionalContext } from '../../../browser/r
 import { upsertDegreeNavigatorProfile } from '../../../degree-navigator/repository.js';
 import {
   DegreeNavigatorCapture,
+  DegreeNavigatorCaptureInput,
+  DegreeNavigatorCaptureInputSchema,
   DegreeNavigatorCaptureSchema,
   DegreeNavigatorProfileResponseSchema,
   DegreeNavigatorProfileRowSchema,
@@ -35,7 +37,7 @@ function requireAuthenticatedUserId(runtimeContext: RuntimeContextLike): string 
 }
 
 export async function runSaveDegreeNavigatorProfile(
-  context: DegreeNavigatorCapture,
+  context: DegreeNavigatorCaptureInput,
   runtimeContext: RuntimeContextLike,
   deps: SaveDegreeNavigatorProfileDeps = {},
 ) {
@@ -44,6 +46,8 @@ export async function runSaveDegreeNavigatorProfile(
   const runtimeSessionId = extractBrowserSessionIdFromAdditionalContext(additionalContext);
   const capture = DegreeNavigatorCaptureSchema.parse({
     ...context,
+    schemaVersion: 1,
+    source: 'degree_navigator',
     sourceSessionId: runtimeSessionId ?? context.sourceSessionId,
   });
   const upsertProfile = deps.upsertProfile ?? upsertDegreeNavigatorProfile;
@@ -55,7 +59,7 @@ export async function runSaveDegreeNavigatorProfile(
 export const saveDegreeNavigatorProfile = createTool({
   id: 'saveDegreeNavigatorProfile',
   description: SAVE_DEGREE_NAVIGATOR_PROFILE_DESCRIPTION,
-  inputSchema: DegreeNavigatorCaptureSchema,
+  inputSchema: DegreeNavigatorCaptureInputSchema,
   outputSchema: z.object({ profile: DegreeNavigatorProfileRowSchema }),
   execute: async ({ context, runtimeContext }) =>
     runSaveDegreeNavigatorProfile(context, runtimeContext as RuntimeContextLike),

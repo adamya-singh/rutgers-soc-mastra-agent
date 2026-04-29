@@ -10,11 +10,14 @@ import {
   BrowserSessionResponseSchema,
   CloseBrowserSessionWithPolicyRequestSchema,
   CreateBrowserSessionRequestSchema,
+  DegreeNavigatorReadinessRequestSchema,
+  DegreeNavigatorReadinessResponseSchema,
   StatusBrowserSessionRequestSchema,
 } from '../browser/schemas.js';
 import {
   closeSessionWithPolicy,
   createSession,
+  getDegreeNavigatorReadiness,
   getSession,
 } from '../browser/browserService.js';
 import { BrowserSessionError } from '../browser/types.js';
@@ -287,6 +290,40 @@ export const apiRoutes = [
         const { sessionId } = StatusBrowserSessionRequestSchema.parse(body);
         const session = await getSession(sessionId, authenticatedUser.userId);
         return c.json({ session }, 200);
+      } catch (error) {
+        logUnexpectedRouteError(error);
+        return handleBrowserError(c, error);
+      }
+    },
+  }),
+  registerApiRoute('/browser/session/degree-navigator-readiness', {
+    method: 'POST',
+    openapi: {
+      requestBody: {
+        content: {
+          'application/json': {
+            schema: toOpenApiSchema(DegreeNavigatorReadinessRequestSchema),
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Degree Navigator login readiness for the active browser session',
+          content: {
+            'application/json': {
+              schema: toOpenApiSchema(DegreeNavigatorReadinessResponseSchema),
+            },
+          },
+        },
+      },
+    },
+    handler: async (c) => {
+      try {
+        const authenticatedUser = await requireAuthenticatedUser(c);
+        const body = await c.req.json();
+        const { sessionId } = DegreeNavigatorReadinessRequestSchema.parse(body);
+        const readiness = await getDegreeNavigatorReadiness(sessionId, authenticatedUser.userId);
+        return c.json(readiness, 200);
       } catch (error) {
         logUnexpectedRouteError(error);
         return handleBrowserError(c, error);

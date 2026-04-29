@@ -104,6 +104,15 @@ describe('saveDegreeNavigatorProfile tool', () => {
     assert.ok(typeof saveDegreeNavigatorProfile.execute === 'function');
   });
 
+  it('keeps backend-owned capture constants out of the LLM input schema', () => {
+    const parsed = saveDegreeNavigatorProfile.inputSchema.parse({
+      profile: {},
+    });
+
+    assert.strictEqual(Object.hasOwn(parsed, 'schemaVersion'), false);
+    assert.strictEqual(Object.hasOwn(parsed, 'source'), false);
+  });
+
   it('requires authenticated runtime context', async () => {
     let called = false;
 
@@ -163,6 +172,8 @@ describe('saveDegreeNavigatorProfile tool', () => {
     );
 
     assert.strictEqual(savedUserId, AUTHENTICATED_USER_ID);
+    assert.strictEqual(savedCapture?.schemaVersion, 1);
+    assert.strictEqual(savedCapture?.source, 'degree_navigator');
     assert.strictEqual(savedCapture?.sourceSessionId, 'runtime_session');
     assert.strictEqual(result.profile.userId, AUTHENTICATED_USER_ID);
   });

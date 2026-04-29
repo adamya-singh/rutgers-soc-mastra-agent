@@ -29,6 +29,22 @@ export const StatusBrowserSessionRequestSchema = z.object({
   sessionId: z.string().min(1, 'sessionId is required'),
 });
 
+export const DegreeNavigatorReadinessSchema = z.enum([
+  'awaiting_login',
+  'ready',
+  'unknown',
+]);
+
+export const DegreeNavigatorReadinessRequestSchema = StatusBrowserSessionRequestSchema;
+
+export const DegreeNavigatorReadinessResponseSchema = z.object({
+  readiness: DegreeNavigatorReadinessSchema,
+  urlHost: z.string().optional(),
+  urlPath: z.string().optional(),
+  title: z.string().optional(),
+  checkedAt: z.string().min(1),
+});
+
 export const CloseBrowserSessionRequestSchema = StatusBrowserSessionRequestSchema;
 
 export const BrowserSessionCloseReasonSchema = z.enum([
@@ -83,3 +99,4 @@ export const BrowserActionResultSchema = z.object({
 export type BrowserTarget = z.infer<typeof BrowserTargetSchema>;
 export type BrowserSessionStatus = z.infer<typeof BrowserSessionStatusSchema>;
 export type BrowserSessionState = z.infer<typeof BrowserSessionStateSchema>;
+export type DegreeNavigatorReadiness = z.infer<typeof DegreeNavigatorReadinessSchema>;

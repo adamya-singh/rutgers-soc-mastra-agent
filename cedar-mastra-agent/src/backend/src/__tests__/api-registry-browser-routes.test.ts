@@ -39,21 +39,24 @@ describe('browser session API routes', () => {
     };
   });
 
-  it('registers create/status/close/close-beacon browser session endpoints', () => {
+  it('registers create/status/readiness/close/close-beacon browser session endpoints', () => {
     const byPath = new Map(apiRoutes.map((route) => [route.path, route]));
 
     const createRoute = byPath.get('/browser/session/create');
     const statusRoute = byPath.get('/browser/session/status');
+    const readinessRoute = byPath.get('/browser/session/degree-navigator-readiness');
     const closeRoute = byPath.get('/browser/session/close');
     const closeBeaconRoute = byPath.get('/browser/session/close-beacon');
 
     assert.ok(createRoute, 'Missing /browser/session/create route');
     assert.ok(statusRoute, 'Missing /browser/session/status route');
+    assert.ok(readinessRoute, 'Missing /browser/session/degree-navigator-readiness route');
     assert.ok(closeRoute, 'Missing /browser/session/close route');
     assert.ok(closeBeaconRoute, 'Missing /browser/session/close-beacon route');
 
     assert.strictEqual(createRoute?.method, 'POST');
     assert.strictEqual(statusRoute?.method, 'POST');
+    assert.strictEqual(readinessRoute?.method, 'POST');
     assert.strictEqual(closeRoute?.method, 'POST');
     assert.strictEqual(closeBeaconRoute?.method, 'POST');
   });

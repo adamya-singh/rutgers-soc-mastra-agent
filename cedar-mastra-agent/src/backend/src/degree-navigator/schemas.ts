@@ -138,6 +138,11 @@ export const DegreeNavigatorCaptureSchema = z.object({
   capturedAt: z.string().datetime().optional(),
 });
 
+export const DegreeNavigatorCaptureInputSchema = DegreeNavigatorCaptureSchema.omit({
+  schemaVersion: true,
+  source: true,
+});
+
 export const DegreeNavigatorProfileRowSchema = z.object({
   id: z.string().uuid(),
   userId: z.string().uuid(),
@@ -178,4 +183,5 @@ export type DegreeNavigatorAudit = z.infer<typeof DegreeNavigatorAuditSchema>;
 export type DegreeNavigatorTranscriptTerm = z.infer<typeof DegreeNavigatorTranscriptTermSchema>;
 export type DegreeNavigatorRunNotes = z.infer<typeof DegreeNavigatorRunNotesSchema>;
 export type DegreeNavigatorCapture = z.infer<typeof DegreeNavigatorCaptureSchema>;
+export type DegreeNavigatorCaptureInput = z.infer<typeof DegreeNavigatorCaptureInputSchema>;
 export type DegreeNavigatorProfileRow = z.infer<typeof DegreeNavigatorProfileRowSchema>;

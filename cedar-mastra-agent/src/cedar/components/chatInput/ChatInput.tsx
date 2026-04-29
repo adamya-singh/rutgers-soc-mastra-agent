@@ -14,6 +14,10 @@ import { KeyboardShortcut } from '@/cedar/components/ui/KeyboardShortcut';
 import { HumanInTheLoopIndicator } from '@/cedar/components/chatInput/HumanInTheLoopIndicator';
 import { PromptSuggestions } from '@/cedar/components/chatInput/PromptSuggestions';
 import { EXAMPLE_PROMPTS } from '@/cedar/config/examplePrompts';
+import {
+  CEDAR_SUBMIT_PROMPT_EVENT,
+  type CedarSubmitPromptDetail,
+} from '@/cedar/promptBridge';
 
 // ChatContainer component with position options
 export type ChatContainerPosition = 'bottom-center' | 'embedded' | 'custom';
@@ -181,7 +185,7 @@ export const ChatInput: React.FC<{
     });
   }, [editor, isEditorEmpty]);
 
-  const handlePromptSelect = useCallback(
+  const queuePromptForSubmit = useCallback(
     (prompt: string) => {
       if (!editor) return;
       pendingPromptRef.current = prompt;
@@ -190,6 +194,27 @@ export const ChatInput: React.FC<{
     },
     [editor],
   );
+
+  const handlePromptSelect = useCallback(
+    (prompt: string) => {
+      queuePromptForSubmit(prompt);
+    },
+    [queuePromptForSubmit],
+  );
+
+  useEffect(() => {
+    const handleExternalPrompt = (event: Event) => {
+      const { prompt } = (event as CustomEvent<CedarSubmitPromptDetail>).detail ?? {};
+      if (typeof prompt === 'string' && prompt.trim().length > 0) {
+        queuePromptForSubmit(prompt);
+      }
+    };
+
+    window.addEventListener(CEDAR_SUBMIT_PROMPT_EVENT, handleExternalPrompt);
+    return () => {
+      window.removeEventListener(CEDAR_SUBMIT_PROMPT_EVENT, handleExternalPrompt);
+    };
+  }, [queuePromptForSubmit]);
 
   return (
     <div

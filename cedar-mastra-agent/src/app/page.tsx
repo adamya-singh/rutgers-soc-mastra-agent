@@ -27,6 +27,7 @@ import { ScheduleGrid } from '@/components/schedule/ScheduleGrid';
 import { EmbeddedCedarChat } from '@/cedar/components/chatComponents/EmbeddedCedarChat';
 import { DebuggerPanel } from '@/cedar/components/debugger';
 import { MoonStar, Sun } from 'lucide-react';
+import { dispatchCedarPrompt } from '@/cedar/promptBridge';
 import {
   addSectionToSchedule,
   clearLocalSchedules,
@@ -41,6 +42,14 @@ import { buildMastraApiUrl } from '@/lib/mastraConfig';
 type BrowserTarget = 'degree_navigator';
 type BrowserSessionStatus = 'created' | 'awaiting_login' | 'ready' | 'error' | 'closed';
 type BrowserPaneStatus = 'idle' | 'launching' | 'awaiting_login' | 'ready' | 'error';
+type DegreeNavigatorReadiness = 'awaiting_login' | 'ready' | 'unknown';
+type DegreeNavigatorSyncStatus =
+  | 'idle'
+  | 'launching'
+  | 'waiting_for_login'
+  | 'syncing'
+  | 'synced'
+  | 'error';
 type BrowserCloseReason =
   | 'manual_stop'
   | 'pagehide'
@@ -74,6 +83,14 @@ interface BrowserCloseApiResponse {
   session?: BrowserSessionState | null;
 }
 
+interface DegreeNavigatorReadinessResponse {
+  readiness: DegreeNavigatorReadiness;
+  urlHost?: string;
+  urlPath?: string;
+  title?: string;
+  checkedAt: string;
+}
+
 interface PersistedBrowserSessionRecord {
   sessionId: string;
   userId: string;
@@ -83,6 +100,10 @@ interface PersistedBrowserSessionRecord {
 const ACTIVE_BROWSER_SESSION_STORAGE_KEY = 'active_browser_session';
 const HIDDEN_TIMEOUT_MS = 30_000;
 const IDLE_TIMEOUT_MS = 60_000;
+const DEGREE_NAVIGATOR_SYNC_POLL_MS = 2500;
+const DEGREE_NAVIGATOR_SYNC_TIMEOUT_MS = 5 * 60_000;
+const DEGREE_NAVIGATOR_SYNC_PROMPT =
+  'Read my Degree Navigator information from the active browser session and sync it to the application. Extract my student profile, declared programs, audits, transcript terms, and run notes, then save it with saveDegreeNavigatorProfile.';
 
 function getBrowserPaneStatus(session: BrowserSessionState | null): BrowserPaneStatus {
   if (!session) {
@@ -117,6 +138,24 @@ function getBrowserStatusLabel(status: BrowserPaneStatus): string {
   }
 }
 
+function getDegreeNavigatorSyncStatusLabel(status: DegreeNavigatorSyncStatus): string {
+  switch (status) {
+    case 'launching':
+      return 'Launching secure browser';
+    case 'waiting_for_login':
+      return 'Waiting for Degree Navigator login';
+    case 'syncing':
+      return 'Syncing with assistant';
+    case 'synced':
+      return 'Sync started';
+    case 'error':
+      return 'Sync needs attention';
+    case 'idle':
+    default:
+      return 'Ready to sync';
+  }
+}
+
 function isUsableBrowserSession(
   session: BrowserSessionState | null,
 ): session is BrowserSessionState {
@@ -140,6 +179,9 @@ export default function HomePage() {
   const [browserError, setBrowserError] = React.useState<string | null>(null);
   const [isStoppingSession, setIsStoppingSession] = React.useState(false);
   const [autoStopMessage, setAutoStopMessage] = React.useState<string | null>(null);
+  const [degreeNavigatorSyncStatus, setDegreeNavigatorSyncStatus] =
+    React.useState<DegreeNavigatorSyncStatus>('idle');
+  const [degreeNavigatorSyncMessage, setDegreeNavigatorSyncMessage] = React.useState<string | null>(null);
   const browserSectionRef = React.useRef<HTMLElement | null>(null);
   const hiddenTimeoutRef = React.useRef<number | null>(null);
   const idleTimeoutRef = React.useRef<number | null>(null);
@@ -147,6 +189,7 @@ export default function HomePage() {
   const idleDeadlineRef = React.useRef<number | null>(null);
   const countdownIntervalRef = React.useRef<number | null>(null);
   const stopInFlightForSessionRef = React.useRef<string | null>(null);
+  const degreeNavigatorSyncRunRef = React.useRef(0);
   const unloadStopSentForSessionRef = React.useRef<string | null>(null);
   const startupCleanupRanRef = React.useRef(false);
 
@@ -216,10 +259,11 @@ export default function HomePage() {
       path:
         | '/browser/session/create'
         | '/browser/session/status'
+        | '/browser/session/degree-navigator-readiness'
         | '/browser/session/close'
         | '/browser/session/close-beacon',
       payload: object,
-    ): Promise<BrowserSessionApiResponse | BrowserCloseApiResponse> => {
+    ): Promise<BrowserSessionApiResponse | BrowserCloseApiResponse | DegreeNavigatorReadinessResponse> => {
       if (!accessToken) {
         throw new Error('Sign in before using browser sessions.');
       }
@@ -460,6 +504,16 @@ export default function HomePage() {
   }, [ensureDegreeNavigatorSession]);
 
   const closeDegreeNavigatorSession = React.useCallback(async () => {
+    degreeNavigatorSyncRunRef.current += 1;
+    if (
+      degreeNavigatorSyncStatus === 'launching' ||
+      degreeNavigatorSyncStatus === 'waiting_for_login' ||
+      degreeNavigatorSyncStatus === 'syncing'
+    ) {
+      setDegreeNavigatorSyncStatus('error');
+      setDegreeNavigatorSyncMessage('Degree Navigator sync stopped because the browser session was closed.');
+    }
+
     if (!browserSession) {
       setBrowserSession(null);
       setBrowserPaneStatus('idle');
@@ -472,7 +526,12 @@ export default function HomePage() {
       reason: 'manual_stop',
       allowUntracked: false,
     });
-  }, [browserSession, clearActiveBrowserSessionRecord, closeBrowserSessionWithReason]);
+  }, [
+    browserSession,
+    clearActiveBrowserSessionRecord,
+    closeBrowserSessionWithReason,
+    degreeNavigatorSyncStatus,
+  ]);
 
   const refreshSessionStatus = React.useCallback(
     async (options?: { silent?: boolean }) => {
@@ -525,6 +584,85 @@ export default function HomePage() {
     void refreshSessionStatus({ silent: true });
   }, [browserSession, refreshSessionStatus]);
 
+  const checkDegreeNavigatorReadiness = React.useCallback(
+    async (sessionId: string): Promise<DegreeNavigatorReadinessResponse> => {
+      return (await callBrowserSessionApi('/browser/session/degree-navigator-readiness', {
+        sessionId,
+      })) as DegreeNavigatorReadinessResponse;
+    },
+    [callBrowserSessionApi],
+  );
+
+  const syncFromDegreeNavigator = React.useCallback(async () => {
+    const runId = degreeNavigatorSyncRunRef.current + 1;
+    degreeNavigatorSyncRunRef.current = runId;
+    setDegreeNavigatorSyncStatus('launching');
+    setDegreeNavigatorSyncMessage('Opening Degree Navigator in the secure browser pane.');
+    setBrowserError(null);
+
+    try {
+      const session = await ensureDegreeNavigatorSession();
+      if (!session) {
+        throw new Error('Unable to start a Degree Navigator browser session.');
+      }
+
+      setDegreeNavigatorSyncStatus('waiting_for_login');
+      setDegreeNavigatorSyncMessage('Sign in inside the browser pane. Sync will start automatically after login.');
+
+      const startedAt = Date.now();
+      while (true) {
+        if (degreeNavigatorSyncRunRef.current !== runId) {
+          return;
+        }
+
+        const readiness = await checkDegreeNavigatorReadiness(session.sessionId);
+        if (readiness.readiness === 'ready') {
+          break;
+        }
+
+        if (Date.now() - startedAt > DEGREE_NAVIGATOR_SYNC_TIMEOUT_MS) {
+          throw new Error('Timed out waiting for Degree Navigator login. Try Sync again after signing in.');
+        }
+
+        const location = readiness.urlHost ? ` Current page: ${readiness.urlHost}.` : '';
+        setDegreeNavigatorSyncMessage(
+          `Waiting for Degree Navigator to finish login.${location}`,
+        );
+
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, DEGREE_NAVIGATOR_SYNC_POLL_MS);
+        });
+      }
+
+      if (degreeNavigatorSyncRunRef.current !== runId) {
+        return;
+      }
+
+      setDegreeNavigatorSyncStatus('syncing');
+      setDegreeNavigatorSyncMessage('Login detected. Asking the assistant to read and save your Degree Navigator data.');
+      dispatchCedarPrompt(DEGREE_NAVIGATOR_SYNC_PROMPT);
+      setDegreeNavigatorSyncStatus('synced');
+      setDegreeNavigatorSyncMessage('Sync started in the assistant. You can watch progress in the chat.');
+    } catch (error) {
+      if (degreeNavigatorSyncRunRef.current !== runId) {
+        return;
+      }
+      setDegreeNavigatorSyncStatus('error');
+      setDegreeNavigatorSyncMessage(
+        error instanceof Error ? error.message : 'Unable to sync from Degree Navigator.',
+      );
+    }
+  }, [
+    checkDegreeNavigatorReadiness,
+    ensureDegreeNavigatorSession,
+  ]);
+
+  React.useEffect(() => {
+    return () => {
+      degreeNavigatorSyncRunRef.current += 1;
+    };
+  }, []);
+
   React.useEffect(() => {
     if (!browserSession) {
       return;
@@ -552,6 +690,9 @@ export default function HomePage() {
       setBrowserSession(null);
       setBrowserPaneStatus('idle');
       setBrowserError('Browserbase live view disconnected. Launch a new session to continue.');
+      degreeNavigatorSyncRunRef.current += 1;
+      setDegreeNavigatorSyncStatus('error');
+      setDegreeNavigatorSyncMessage('Degree Navigator sync stopped because the live view disconnected.');
       clearActiveBrowserSessionRecord();
     };
 
@@ -1122,6 +1263,24 @@ export default function HomePage() {
   });
 
   const hasResults = searchResults.length > 0;
+  const isDegreeNavigatorSyncBusy =
+    degreeNavigatorSyncStatus === 'launching' ||
+    degreeNavigatorSyncStatus === 'waiting_for_login' ||
+    degreeNavigatorSyncStatus === 'syncing';
+  const degreeNavigatorSyncButtonLabel = (() => {
+    switch (degreeNavigatorSyncStatus) {
+      case 'launching':
+        return 'Launching...';
+      case 'waiting_for_login':
+        return 'Waiting for login...';
+      case 'syncing':
+        return 'Starting sync...';
+      case 'synced':
+        return 'Sync from Degree Navigator again';
+      default:
+        return 'Sync from Degree Navigator';
+    }
+  })();
 
   const renderContent = () => (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
@@ -1199,6 +1358,9 @@ export default function HomePage() {
                 setBrowserSession(null);
                 setBrowserPaneStatus('idle');
                 setBrowserError(null);
+                degreeNavigatorSyncRunRef.current += 1;
+                setDegreeNavigatorSyncStatus('idle');
+                setDegreeNavigatorSyncMessage(null);
                 setIsProfileOpen(false);
               }}
               className="focus-ring w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm font-medium text-foreground transition hover:bg-surface-2"
@@ -1252,6 +1414,45 @@ export default function HomePage() {
             <p className="text-sm text-muted-foreground">
               Launch a private browser session, sign in yourself, then let the assistant act inside it.
             </p>
+          </div>
+
+          <div className="mb-4 rounded-xl border border-primary/30 bg-primary/5 p-4 shadow-elev-1">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wide text-primary">
+                  Degree data sync
+                </p>
+                <h3 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
+                  Sync from Degree Navigator
+                </h3>
+                <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                  Opens the secure browser if needed, waits for you to finish Rutgers login, then asks the
+                  assistant to read Degree Navigator and save your profile, audits, and transcript terms.
+                </p>
+                <p
+                  className={`mt-3 text-sm ${
+                    degreeNavigatorSyncStatus === 'error'
+                      ? 'text-destructive'
+                      : degreeNavigatorSyncStatus === 'synced'
+                        ? 'text-success'
+                        : 'text-muted-foreground'
+                  }`}
+                >
+                  <span className="font-medium">
+                    {getDegreeNavigatorSyncStatusLabel(degreeNavigatorSyncStatus)}.
+                  </span>{' '}
+                  {degreeNavigatorSyncMessage ?? 'Start when you are ready to sign in.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={syncFromDegreeNavigator}
+                disabled={isDegreeNavigatorSyncBusy || isStoppingSession}
+                className="focus-ring inline-flex min-h-14 shrink-0 items-center justify-center rounded-lg bg-primary px-6 py-4 text-base font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground lg:min-w-[260px]"
+              >
+                {degreeNavigatorSyncButtonLabel}
+              </button>
+            </div>
           </div>
 
           <div className="rounded-md border border-border bg-surface-1">

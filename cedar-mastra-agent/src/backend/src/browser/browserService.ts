@@ -9,12 +9,22 @@ import {
   BrowserSessionState,
   BrowserTarget,
 } from './types.js';
+import type { DegreeNavigatorReadiness } from './schemas.js';
 
 const BROWSERBASE_API_BASE = process.env.BROWSERBASE_API_BASE ?? 'https://api.browserbase.com/v1';
 const DEGREE_NAVIGATOR_URL = 'https://dn.rutgers.edu/';
 const ALLOWED_BROWSER_HOSTS = new Set([
   'dn.rutgers.edu',
   'degree-navigator.rutgers.edu',
+  'cas.rutgers.edu',
+  'idps.rutgers.edu',
+  'weblogin.rutgers.edu',
+]);
+const DEGREE_NAVIGATOR_APP_HOSTS = new Set([
+  'dn.rutgers.edu',
+  'degree-navigator.rutgers.edu',
+]);
+const RUTGERS_LOGIN_HOSTS = new Set([
   'cas.rutgers.edu',
   'idps.rutgers.edu',
   'weblogin.rutgers.edu',
@@ -32,6 +42,20 @@ type BrowserActionResult = {
   needsConfirmation?: boolean;
   confirmationRequiredFor?: string;
 };
+
+export interface DegreeNavigatorReadinessResult {
+  readiness: DegreeNavigatorReadiness;
+  urlHost?: string;
+  urlPath?: string;
+  title?: string;
+  checkedAt: string;
+}
+
+interface DegreeNavigatorPageSnapshot {
+  url?: string;
+  title?: string;
+  hasPostLoginMarker?: boolean;
+}
 
 export interface ProviderTerminationResult {
   terminated: boolean;
@@ -88,6 +112,8 @@ interface StagehandLike {
 interface PlaywrightPageLike {
   goto: (url: string, options?: { waitUntil?: string }) => Promise<unknown>;
   title?: () => Promise<string>;
+  url?: () => string;
+  evaluate?: <T>(pageFunction: () => T | Promise<T>) => Promise<T>;
 }
 
 interface PlaywrightContextLike {
@@ -209,6 +235,63 @@ function findString(obj: Record<string, unknown>, keys: string[]): string | null
   }
 
   return null;
+}
+
+export function classifyDegreeNavigatorReadiness(
+  snapshot: DegreeNavigatorPageSnapshot,
+): DegreeNavigatorReadinessResult {
+  const checkedAt = new Date().toISOString();
+  const title = snapshot.title?.trim() || undefined;
+
+  if (!snapshot.url) {
+    return {
+      readiness: 'unknown',
+      title,
+      checkedAt,
+    };
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(snapshot.url);
+  } catch {
+    return {
+      readiness: 'unknown',
+      title,
+      checkedAt,
+    };
+  }
+
+  const urlHost = parsed.hostname.toLowerCase();
+  const urlPath = parsed.pathname || '/';
+
+  if (RUTGERS_LOGIN_HOSTS.has(urlHost)) {
+    return {
+      readiness: 'awaiting_login',
+      urlHost,
+      urlPath,
+      title,
+      checkedAt,
+    };
+  }
+
+  if (DEGREE_NAVIGATOR_APP_HOSTS.has(urlHost)) {
+    return {
+      readiness: snapshot.hasPostLoginMarker ? 'ready' : 'awaiting_login',
+      urlHost,
+      urlPath,
+      title,
+      checkedAt,
+    };
+  }
+
+  return {
+    readiness: 'unknown',
+    urlHost,
+    urlPath,
+    title,
+    checkedAt,
+  };
 }
 
 export function getStagehandModelConfig(): StagehandModelConfig {
@@ -644,6 +727,88 @@ async function playwrightNavigate(connectUrl: string, url: string): Promise<{ ur
   }
 }
 
+async function resolveSessionConnectUrl(sessionId: string): Promise<string | null> {
+  const detailedSession = await browserbaseRequest(`/sessions/${sessionId}`, {
+    method: 'GET',
+  }).catch(() => null);
+  const detailedConnectUrl = detailedSession ? extractConnectUrl(detailedSession) : null;
+  if (detailedConnectUrl) {
+    return detailedConnectUrl;
+  }
+
+  const debugPayload = await browserbaseRequest(`/sessions/${sessionId}/debug`, {
+    method: 'GET',
+  }).catch(() => null);
+  return debugPayload ? extractConnectUrl(debugPayload) : null;
+}
+
+async function playwrightDegreeNavigatorSnapshot(
+  connectUrl: string,
+): Promise<DegreeNavigatorPageSnapshot> {
+  let browser: PlaywrightBrowserLike | null = null;
+
+  try {
+    const playwrightModule = (await importModule('playwright-core')) as {
+      chromium?: {
+        connectOverCDP?: (endpointURL: string) => Promise<PlaywrightBrowserLike>;
+      };
+    };
+    const chromium = playwrightModule.chromium;
+    if (!chromium || typeof chromium.connectOverCDP !== 'function') {
+      throw new BrowserSessionError(
+        'BROWSER_PROVIDER_ERROR',
+        'Playwright chromium.connectOverCDP is unavailable for Degree Navigator readiness checks.',
+      );
+    }
+
+    browser = await chromium.connectOverCDP(connectUrl);
+    const context = browser.contexts()[0] ?? (await browser.newContext());
+    const page = context.pages()[0] ?? (await context.newPage());
+    const url = typeof page.url === 'function' ? page.url() : undefined;
+    const title = typeof page.title === 'function' ? await page.title() : undefined;
+    const hasPostLoginMarker =
+      typeof page.evaluate === 'function'
+        ? await page.evaluate(() => {
+            const bodyText = document.body?.innerText?.slice(0, 8000).toLowerCase() ?? '';
+            const actionText = Array.from(document.querySelectorAll('a,button'))
+              .map((element) => element.textContent ?? '')
+              .join(' ')
+              .toLowerCase();
+
+            const hasExitAction = /\b(log\s*out|logout|sign\s*out)\b/.test(actionText);
+            const hasDegreeNavigatorShell = bodyText.includes('degree navigator');
+            const hasStudentDataSurface = /\b(audit|program|transcript|requirement|school|student)\b/.test(bodyText);
+            const hasLoginPrompt = /\b(netid|password|login|log in|sign in|duo|two-step)\b/.test(bodyText);
+
+            return hasExitAction || (hasDegreeNavigatorShell && hasStudentDataSurface && !hasLoginPrompt);
+          })
+        : false;
+
+    return {
+      url,
+      title,
+      hasPostLoginMarker,
+    };
+  } catch (error) {
+    if (error instanceof BrowserSessionError) {
+      throw error;
+    }
+
+    throw new BrowserSessionError(
+      'BROWSER_PROVIDER_ERROR',
+      `Degree Navigator readiness check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    );
+  } finally {
+    if (browser) {
+      if (typeof browser.disconnect === 'function') {
+        browser.disconnect();
+      } else {
+        await browser.close().catch(() => undefined);
+      }
+    }
+  }
+}
+
 async function stagehandObserve(sessionId: string, instruction?: string): Promise<unknown> {
   return withStagehand(sessionId, async (stagehand) => {
     if (typeof stagehand.observe === 'function') {
@@ -1052,6 +1217,32 @@ export async function getSession(sessionId: string, ownerId: string): Promise<Br
   }
 
   return sessionRepository.updateStatus(sessionId, ownerId, providerStatus);
+}
+
+export async function getDegreeNavigatorReadiness(
+  sessionId: string,
+  ownerId: string,
+): Promise<DegreeNavigatorReadinessResult> {
+  const session = await sessionRepository.getOwned(sessionId, ownerId);
+  if (session.target !== 'degree_navigator') {
+    throw new BrowserSessionError('INVALID_BROWSER_TARGET', `Unsupported browser target: ${session.target}`);
+  }
+
+  const connectUrl = await resolveSessionConnectUrl(sessionId);
+  if (!connectUrl) {
+    return classifyDegreeNavigatorReadiness({
+      title: 'Browser session is running, but no inspection URL is available.',
+    });
+  }
+
+  const snapshot = await playwrightDegreeNavigatorSnapshot(connectUrl);
+  const readiness = classifyDegreeNavigatorReadiness(snapshot);
+  await sessionRepository.touch(
+    sessionId,
+    ownerId,
+    readiness.readiness === 'ready' ? 'ready' : session.status,
+  );
+  return readiness;
 }
 
 export function touchSession(sessionId: string, ownerId: string): Promise<BrowserSessionState> {
