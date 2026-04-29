@@ -241,8 +241,94 @@ function DeleteDialog({
 }
 
 /* ------------------------------------------------------------------ */
+/*  Guest Schedule Import Dialog                                       */
+/* ------------------------------------------------------------------ */
+
+function GuestImportDialog({
+  open,
+  name,
+  sectionCount,
+  isSaving,
+  onNameChange,
+  onConfirm,
+  onSkip,
+}: {
+  open: boolean;
+  name: string;
+  sectionCount: number;
+  isSaving: boolean;
+  onNameChange: (name: string) => void;
+  onConfirm: () => void;
+  onSkip: () => void;
+}) {
+  return (
+    <Dialog.Root open={open} onOpenChange={(nextOpen) => !nextOpen && onSkip()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-surface-2 p-6 shadow-elev-2 animate-fade-up">
+          <Dialog.Title className="text-base font-semibold text-foreground">
+            Save your guest schedule?
+          </Dialog.Title>
+          <Dialog.Description className="mt-2 text-sm text-muted-foreground">
+            You added {sectionCount} {sectionCount === 1 ? 'course' : 'courses'} before signing in. Save this schedule to your account?
+          </Dialog.Description>
+          <form
+            className="mt-5 space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              onConfirm();
+            }}
+          >
+            <label className="block text-xs font-semibold text-foreground">
+              Schedule name
+              <input
+                value={name}
+                onChange={(event) => onNameChange(event.target.value)}
+                disabled={isSaving}
+                autoFocus
+                className="mt-2 h-10 w-full rounded-lg border border-border bg-surface-1 px-3 text-sm font-medium text-foreground outline-none transition focus:border-action focus:ring-2 focus:ring-action/30 disabled:cursor-not-allowed disabled:opacity-60"
+              />
+            </label>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={onSkip}
+                disabled={isSaving}
+                className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground transition hover:bg-surface-1 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Don&apos;t save
+              </button>
+              <button
+                type="submit"
+                disabled={isSaving || name.trim().length === 0}
+                className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
+              >
+                {isSaving ? 'Saving...' : 'Save schedule'}
+              </button>
+            </div>
+          </form>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Main ScheduleGrid Component                                        */
 /* ------------------------------------------------------------------ */
+
+type GuestImportCandidate = {
+  entry: ScheduleEntry;
+  sectionCount: number;
+};
+
+const cloneScheduleEntry = (entry: ScheduleEntry): ScheduleEntry => ({
+  ...entry,
+  snapshot: {
+    ...entry.snapshot,
+    sections: [...entry.snapshot.sections],
+  },
+});
 
 export const ScheduleGrid: React.FC = () => {
   const [schedule, setSchedule] = React.useState<ScheduleSnapshot>({ ...DEFAULT_SCHEDULE });
@@ -261,6 +347,11 @@ export const ScheduleGrid: React.FC = () => {
     anchor: { x: number; y: number };
   } | null>(null);
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
+  const [guestImportCandidate, setGuestImportCandidate] = React.useState<GuestImportCandidate | null>(null);
+  const [guestImportName, setGuestImportName] = React.useState('');
+  const [isImportingGuestSchedule, setIsImportingGuestSchedule] = React.useState(false);
+  const [blockedAutoSyncScheduleIds, setBlockedAutoSyncScheduleIds] = React.useState<Set<string>>(() => new Set());
+  const guestScheduleBeforeLoginRef = React.useRef<ScheduleEntry | null>(null);
 
   const refreshWorkspace = React.useCallback(() => {
     const activeEntry = getActiveScheduleEntry();
@@ -269,8 +360,14 @@ export const ScheduleGrid: React.FC = () => {
     setActiveScheduleIdState(activeEntry.id);
   }, []);
 
-  const loadCurrentSemesterWorkspace = React.useCallback(() => {
-    const currentEntry = getCurrentSemesterScheduleEntry();
+  const loadCurrentSemesterWorkspace = React.useCallback((
+    excludeScheduleIds: string[] = [],
+    options: { createIfMissing?: boolean } = {},
+  ) => {
+    const currentEntry = getCurrentSemesterScheduleEntry('NB', {
+      excludeScheduleIds,
+      createIfMissing: options.createIfMissing,
+    });
     setSchedule(currentEntry.snapshot);
     setSchedules(listSchedules());
     setActiveScheduleIdState(currentEntry.id);
@@ -322,8 +419,34 @@ export const ScheduleGrid: React.FC = () => {
     }
     setIsHydrating(true);
     setSyncError(null);
+    const guestEntry = guestScheduleBeforeLoginRef.current;
     hydrateFromRemote()
       .then(() => {
+        if (guestEntry && !guestEntry.lastSyncedAt) {
+          setBlockedAutoSyncScheduleIds((current) => new Set(current).add(guestEntry.id));
+
+          if (guestEntry.snapshot.sections.length > 0) {
+            loadCurrentSemesterWorkspace([guestEntry.id], { createIfMissing: false });
+            setGuestImportCandidate({
+              entry: guestEntry,
+              sectionCount: guestEntry.snapshot.sections.length,
+            });
+            setGuestImportName(guestEntry.name);
+            return;
+          }
+
+          if (listSchedules().length > 1) {
+            deleteSchedule(guestEntry.id);
+            setBlockedAutoSyncScheduleIds((current) => {
+              const next = new Set(current);
+              next.delete(guestEntry.id);
+              return next;
+            });
+            loadCurrentSemesterWorkspace([guestEntry.id], { createIfMissing: false });
+            return;
+          }
+        }
+
         loadCurrentSemesterWorkspace();
       })
       .catch((error) => {
@@ -331,6 +454,7 @@ export const ScheduleGrid: React.FC = () => {
         setSyncError('Could not load saved schedules.');
       })
       .finally(() => {
+        guestScheduleBeforeLoginRef.current = null;
         setIsHydrating(false);
       });
   }, [userId, loadCurrentSemesterWorkspace]);
@@ -339,6 +463,11 @@ export const ScheduleGrid: React.FC = () => {
     () => schedules.find((entry) => entry.id === activeScheduleId) ?? null,
     [schedules, activeScheduleId],
   );
+
+  React.useEffect(() => {
+    if (userId || !activeEntry) return;
+    guestScheduleBeforeLoginRef.current = cloneScheduleEntry(activeEntry);
+  }, [activeEntry, userId]);
 
   React.useEffect(() => {
     if (!activeEntry || isEditingName) return;
@@ -353,6 +482,12 @@ export const ScheduleGrid: React.FC = () => {
     try {
       setSyncState('saving');
       await upsertRemoteSchedule(activeEntry, userId);
+      setBlockedAutoSyncScheduleIds((current) => {
+        if (!current.has(activeEntry.id)) return current;
+        const next = new Set(current);
+        next.delete(activeEntry.id);
+        return next;
+      });
       setSyncState('idle');
       setSyncError(null);
     } catch (error) {
@@ -367,12 +502,22 @@ export const ScheduleGrid: React.FC = () => {
     if (isHydrating) return;
     if (syncState === 'saving') return;
     if (syncStatus === 'saved') return;
+    if (!activeEntry.lastSyncedAt && activeEntry.snapshot.sections.length === 0) return;
+    if (blockedAutoSyncScheduleIds.has(activeEntry.id)) return;
     const timer = window.setTimeout(() => {
       void syncActiveSchedule();
     }, 1200);
 
     return () => window.clearTimeout(timer);
-  }, [activeEntry, isLoggedIn, isHydrating, syncState, syncStatus, syncActiveSchedule]);
+  }, [
+    activeEntry,
+    blockedAutoSyncScheduleIds,
+    isLoggedIn,
+    isHydrating,
+    syncState,
+    syncStatus,
+    syncActiveSchedule,
+  ]);
 
   const handleScheduleSelect = React.useCallback(
     (id: string) => {
@@ -412,6 +557,57 @@ export const ScheduleGrid: React.FC = () => {
       }
     }
   }, [activeEntry, isLoggedIn]);
+
+  const handleSkipGuestImport = React.useCallback(() => {
+    if (isImportingGuestSchedule) return;
+    const skippedScheduleId = guestImportCandidate?.entry.id;
+    setGuestImportCandidate(null);
+    setGuestImportName('');
+
+    if (skippedScheduleId) {
+      setBlockedAutoSyncScheduleIds((current) => new Set(current).add(skippedScheduleId));
+      loadCurrentSemesterWorkspace([skippedScheduleId], { createIfMissing: false });
+    }
+  }, [guestImportCandidate, isImportingGuestSchedule, loadCurrentSemesterWorkspace]);
+
+  const handleConfirmGuestImport = React.useCallback(async () => {
+    if (!guestImportCandidate || !userId) return;
+    const trimmedName = guestImportName.trim();
+    if (!trimmedName) return;
+
+    const entryToImport = {
+      ...guestImportCandidate.entry,
+      name: trimmedName,
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      setIsImportingGuestSchedule(true);
+      setSyncState('saving');
+      const renamed = renameSchedule(entryToImport.id, trimmedName);
+      if (!renamed) {
+        throw new Error('Guest schedule no longer exists locally.');
+      }
+      setActiveScheduleId(entryToImport.id);
+      await upsertRemoteSchedule(entryToImport, userId);
+      setBlockedAutoSyncScheduleIds((current) => {
+        const next = new Set(current);
+        next.delete(entryToImport.id);
+        return next;
+      });
+      setGuestImportCandidate(null);
+      setGuestImportName('');
+      setSyncError(null);
+      setSyncState('idle');
+      refreshWorkspace();
+    } catch (error) {
+      console.error('Failed to import guest schedule', error);
+      setSyncState('error');
+      setSyncError('Could not save guest schedule.');
+    } finally {
+      setIsImportingGuestSchedule(false);
+    }
+  }, [guestImportCandidate, guestImportName, refreshWorkspace, userId]);
 
   const handleRemoveSection = React.useCallback(
     (indexNumber: string) => {
@@ -611,7 +807,7 @@ export const ScheduleGrid: React.FC = () => {
             {/* Left: Schedule name (inline-editable) + schedule picker + credit pill */}
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               {/* Schedule picker dropdown */}
-              <DropdownMenu.Root>
+              <DropdownMenu.Root modal={false}>
                 <DropdownMenu.Trigger asChild>
                   <button
                     type="button"
@@ -712,7 +908,7 @@ export const ScheduleGrid: React.FC = () => {
               </button>
 
               {/* Overflow menu: New, Duplicate, Delete */}
-              <DropdownMenu.Root>
+              <DropdownMenu.Root modal={false}>
                 <DropdownMenu.Trigger asChild>
                   <button
                     type="button"
@@ -980,6 +1176,17 @@ export const ScheduleGrid: React.FC = () => {
           onRemove={handleRemoveSection}
         />
       )}
+
+      {/* Guest schedule import dialog */}
+      <GuestImportDialog
+        open={Boolean(guestImportCandidate)}
+        name={guestImportName}
+        sectionCount={guestImportCandidate?.sectionCount ?? 0}
+        isSaving={isImportingGuestSchedule}
+        onNameChange={setGuestImportName}
+        onConfirm={() => void handleConfirmGuestImport()}
+        onSkip={handleSkipGuestImport}
+      />
 
       {/* Delete dialog */}
       <DeleteDialog

@@ -104,7 +104,28 @@ export const DEFAULT_SCHEDULE: ScheduleSnapshot = {
 
 const buildDefaultScheduleName = (snapshot: ScheduleSnapshot) => {
   const termLabel = resolveTermLabel(snapshot.termCode);
-  return `${termLabel} ${snapshot.termYear} - ${snapshot.campus}`;
+  return `Schedule 1 - ${termLabel} ${snapshot.termYear}`;
+};
+
+const buildScheduleName = (snapshot: ScheduleSnapshot, index: number) => {
+  const termLabel = resolveTermLabel(snapshot.termCode);
+  return `Schedule ${index} - ${termLabel} ${snapshot.termYear}`;
+};
+
+const buildUniqueDefaultScheduleName = (
+  snapshot: ScheduleSnapshot,
+  schedules: ScheduleEntry[],
+) => {
+  const names = new Set(schedules.map((entry) => entry.name));
+  let index = 1;
+  let name = buildScheduleName(snapshot, index);
+
+  while (names.has(name)) {
+    index += 1;
+    name = buildScheduleName(snapshot, index);
+  }
+
+  return name;
 };
 
 const createEmptyScheduleSnapshot = (overrides: Partial<ScheduleSnapshot> = {}): ScheduleSnapshot => {
@@ -287,14 +308,21 @@ export const getActiveScheduleEntry = (): ScheduleEntry => {
   return active;
 };
 
-export const getCurrentSemesterScheduleEntry = (campus = 'NB'): ScheduleEntry => {
+export const getCurrentSemesterScheduleEntry = (
+  campus = 'NB',
+  options: { excludeScheduleIds?: string[]; createIfMissing?: boolean } = {},
+): ScheduleEntry => {
   const workspace = loadScheduleWorkspace();
   const currentTerm = getCurrentSemesterTerm();
+  const excludedIds = new Set(options.excludeScheduleIds ?? []);
+  const createIfMissing = options.createIfMissing ?? true;
   const isCurrentSemesterEntry = (entry: ScheduleEntry) => (
     entry.snapshot.termYear === currentTerm.termYear
     && entry.snapshot.termCode === currentTerm.termCode
     && entry.snapshot.campus === campus
+    && !excludedIds.has(entry.id)
   );
+  const availableEntries = workspace.schedules.filter((entry) => !excludedIds.has(entry.id));
   const activeEntry = workspace.schedules.find((entry) => entry.id === workspace.activeScheduleId);
 
   if (activeEntry && isCurrentSemesterEntry(activeEntry) && activeEntry.snapshot.sections.length > 0) {
@@ -315,11 +343,33 @@ export const getCurrentSemesterScheduleEntry = (campus = 'NB'): ScheduleEntry =>
     return matchingEntry;
   }
 
+  if (!createIfMissing && availableEntries.length > 0) {
+    const fallbackEntry = availableEntries.sort((left, right) => {
+      const leftSynced = left.lastSyncedAt ? 1 : 0;
+      const rightSynced = right.lastSyncedAt ? 1 : 0;
+      if (leftSynced !== rightSynced) return rightSynced - leftSynced;
+      return right.updatedAt.localeCompare(left.updatedAt);
+    })[0];
+    workspace.activeScheduleId = fallbackEntry.id;
+    saveScheduleWorkspace(workspace);
+    return fallbackEntry;
+  }
+
+  if (!createIfMissing) {
+    const fallbackEntry = activeEntry ?? workspace.schedules[0];
+    if (fallbackEntry) {
+      workspace.activeScheduleId = fallbackEntry.id;
+      saveScheduleWorkspace(workspace);
+      return fallbackEntry;
+    }
+  }
+
   const entry = createScheduleEntry(createEmptyScheduleSnapshot({
     termYear: currentTerm.termYear,
     termCode: currentTerm.termCode,
     campus,
   }));
+  entry.name = buildUniqueDefaultScheduleName(entry.snapshot, workspace.schedules);
   workspace.schedules = [...workspace.schedules, entry];
   workspace.activeScheduleId = entry.id;
   saveScheduleWorkspace(workspace);
@@ -368,7 +418,11 @@ export const createSchedule = (options: {
     return createScheduleEntry(options.snapshot ?? createEmptyScheduleSnapshot(), options.name);
   }
   const workspace = loadScheduleWorkspace();
-  const entry = createScheduleEntry(options.snapshot ?? createEmptyScheduleSnapshot(), options.name);
+  const snapshot = options.snapshot ?? createEmptyScheduleSnapshot();
+  const entry = createScheduleEntry(
+    snapshot,
+    options.name ?? buildUniqueDefaultScheduleName(snapshot, workspace.schedules),
+  );
   workspace.schedules = [...workspace.schedules, entry];
   if (options.setActive ?? true) {
     workspace.activeScheduleId = entry.id;
