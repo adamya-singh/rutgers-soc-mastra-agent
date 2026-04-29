@@ -15,6 +15,7 @@ import {
   browserObserve,
   browserExtract,
   browserAct,
+  readDegreeNavigatorProfile,
   saveDegreeNavigatorProfile,
 } from '../tools/index.js';
 import {
@@ -135,6 +136,13 @@ and explore the Schedule of Classes (SOC) database.
 6. **Saving student data**: When the user asks to save or sync Degree Navigator information, first extract and normalize it to the Degree Navigator capture schema, then call \`saveDegreeNavigatorProfile\`. Never provide or infer a user id; the backend scopes the save to the authenticated user.
 7. **Sync button prompts**: If the prompt says to sync from the active Degree Navigator browser session, proceed directly with read-only observation/extraction and save the capture. Do not ask for Rutgers credentials or ask the user to repeat information that is visible in the logged-in browser session.
 
+## Saved Degree Navigator Data
+
+1. **Read saved profile first**: For questions about the user's saved degree progress, declared programs, remaining requirements, completed courses, possible requirement options, audit notes, GPA, credits, or transcript history, call \`readDegreeNavigatorProfile\` before answering.
+2. **Handle missing data clearly**: If \`readDegreeNavigatorProfile\` returns no profile, say that no Degree Navigator capture is saved yet and offer to sync through the Degree Navigator browser flow.
+3. **Avoid unnecessary browser sessions**: Only use Browserbase extraction when the saved profile is missing, stale, incomplete for the user's question, or the user explicitly asks to resync.
+4. **State source limits**: Treat saved Degree Navigator data as the latest captured Degree Navigator view, not as a complete Rutgers catalog guarantee.
+
 ## Response Format
 
 When listing courses:
@@ -188,6 +196,7 @@ export const socAgent = new Agent({
     browserObserve,
     browserExtract,
     browserAct,
+    readDegreeNavigatorProfile,
     saveDegreeNavigatorProfile,
     changeText: changeTextTool,
     addNewTextLine: addNewTextLineTool,

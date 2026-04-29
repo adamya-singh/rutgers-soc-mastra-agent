@@ -1344,6 +1344,13 @@ export default function HomePage() {
             <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-foreground">
               {userEmail ?? 'Unknown email'}
             </div>
+            <Link
+              href="/profile"
+              onClick={() => setIsProfileOpen(false)}
+              className="focus-ring flex w-full items-center justify-center rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+            >
+              View full profile
+            </Link>
             <button
               type="button"
               onClick={async () => {

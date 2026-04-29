@@ -18,4 +18,5 @@ export { browserNavigate } from './browser/browser-navigate.js';
 export { browserObserve } from './browser/browser-observe.js';
 export { browserExtract } from './browser/browser-extract.js';
 export { browserAct } from './browser/browser-act.js';
+export { readDegreeNavigatorProfile } from './degree-navigator/read-profile.js';
 export { saveDegreeNavigatorProfile } from './degree-navigator/save-profile.js';
