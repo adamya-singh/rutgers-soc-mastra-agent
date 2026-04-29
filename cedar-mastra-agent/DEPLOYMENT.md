@@ -238,13 +238,18 @@ The security migrations have been applied to the Supabase project:
 
 - `20260428034924 harden_browser_sessions`
 - `20260428034930 lock_down_soc_catalog`
+- `create_degree_navigator_profiles`
 
 Expected database state:
 
 - `public.browser_sessions.user_id` exists and stores authenticated Supabase user ownership.
 - `public.browser_sessions` has RLS enabled with a backend-only deny-all frontend policy.
 - `anon` and `authenticated` have no direct grants on `public.browser_sessions`.
+- `public.degree_navigator_profiles` exists with RLS enabled and stores one latest Degree Navigator capture per authenticated `user_id`.
+- `public.degree_navigator_profiles` has top-level student lookup fields plus JSONB columns for `profile`, `programs`, `audits`, `transcript_terms`, and `run_notes`.
 - SOC catalog tables such as `courses`, `sections`, and `meeting_times` are read-only for `anon` and `authenticated`.
+
+The migration file for Degree Navigator storage is [`supabase/migrations/20260428_create_degree_navigator_profiles.sql`](supabase/migrations/20260428_create_degree_navigator_profiles.sql). If applying manually, use Supabase migrations rather than ad hoc SQL so local schema history stays aligned with the hosted project.
 
 ---
 
@@ -267,6 +272,12 @@ Expected database state:
 2. Open Cedar chat UI and send a message.
 3. Confirm response returns from backend.
 4. Validate login/schedule features (they rely on frontend Supabase env vars).
+5. Validate Degree Navigator profile routes with a valid Supabase bearer token:
+
+```bash
+curl -i https://rutgers-agent-mastra-backend-496012954691.us-east4.run.app/degree-navigator/profile \
+  -H "Authorization: Bearer <supabase-access-token>"
+```
 
 If there are network errors:
 - Check `NEXT_PUBLIC_MASTRA_URL` value.

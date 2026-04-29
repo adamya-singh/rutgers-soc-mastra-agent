@@ -1504,8 +1504,8 @@ Example output:
 
 ### Prerequisite Handling
 
-- Ask users about completed courses early in conversation: *"To give you better recommendations, what CS/Math courses have you already completed?"*
-- Track completed courses in conversation context.
+- Use saved Degree Navigator profile data for completed-course context when available.
+- If no Degree Navigator profile is available, ask users about completed courses early in conversation: *"To give you better recommendations, what CS/Math courses have you already completed?"*
 - When showing prereqs, infer concurrent enrollment warnings: if course A requires B, warn about taking A+B simultaneously.
 
 ---
@@ -1743,7 +1743,7 @@ and explore the Schedule of Classes (SOC) database.
 1. **Be factual**: State facts about availability, don't editorialize or apologize ("All 30 sections are closed" not "Unfortunately, I'm sorry but...")
 2. **Minimal output**: Show course code, title, status by default. Offer details on request.
 3. **Ask when ambiguous**: If instructor search returns >3 matches, ask for clarification before returning results.
-4. **Track context**: Remember user's completed courses mentioned in conversation for prereq advice.
+4. **Track context**: Use completed courses mentioned in conversation or available from the user's saved Degree Navigator profile for prereq advice.
 5. **Flag restrictions**: Always show `[REQUIRES SPN]` or `[MAJORS ONLY]` tags on restricted sections.
 6. **Summer dates**: Always prominently show session dates for summer/winter courses.
 7. **Use LLM knowledge**: Infer common course aliases (Calc 1 → 01:640:151, Expos → 01:355:101, Data Structures → 01:198:112).
@@ -1763,10 +1763,22 @@ and explore the Schedule of Classes (SOC) database.
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=eyJ...your-anon-key
 
-# Required on the backend for backend-only tables such as browser_sessions
+# Required on the backend for backend-owned tables such as browser_sessions
+# and degree_navigator_profiles
 SUPABASE_SERVICE_ROLE_KEY=eyJ...your-service-role-key
 # SUPABASE_SERVICE_KEY is also accepted as a backwards-compatible alias.
 ```
+
+### User-Owned Degree Navigator Data
+
+Degree Navigator extraction output is stored separately from SOC catalog data in `public.degree_navigator_profiles`. The table keeps one latest capture per authenticated Supabase user and includes top-level lookup fields plus JSONB documents for `profile`, `programs`, `audits`, `transcript_terms`, and `run_notes`.
+
+The backend APIs are:
+
+- `GET /degree-navigator/profile`
+- `POST /degree-navigator/profile`
+
+Both routes require `Authorization: Bearer <supabase-access-token>`. The backend derives ownership from the verified Supabase user and validates payloads with `src/backend/src/degree-navigator/schemas.ts`.
 
 ### Package Dependencies
 

@@ -4,6 +4,25 @@ Captured from Rutgers Degree Navigator on April 26, 2026 via the local Browserba
 
 This document records academic information visible in Degree Navigator for the test account. It does not include the account password. Degree Navigator labels several future-term courses as `current`; those statuses are preserved as shown.
 
+## Storage Model
+
+The app stores a validated latest Degree Navigator capture per authenticated user in `public.degree_navigator_profiles`.
+
+The table is defined in `cedar-mastra-agent/supabase/migrations/20260428_create_degree_navigator_profiles.sql` and has RLS enabled with ownership enforced by `user_id = auth.uid()`. The hosted Supabase project has this migration applied.
+
+The capture is intentionally document-shaped:
+
+- Top-level columns keep lookup/freshness fields: `student_name`, `ruid`, `netid`, `school_code`, `school_name`, `graduation_year`, `graduation_month`, `degree_credits_earned`, `cumulative_gpa`, `planned_course_count`, `captured_at`.
+- `profile` stores the student profile object.
+- `programs` stores declared programs of study.
+- `audits` stores program audits, requirements, applied courses, conditions, notes, unused courses, and still-needed items.
+- `transcript_terms` stores transcript/AP/placement terms with course entries.
+- `run_notes` stores capture metadata such as disclaimers, extraction warnings, and unavailable routes.
+
+The canonical TypeScript/Zod shapes live in `cedar-mastra-agent/src/backend/src/degree-navigator/schemas.ts`; backend read/write helpers live in `cedar-mastra-agent/src/backend/src/degree-navigator/repository.ts`. The backend APIs are `GET /degree-navigator/profile` and `POST /degree-navigator/profile`; both derive ownership from the verified Supabase bearer token.
+
+The app must not store Rutgers passwords, raw Degree Navigator HTML, screenshots, or Browserbase Live View URLs in this table.
+
 ## Student Profile
 
 - Name: ADAMYA SINGH

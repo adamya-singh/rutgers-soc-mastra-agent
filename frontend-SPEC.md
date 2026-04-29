@@ -57,8 +57,8 @@ An AI-powered course scheduling assistant for Rutgers University students. The a
 │                         Login                                    │
 │  • localStorage schedule auto-merges to account                 │
 │  • Save multiple named schedules                                │
-│  • Track completed courses                                       │
-│  • Persist chat history and preferences                         │
+│  • Sync saved schedules through Supabase                         │
+│  • Store latest Degree Navigator profile capture                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -79,9 +79,9 @@ An AI-powered course scheduling assistant for Rutgers University students. The a
 
 | Service | Purpose |
 |---------|---------|
-| **Mastra Agent** | AI backend at `http://localhost:4112/api` |
-| **Supabase** | Database (courses, sections) + Auth |
-| **Vercel** | Deployment platform |
+| **Mastra Agent** | AI backend at `http://localhost:4111` |
+| **Supabase** | Auth, SOC catalog data, saved schedules, browser sessions, Degree Navigator profiles |
+| **Firebase App Hosting + Cloud Run** | Frontend and backend deployment |
 
 ### Key Dependencies
 
@@ -185,7 +185,7 @@ Minimal page structure with three main routes:
 |-------|------|-------------|
 | `/` | Home | Schedule grid + chat interface |
 | `/browse` | Browse Courses | Course search and filtering |
-| `/settings` | Settings | Preferences, completed courses, account |
+| `/settings` | Settings | Preferences and account controls |
 
 ### Header Components
 
@@ -319,8 +319,8 @@ When a course card is expanded, show ALL section details:
 ### Quick Actions
 
 - **Add to Schedule**: Opens section selector if multiple sections, or adds directly
-- **Favorite**: Heart icon to save course (logged-in only)
-- **Mark Completed**: Checkbox to add to completed courses
+- **Favorite**: Deferred; not implemented in the current app.
+- **Completed history**: Derived from saved Degree Navigator captures rather than manual course checkboxes.
 
 ---
 
@@ -385,11 +385,11 @@ Users can switch between two modes:
 
 ### AI Context Awareness
 
-The AI **always** has access to:
-- Current schedule state (all sections)
-- User's completed courses (if set)
-- Current term/campus preferences
-- Conversation history
+The AI can receive:
+- Current schedule state and search UI context when subscribed through Cedar.
+- Current Browserbase session metadata when the embedded Degree Navigator browser is active.
+- Saved Degree Navigator profile data after it has been captured and loaded through backend APIs.
+- Recent process-local conversation memory from Mastra.
 
 This context is injected into every message automatically.
 
@@ -433,10 +433,11 @@ This context is injected into every message automatically.
 | Chat with AI | ❌ | ✅ |
 | Export schedule | ✅ | ✅ |
 | Save multiple schedules | ❌ | ✅ |
-| Favorite courses | ❌ | ✅ |
-| Track completed courses | ❌ | ✅ |
-| Persist preferences | ❌ | ✅ |
-| Chat history | Session only | ✅ Persisted |
+| Favorite courses | ❌ | Not implemented |
+| Track completed courses | ❌ | Via Degree Navigator profile capture |
+| Persist preferences | Local only | Local only |
+| Chat history | Process-local memory | Process-local memory |
+| Degree Navigator profile | ❌ | ✅ latest capture in database |
 
 ### Login Transition
 
@@ -449,59 +450,68 @@ When anonymous user logs in:
 ### User Data Schema (Supabase)
 
 ```sql
--- User profiles (extends Supabase auth.users)
-CREATE TABLE user_profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id),
-  default_campus VARCHAR(10) DEFAULT 'NB',
-  default_term VARCHAR(2),
-  theme VARCHAR(10) DEFAULT 'system',
-  chat_position VARCHAR(10) DEFAULT 'floating',
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
 -- Saved schedules
-CREATE TABLE user_schedules (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  name VARCHAR(100) NOT NULL,
-  term_year INTEGER NOT NULL,
-  term_code VARCHAR(2) NOT NULL,
-  campus VARCHAR(10) NOT NULL,
-  sections JSONB NOT NULL DEFAULT '[]',
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+create table public.schedules (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users on delete cascade,
+  name text not null,
+  snapshot jsonb not null,
+  term_year int,
+  term_code text,
+  campus text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
--- Favorite courses
-CREATE TABLE user_favorites (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  course_string VARCHAR(20) NOT NULL,
-  term_year INTEGER,
-  term_code VARCHAR(2),
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_id, course_string, term_year, term_code)
+-- Backend-only Browserbase session metadata
+create table public.browser_sessions (
+  session_id text primary key,
+  owner_id text not null, -- legacy, not authoritative
+  user_id uuid references auth.users on delete cascade,
+  provider text not null,
+  target text not null,
+  live_view_url text not null,
+  status text not null,
+  created_at timestamptz not null default now(),
+  last_heartbeat_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
--- Completed courses
-CREATE TABLE user_completed_courses (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  course_string VARCHAR(20) NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_id, course_string)
-);
-
--- Chat history
-CREATE TABLE user_chat_history (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  messages JSONB NOT NULL DEFAULT '[]',
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+-- Latest Degree Navigator capture per authenticated user
+create table public.degree_navigator_profiles (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users on delete cascade,
+  schema_version int not null default 1,
+  student_name text,
+  ruid text,
+  netid text,
+  school_code text,
+  school_name text,
+  graduation_year text,
+  graduation_month text,
+  degree_credits_earned numeric,
+  cumulative_gpa numeric,
+  planned_course_count int,
+  profile jsonb not null,
+  programs jsonb not null default '[]'::jsonb,
+  audits jsonb not null default '[]'::jsonb,
+  transcript_terms jsonb not null default '[]'::jsonb,
+  run_notes jsonb not null default '{}'::jsonb,
+  source text not null default 'degree_navigator',
+  source_session_id text,
+  captured_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id)
 );
 ```
+
+Implemented migrations live in:
+
+- `cedar-mastra-agent/supabase/migrations/20260126_create_schedules.sql`
+- `cedar-mastra-agent/supabase/migrations/20260226_create_browser_sessions.sql`
+- `cedar-mastra-agent/supabase/migrations/20260426_harden_browser_sessions.sql`
+- `cedar-mastra-agent/supabase/migrations/20260428_create_degree_navigator_profiles.sql`
 
 ---
 
@@ -534,9 +544,9 @@ interface ScheduleState {
 interface UserState {
   user: User | null;
   preferences: UserPreferences;
-  completedCourses: string[];
   schedules: SavedSchedule[];
   activeScheduleId: string | null;
+  degreeNavigatorProfile: DegreeNavigatorProfile | null;
 }
 
 interface UIState {
@@ -550,24 +560,33 @@ interface UIState {
 ### localStorage Schema
 
 ```typescript
-// Key: 'rutgers-soc-schedule'
-interface LocalStorageSchedule {
+// Key: 'rutgers-soc-schedules'
+interface LocalStorageScheduleWorkspace {
   version: number;
-  sections: Array<{
-    indexNumber: string;
-    courseString: string;
-    // ... minimal section data for display
+  activeScheduleId: string | null;
+  schedules: Array<{
+    id: string;
+    name: string;
+    snapshot: {
+      version: number;
+      termYear: number;
+      termCode: string;
+      campus: string;
+      lastUpdated?: string;
+      sections: Array<{
+        indexNumber: string;
+        courseString?: string | null;
+        courseTitle?: string | null;
+        credits?: number | null;
+      }>;
+    };
+    updatedAt: string;
+    lastSyncedAt?: string;
   }>;
-  lastUpdated: string; // ISO timestamp
 }
 
-// Key: 'rutgers-soc-preferences'
-interface LocalStoragePreferences {
-  campus: string;
-  theme: 'light' | 'dark' | 'system';
-  chatPosition: 'floating' | 'side';
-  chatOpen: boolean;
-}
+// Other keys: 'theme', 'active_browser_session', 'cedar_user_id',
+// 'cedar_thread_id', and 'browser_client_id'
 ```
 
 ---
@@ -886,7 +905,7 @@ The following features are planned but will be implemented in future phases:
 ### Deployment
 
 - [ ] Environment variables configuration
-- [ ] Vercel deployment setup
+- [ ] Firebase App Hosting / Cloud Run deployment setup
 - [ ] Production Supabase configuration
 - [ ] Domain setup
 

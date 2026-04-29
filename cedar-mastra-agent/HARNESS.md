@@ -19,6 +19,7 @@ flowchart TD
   socTools --> supabase[Supabase SOC Data]
   browserTools --> browserbase[Browserbase Session]
   browserbase --> degreeNavigator[Degree Navigator]
+  browserTools --> degreeNavigatorProfiles[Degree Navigator Profiles]
 ```
 
 The primary implementation files are:
@@ -29,6 +30,7 @@ The primary implementation files are:
 - Frontend state and frontend tools: [`src/app/page.tsx`](src/app/page.tsx)
 - Browserbase lifecycle: [`src/backend/src/browser/browserService.ts`](src/backend/src/browser/browserService.ts)
 - Chat and browser API routes: [`src/backend/src/mastra/apiRegistry.ts`](src/backend/src/mastra/apiRegistry.ts)
+- Degree Navigator storage schemas and repository: [`src/backend/src/degree-navigator/`](src/backend/src/degree-navigator/)
 - Memory configuration: [`src/backend/src/mastra/memory.ts`](src/backend/src/mastra/memory.ts)
 
 ## Agent Identity And Model
@@ -61,6 +63,8 @@ The frontend subscribes these state values into agent context:
 The frontend also registers `searchResults` as Cedar state, but it is used as a mutable UI target rather than subscribed into agent context.
 
 The app does not collect or store Rutgers credentials. Degree Navigator login happens inside the embedded Browserbase Live View, and credentials should remain inside that remote browser session.
+
+When Degree Navigator data is saved, the backend stores a validated latest capture in `public.degree_navigator_profiles`. The stored document includes profile fields, declared programs, audit summaries, transcript terms, and run notes. It does not include Rutgers passwords, raw HTML, screenshots, or Browserbase Live View URLs.
 
 ## What The Agent Can Do
 
@@ -133,11 +137,15 @@ Browserbase sessions are tracked in the backend session repository. Session owne
 
 `browserObserve`, `browserExtract`, and `browserAct` use Stagehand and require model credentials. Initial Degree Navigator navigation uses a non-LLM browser connection so a model key is not required just to launch the Live View.
 
+Structured Degree Navigator captures are validated by [`src/backend/src/degree-navigator/schemas.ts`](src/backend/src/degree-navigator/schemas.ts) and read/written through [`src/backend/src/degree-navigator/repository.ts`](src/backend/src/degree-navigator/repository.ts). The repository uses the backend Supabase service-role client, while route handlers derive ownership from the authenticated Supabase user.
+
 ## API Surface
 
 The backend registers these HTTP routes in [`src/backend/src/mastra/apiRegistry.ts`](src/backend/src/mastra/apiRegistry.ts):
 
 - `POST /chat/stream`: stream chat responses and tool call events from the Mastra workflow.
+- `GET /degree-navigator/profile`: read the latest Degree Navigator profile for the authenticated user.
+- `POST /degree-navigator/profile`: validate and save the latest Degree Navigator capture for the authenticated user.
 - `POST /browser/session/create`: create a Browserbase Degree Navigator session.
 - `POST /browser/session/status`: fetch and update local status for an owned Browserbase session.
 - `POST /browser/session/close`: close/release an owned Browserbase session and return termination metadata.
@@ -150,6 +158,7 @@ The backend registers these HTTP routes in [`src/backend/src/mastra/apiRegistry.
 - Browser actions are scoped to the authenticated Supabase user.
 - Sensitive browser actions require explicit user confirmation and a server-issued confirmation token before `browserAct` executes.
 - The agent should observe or extract before complex browser actions.
+- Saved Degree Navigator captures must be schema-validated and user-owned by server-derived Supabase `user_id`.
 - Memory is process-local, ephemeral, and limited to the last 5 messages.
 - Search result and schedule tools can mutate frontend-local UI state.
 - Closed sections can be added to the local schedule if the user asks; the agent should warn, not block.
@@ -182,7 +191,7 @@ Frontend environment variables:
 For local development, start the root app through the repo script so `.env` is loaded for both Next and Mastra:
 
 ```bash
-pnpm dev
+npm run dev
 ```
 
 If starting Mastra alone, load the project `.env` explicitly from `cedar-mastra-agent`:
@@ -201,6 +210,7 @@ Update this file whenever any of these change:
 - `useRegisterState`, `useSubscribeStateToAgentContext`, or `useRegisterFrontendTool` usage in the frontend.
 - Browserbase session creation, termination, ownership, or Stagehand behavior.
 - Chat or browser API routes.
+- Degree Navigator profile storage, validation, or API routes.
 - Required environment variables or deployment assumptions.
 
 Prefer short capability descriptions and source links here. Keep detailed request/response schemas in source files or specialized docs such as [`TOOLS-SPEC.md`](TOOLS-SPEC.md).

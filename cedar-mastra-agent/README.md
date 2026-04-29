@@ -1,35 +1,31 @@
-# Cedar-OS + Mastra Starter Template
+# Rutgers SOC Mastra Agent
 
-A blank starter template combining [Cedar-OS](https://cedar.ai) for the frontend AI interface and [Mastra](https://mastra.ai) for the backend agent orchestration.
+A Rutgers Schedule of Classes assistant that combines a Next.js/Cedar-OS frontend, a Mastra backend agent, Supabase Auth/Postgres, and Browserbase-powered Degree Navigator automation.
 
 ## Features
 
-- **🤖 AI Chat Integration**: Built-in chat workflows powered by OpenAI through Mastra agents
-- **⚡ Real-time Streaming**: Server-sent events (SSE) for streaming AI responses
-- **🎨 Beautiful UI**: Cedar-OS components with 3D effects and modern design
-- **🔧 Type-safe Workflows**: Mastra-based backend with full TypeScript support
-- **📡 Dual API Modes**: Both streaming and non-streaming chat endpoints
+- **Rutgers SOC search and planning**: Course, section, prerequisite, conflict, and room-availability tools backed by Supabase SOC catalog tables.
+- **AI chat interface**: Cedar-OS frontend connected to Mastra streaming workflows.
+- **Supabase auth and user data**: Email/password auth, saved schedules, browser-session ownership, and Degree Navigator profile storage.
+- **Degree Navigator browser automation**: Browserbase Live View sessions with manual Rutgers login, read-only extraction, and confirmation gates for sensitive actions.
 
 ## Quick Start
 
-The fastest way to get started:
+Install dependencies from the app root and backend package:
 
 ```bash
-npx cedar-os-cli plant-seed
+npm install
+npm --prefix src/backend install
 ```
-
-Then select this template when prompted. This will set up the entire project structure and dependencies automatically.
-
-This template contains the Cedar chat connected to a mastra backend to demonstrate what endpoints need to be implemented.
-
-For more details, see the [Cedar Getting Started Guide](https://docs.cedarcopilot.com/getting-started/getting-started).
 
 ## Manual Setup
 
 ### Prerequisites
 
-- Node.js 18+
-- OpenAI API key
+- Node.js 22+ for the backend package
+- Supabase project with the migrations in `supabase/migrations/` applied
+- Google Vertex AI credentials, or an API-key-backed Stagehand model provider
+- Browserbase API key/project ID for Degree Navigator automation
 - pnpm (recommended) or npm
 
 ### Installation
@@ -38,8 +34,8 @@ For more details, see the [Cedar Getting Started Guide](https://docs.cedarcopilo
 
 ```bash
 git clone <repository-url>
-cd cedar-mastra-starter
-pnpm install && cd src/backend && pnpm install && cd ../..
+cd cedar-mastra-agent
+npm install && npm --prefix src/backend install
 ```
 
 2. **Set up environment variables:**
@@ -55,6 +51,10 @@ GOOGLE_VERTEX_LOCATION=us-central1
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# Browserbase
+BROWSERBASE_API_KEY=your-browserbase-key
+BROWSERBASE_PROJECT_ID=your-browserbase-project-id
 ```
 
 3. **Start the development servers:**
@@ -78,9 +78,10 @@ This runs both the Next.js frontend and Mastra backend concurrently:
 
 ### Backend (Mastra)
 
-- **Chat Workflow**: Example of a Mastra workflow – a chained sequence of tasks including LLM calls
-- **Streaming Utils**: Examples of streaming text, status updates, and objects like tool calls
-- **API Routes**: Examples of registering endpoint handlers for interacting with the backend
+- **Chat Workflow**: Authenticated streaming workflow for the Rutgers SOC agent.
+- **SOC Tools**: Course search, section lookup, prerequisites, schedule conflicts, metadata browsing, and room availability.
+- **Browser Tools**: Browserbase session lifecycle plus Stagehand observe/extract/act tools for Degree Navigator.
+- **Degree Navigator Storage**: Validated profile/audit/transcript captures in `public.degree_navigator_profiles`.
 
 ## API Endpoints (Mastra backend)
 
@@ -112,6 +113,35 @@ Authorization: Bearer <supabase-access-token>
 ```
 
 Browser session ownership is derived from the verified Supabase user. Do not send or trust browser-local IDs for authorization.
+
+### Degree Navigator Profile APIs
+
+```http
+GET /degree-navigator/profile
+Authorization: Bearer <supabase-access-token>
+```
+
+```http
+POST /degree-navigator/profile
+Content-Type: application/json
+Authorization: Bearer <supabase-access-token>
+
+{
+  "profile": {
+    "name": "Student Name",
+    "ruid": "123456789",
+    "netid": "netid",
+    "degreeCreditsEarned": 86,
+    "cumulativeGpa": 3.461
+  },
+  "programs": [],
+  "audits": [],
+  "transcriptTerms": [],
+  "runNotes": {}
+}
+```
+
+Degree Navigator data is saved as one latest user-owned row in `public.degree_navigator_profiles`. The backend derives `user_id` from the bearer token and validates the payload with `src/backend/src/degree-navigator/schemas.ts`.
 
 The chat stream returns Server-Sent Events with:
 

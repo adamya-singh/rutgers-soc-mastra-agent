@@ -95,6 +95,84 @@ export type Database = {
         }
         Relationships: []
       }
+      degree_navigator_profiles: {
+        Row: {
+          audits: Json
+          captured_at: string
+          created_at: string
+          cumulative_gpa: number | null
+          degree_credits_earned: number | null
+          graduation_month: string | null
+          graduation_year: string | null
+          id: string
+          netid: string | null
+          planned_course_count: number | null
+          profile: Json
+          programs: Json
+          ruid: string | null
+          run_notes: Json
+          schema_version: number
+          school_code: string | null
+          school_name: string | null
+          source: string
+          source_session_id: string | null
+          student_name: string | null
+          transcript_terms: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          audits?: Json
+          captured_at?: string
+          created_at?: string
+          cumulative_gpa?: number | null
+          degree_credits_earned?: number | null
+          graduation_month?: string | null
+          graduation_year?: string | null
+          id?: string
+          netid?: string | null
+          planned_course_count?: number | null
+          profile: Json
+          programs?: Json
+          ruid?: string | null
+          run_notes?: Json
+          schema_version?: number
+          school_code?: string | null
+          school_name?: string | null
+          source?: string
+          source_session_id?: string | null
+          student_name?: string | null
+          transcript_terms?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          audits?: Json
+          captured_at?: string
+          created_at?: string
+          cumulative_gpa?: number | null
+          degree_credits_earned?: number | null
+          graduation_month?: string | null
+          graduation_year?: string | null
+          id?: string
+          netid?: string | null
+          planned_course_count?: number | null
+          profile?: Json
+          programs?: Json
+          ruid?: string | null
+          run_notes?: Json
+          schema_version?: number
+          school_code?: string | null
+          school_name?: string | null
+          source?: string
+          source_session_id?: string | null
+          student_name?: string | null
+          transcript_terms?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       course_campus_locations: {
         Row: {
           code: string

@@ -1217,8 +1217,8 @@ export default function HomePage() {
                 <SearchResults results={searchResults} onAddSection={handleAddSection} />
               </div>
             )}
-            <div className="min-h-0 flex-1">
-              <div className="h-[min(640px,75vh)] lg:h-full">
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <div className="h-[min(640px,75vh)] min-h-0 overflow-hidden">
                 <EmbeddedCedarChat title="Course Assistant" />
               </div>
             </div>

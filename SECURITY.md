@@ -6,7 +6,7 @@ Current production status:
 
 - The Cloud Run backend is `rutgers-agent-mastra-backend` in `us-east4`.
 - The backend is configured to read `SUPABASE_SERVICE_ROLE_KEY` from Secret Manager.
-- The Supabase security migrations `harden_browser_sessions` and `lock_down_soc_catalog` have been applied.
+- The Supabase security migrations `harden_browser_sessions`, `lock_down_soc_catalog`, and `create_degree_navigator_profiles` have been applied.
 
 ## Security Overview
 
@@ -25,6 +25,7 @@ flowchart TD
   Browser -->|"Bearer token"| MastraApi["Mastra Backend"]
   MastraApi -->|"verify token"| SupabaseAuth
   MastraApi -->|"service role"| BrowserSessions["browser_sessions"]
+  MastraApi -->|"service role"| DegreeNavigatorProfiles["degree_navigator_profiles"]
   Browser -->|"RLS"| Schedules["schedules"]
   Browser -->|"read only"| SocCatalog["SOC catalog tables"]
   MastraApi -->|"Browserbase API key"| Browserbase["Browserbase"]
@@ -52,6 +53,7 @@ User-scoped storage is split across Supabase Auth, Supabase Postgres, and browse
 - `auth.users`: Supabase-owned identity table.
 - `public.schedules`: saved schedules owned by `user_id`, protected by RLS with `auth.uid() = user_id`.
 - `public.browser_sessions`: backend-only Browserbase session metadata, keyed to authenticated `user_id`.
+- `public.degree_navigator_profiles`: latest captured Degree Navigator profile/audit/transcript document for each authenticated user, owned by `user_id` and protected by RLS.
 - Browser `localStorage`: convenience cache and cleanup metadata only.
 
 The schedule table and RLS policy are defined in [`cedar-mastra-agent/supabase/migrations/20260126_create_schedules.sql`](cedar-mastra-agent/supabase/migrations/20260126_create_schedules.sql).
@@ -65,6 +67,14 @@ Browser session hardening is defined in [`cedar-mastra-agent/supabase/migrations
 - Revokes direct access from `anon` and `authenticated`.
 
 Backend browser-session operations use a service-role Supabase client from [`cedar-mastra-agent/src/backend/src/lib/supabase.ts`](cedar-mastra-agent/src/backend/src/lib/supabase.ts). The service role key must be configured as a backend secret.
+
+Degree Navigator profile storage is defined in [`cedar-mastra-agent/supabase/migrations/20260428_create_degree_navigator_profiles.sql`](cedar-mastra-agent/supabase/migrations/20260428_create_degree_navigator_profiles.sql). The table keeps one latest row per authenticated user and stores:
+
+- Top-level lookup fields such as `student_name`, `ruid`, `netid`, `school_code`, `school_name`, `degree_credits_earned`, and `cumulative_gpa`.
+- Structured JSON documents in `profile`, `programs`, `audits`, `transcript_terms`, and `run_notes`.
+- Source metadata such as `source_session_id` and `captured_at`.
+
+Degree Navigator rows must be written through authenticated backend routes that derive `user_id` from the Supabase bearer token. The application must not store Rutgers passwords, raw page HTML, screenshots, or Browserbase Live View URLs in this table.
 
 ## SOC Catalog Data
 
@@ -111,6 +121,7 @@ Browser session security requirements:
 
 - Sessions are owned by authenticated Supabase users.
 - Session metadata is stored in backend-only `public.browser_sessions`.
+- Extracted Degree Navigator academic data is stored in user-owned `public.degree_navigator_profiles` after schema validation.
 - Active browser session pointers in `localStorage` are cleanup metadata, not authorization.
 - Browserbase sessions must be released when the user stops the session, signs out, becomes idle, unloads the page, or when the backend reaper detects stale sessions.
 
@@ -160,6 +171,7 @@ Before release or after rotating secrets, verify:
 - Supabase migrations have been applied.
 - `public.schedules` has RLS enabled and enforces `auth.uid() = user_id`.
 - `public.browser_sessions` is not directly accessible to `anon` or `authenticated`.
+- `public.degree_navigator_profiles` exists, has RLS enabled, and has a unique latest row per `user_id`.
 - SOC catalog writes are revoked from `anon` and `authenticated`.
 - Backend service has `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_SERVICE_KEY` configured as a secret.
 - Backend routes reject missing or invalid bearer tokens.

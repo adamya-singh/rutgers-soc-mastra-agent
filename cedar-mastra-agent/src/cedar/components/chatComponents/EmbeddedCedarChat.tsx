@@ -35,8 +35,8 @@ export const EmbeddedCedarChat: React.FC<EmbeddedCedarChatProps> = ({
 	};
 
 	return (
-		<div className={`w-full h-full ${className}`}>
-			<Container3D className='flex h-full w-full flex-col rounded-xl border border-border bg-surface-2 text-sm backdrop-blur-0'>
+		<div className={`h-full min-h-0 w-full overflow-hidden ${className}`}>
+			<Container3D className='flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl border border-border bg-surface-2 text-sm backdrop-blur-0'>
 				{/* Header */}
 				{showHeader && (
 					<div className='z-20 flex min-w-0 flex-shrink-0 flex-row items-center justify-between border-b border-border px-5 pt-3'>

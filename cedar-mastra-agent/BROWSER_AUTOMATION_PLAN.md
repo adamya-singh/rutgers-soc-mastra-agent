@@ -26,7 +26,8 @@ This gives you the UX you want (browser pane in page + agent control) while avoi
    - `browserObserve`
    - `browserExtract`
    - `browserAct` (guarded)
-6. For high-risk actions (submit/register/drop), require explicit human confirmation and a server-issued single-use confirmation token before execution.
+6. Structured Degree Navigator captures can be validated and saved to `public.degree_navigator_profiles`.
+7. For high-risk actions (submit/register/drop), require explicit human confirmation and a server-issued single-use confirmation token before execution.
 
 ## Rutgers-specific guardrails
 - Treat **WebReg registration submit** as restricted: require a final explicit confirm step and warn about policy risk.
@@ -45,6 +46,9 @@ This gives you the UX you want (browser pane in page + agent control) while avoi
   - add a browser pane component in the main grid beside schedule/search/chat
 
 ## Data model
+
+Browser session metadata is operational state and is stored separately from student academic data.
+
 ```ts
 interface BrowserSessionState {
   provider: 'browserbase';
@@ -57,6 +61,29 @@ interface BrowserSessionState {
   lastHeartbeatAt: string;
 }
 ```
+
+Saved Degree Navigator data uses one latest user-owned row in `public.degree_navigator_profiles`:
+
+```ts
+interface DegreeNavigatorProfileCapture {
+  profile: {
+    name?: string;
+    ruid?: string;
+    netid?: string;
+    school?: { code?: string; name?: string };
+    declaredGraduation?: { year?: string; month?: string };
+    degreeCreditsEarned?: number;
+    cumulativeGpa?: number;
+    plannedCourseCount?: number;
+  };
+  programs: Array<{ code?: string; title: string; campus?: string; kind?: string }>;
+  audits: unknown[];
+  transcriptTerms: unknown[];
+  runNotes: Record<string, unknown>;
+}
+```
+
+The canonical validation schema is `src/backend/src/degree-navigator/schemas.ts`. The table stores top-level lookup fields plus JSONB columns for the nested audit and transcript documents.
 
 ## Tool contract sketch
 ```ts
@@ -90,6 +117,7 @@ browserAct({ sessionId, action, requireConfirmationToken })
 - Keep auth only inside the remote browser session.
 - Scope backend tools to the requesting authenticated user.
 - Log action metadata, not page secrets.
+- Do not store raw page HTML, screenshots, or Browserbase Live View URLs in Degree Navigator profile rows.
 
 ## References
 - MDN same-origin policy: https://developer.mozilla.org/en-US/docs/Web/Security/Same-origin_policy

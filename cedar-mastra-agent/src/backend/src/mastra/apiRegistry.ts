@@ -23,6 +23,14 @@ import {
   requireAuthenticatedUser,
   requireAuthenticatedUserWithFallbackToken,
 } from '../auth/supabaseAuth.js';
+import {
+  DegreeNavigatorProfileResponseSchema,
+  UpsertDegreeNavigatorProfileRequestSchema,
+} from '../degree-navigator/schemas.js';
+import {
+  getDegreeNavigatorProfile,
+  upsertDegreeNavigatorProfile,
+} from '../degree-navigator/repository.js';
 
 // Helper function to convert Zod schema to OpenAPI schema
 function toOpenApiSchema(schema: unknown) {
@@ -152,6 +160,65 @@ export const apiRoutes = [
             throw new Error(`Workflow failed: ${result.status}`);
           }
         });
+      } catch (error) {
+        logUnexpectedRouteError(error);
+        return handleRouteError(c, error);
+      }
+    },
+  }),
+  registerApiRoute('/degree-navigator/profile', {
+    method: 'GET',
+    openapi: {
+      responses: {
+        200: {
+          description: 'Latest Degree Navigator profile for the authenticated user',
+          content: {
+            'application/json': {
+              schema: toOpenApiSchema(DegreeNavigatorProfileResponseSchema),
+            },
+          },
+        },
+      },
+    },
+    handler: async (c) => {
+      try {
+        const authenticatedUser = await requireAuthenticatedUser(c);
+        const profile = await getDegreeNavigatorProfile(authenticatedUser.userId);
+        return c.json({ profile }, 200);
+      } catch (error) {
+        logUnexpectedRouteError(error);
+        return handleRouteError(c, error);
+      }
+    },
+  }),
+  registerApiRoute('/degree-navigator/profile', {
+    method: 'POST',
+    openapi: {
+      requestBody: {
+        content: {
+          'application/json': {
+            schema: toOpenApiSchema(UpsertDegreeNavigatorProfileRequestSchema),
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Saved Degree Navigator profile for the authenticated user',
+          content: {
+            'application/json': {
+              schema: toOpenApiSchema(DegreeNavigatorProfileResponseSchema),
+            },
+          },
+        },
+      },
+    },
+    handler: async (c) => {
+      try {
+        const authenticatedUser = await requireAuthenticatedUser(c);
+        const body = await c.req.json();
+        const capture = UpsertDegreeNavigatorProfileRequestSchema.parse(body);
+        const profile = await upsertDegreeNavigatorProfile(authenticatedUser.userId, capture);
+        return c.json({ profile }, 200);
       } catch (error) {
         logUnexpectedRouteError(error);
         return handleRouteError(c, error);
