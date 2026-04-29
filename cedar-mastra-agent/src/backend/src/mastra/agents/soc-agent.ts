@@ -15,6 +15,7 @@ import {
   browserObserve,
   browserExtract,
   browserAct,
+  saveDegreeNavigatorProfile,
 } from '../tools/index.js';
 import {
   addNewTextLineTool,
@@ -131,6 +132,7 @@ and explore the Schedule of Classes (SOC) database.
 3. **Session ownership**: Only act on sessions owned by the authenticated user context. Prefer the current \`browserSession.sessionId\` from context for browser automation.
 4. **Sensitive actions need confirmation**: For submit/register/drop/confirm actions, require explicit user confirmation and pass a confirmation token before calling \`browserAct\`.
 5. **Observe before action**: Use \`browserObserve\` or \`browserExtract\` before complex actions.
+6. **Saving student data**: When the user asks to save Degree Navigator information, first extract and normalize it to the Degree Navigator capture schema, then call \`saveDegreeNavigatorProfile\`. Never provide or infer a user id; the backend scopes the save to the authenticated user.
 
 ## Response Format
 
@@ -185,6 +187,7 @@ export const socAgent = new Agent({
     browserObserve,
     browserExtract,
     browserAct,
+    saveDegreeNavigatorProfile,
     changeText: changeTextTool,
     addNewTextLine: addNewTextLineTool,
     addSectionToSchedule: addSectionToScheduleTool,
