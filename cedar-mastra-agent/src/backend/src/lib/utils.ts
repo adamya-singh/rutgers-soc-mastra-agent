@@ -7,34 +7,21 @@
 // =============================================================================
 
 /**
- * Get the default term based on registration windows.
- * The agent defaults to the term students are most likely REGISTERING for,
- * not the currently-active term.
+ * Get the default term based on the currently active academic semester.
  */
 export function getDefaultTerm(now: Date = new Date()): { year: number; term: string; termName: string } {
   const month = now.getMonth() + 1; // 1-12
   const year = now.getFullYear();
-  
-  // Default to the term students are most likely REGISTERING for
-  // (not the currently-active term)
-  // Rule: Switch to next term after ~75% of current term has passed
-  
-  if (month >= 11 || month === 1) {
-    // Nov-Jan: Registration for Spring
-    return { year: month >= 11 ? year + 1 : year, term: '1', termName: 'Spring' };
-  } else if (month >= 2 && month <= 3) {
-    // Feb-Mar: Still Spring (current term)
-    return { year, term: '1', termName: 'Spring' };
-  } else if (month >= 4 && month <= 7) {
-    // Apr-Jul: Registration for Fall
+
+  if (month >= 9) {
     return { year, term: '9', termName: 'Fall' };
-  } else if (month >= 8 && month <= 9) {
-    // Aug-Sep: Fall (current term)
-    return { year, term: '9', termName: 'Fall' };
-  } else {
-    // Oct: Transition to Spring registration
-    return { year: year + 1, term: '1', termName: 'Spring' };
   }
+
+  if (month >= 6) {
+    return { year, term: '7', termName: 'Summer' };
+  }
+
+  return { year, term: '1', termName: 'Spring' };
 }
 
 // =============================================================================

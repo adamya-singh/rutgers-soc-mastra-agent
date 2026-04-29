@@ -9,10 +9,12 @@ import {
   deleteSchedule,
   duplicateSchedule,
   getActiveScheduleEntry,
+  getCurrentSemesterScheduleEntry,
   getScheduleSyncStatus,
   listSchedules,
   renameSchedule,
   removeSectionFromSchedule,
+  resolveTermLabel,
   saveSchedule,
   setActiveScheduleId,
   type MeetingTime,
@@ -267,10 +269,17 @@ export const ScheduleGrid: React.FC = () => {
     setActiveScheduleIdState(activeEntry.id);
   }, []);
 
+  const loadCurrentSemesterWorkspace = React.useCallback(() => {
+    const currentEntry = getCurrentSemesterScheduleEntry();
+    setSchedule(currentEntry.snapshot);
+    setSchedules(listSchedules());
+    setActiveScheduleIdState(currentEntry.id);
+  }, []);
+
   React.useEffect(() => {
-    refreshWorkspace();
+    loadCurrentSemesterWorkspace();
     setIsLoaded(true);
-  }, [refreshWorkspace]);
+  }, [loadCurrentSemesterWorkspace]);
 
   React.useEffect(() => {
     if (!isLoaded) return;
@@ -315,7 +324,7 @@ export const ScheduleGrid: React.FC = () => {
     setSyncError(null);
     hydrateFromRemote()
       .then(() => {
-        refreshWorkspace();
+        loadCurrentSemesterWorkspace();
       })
       .catch((error) => {
         console.error('Failed to load saved schedules', error);
@@ -324,7 +333,7 @@ export const ScheduleGrid: React.FC = () => {
       .finally(() => {
         setIsHydrating(false);
       });
-  }, [userId, refreshWorkspace]);
+  }, [userId, loadCurrentSemesterWorkspace]);
 
   const activeEntry = React.useMemo(
     () => schedules.find((entry) => entry.id === activeScheduleId) ?? null,
@@ -676,7 +685,7 @@ export const ScheduleGrid: React.FC = () => {
 
               {/* Term subtitle */}
               <span className="text-xs text-muted-foreground">
-                Spring {schedule.termYear} · {schedule.campus}
+                {resolveTermLabel(schedule.termCode)} {schedule.termYear} · {schedule.campus}
               </span>
 
               {/* Credit total */}

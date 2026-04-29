@@ -27,6 +27,24 @@ describe('Utils', () => {
       assert.ok(['0', '1', '7', '9'].includes(result.term));
       assert.ok(['Winter', 'Spring', 'Summer', 'Fall'].includes(result.termName));
     });
+
+    it('uses the currently active semester instead of the next registration term', () => {
+      assert.deepStrictEqual(getDefaultTerm(new Date('2026-04-29T12:00:00Z')), {
+        year: 2026,
+        term: '1',
+        termName: 'Spring',
+      });
+      assert.deepStrictEqual(getDefaultTerm(new Date('2026-07-01T12:00:00Z')), {
+        year: 2026,
+        term: '7',
+        termName: 'Summer',
+      });
+      assert.deepStrictEqual(getDefaultTerm(new Date('2026-11-01T12:00:00Z')), {
+        year: 2026,
+        term: '9',
+        termName: 'Fall',
+      });
+    });
   });
 
   describe('formatTime', () => {

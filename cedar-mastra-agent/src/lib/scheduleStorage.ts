@@ -53,24 +53,53 @@ type ScheduleWorkspace = {
   schedules: ScheduleEntry[];
 };
 
-export const DEFAULT_SCHEDULE: ScheduleSnapshot = {
-  version: 1,
-  termYear: 2026,
-  termCode: '1',
-  campus: 'NB',
-  lastUpdated: new Date().toISOString(),
-  sections: [],
+export type ScheduleTerm = {
+  termYear: number;
+  termCode: string;
+  termLabel: string;
 };
 
 const TERM_LABELS: Record<string, string> = {
+  '0': 'Winter',
   '1': 'Spring',
   '7': 'Summer',
   '9': 'Fall',
 };
 
-const resolveTermLabel = (termCode?: string | null) => {
+export const resolveTermLabel = (termCode?: string | null) => {
   if (!termCode) return 'Term';
   return TERM_LABELS[termCode] ?? `Term ${termCode}`;
+};
+
+export const getCurrentSemesterTerm = (now: Date = new Date()): ScheduleTerm => {
+  const month = now.getMonth() + 1;
+  const year = now.getFullYear();
+
+  if (month >= 9) {
+    return { termYear: year, termCode: '9', termLabel: 'Fall' };
+  }
+
+  if (month >= 6) {
+    return { termYear: year, termCode: '7', termLabel: 'Summer' };
+  }
+
+  return { termYear: year, termCode: '1', termLabel: 'Spring' };
+};
+
+const createDefaultScheduleSnapshot = (): ScheduleSnapshot => {
+  const currentTerm = getCurrentSemesterTerm();
+  return {
+    version: 1,
+    termYear: currentTerm.termYear,
+    termCode: currentTerm.termCode,
+    campus: 'NB',
+    lastUpdated: new Date().toISOString(),
+    sections: [],
+  };
+};
+
+export const DEFAULT_SCHEDULE: ScheduleSnapshot = {
+  ...createDefaultScheduleSnapshot(),
 };
 
 const buildDefaultScheduleName = (snapshot: ScheduleSnapshot) => {
@@ -79,8 +108,9 @@ const buildDefaultScheduleName = (snapshot: ScheduleSnapshot) => {
 };
 
 const createEmptyScheduleSnapshot = (overrides: Partial<ScheduleSnapshot> = {}): ScheduleSnapshot => {
+  const defaultSchedule = createDefaultScheduleSnapshot();
   return {
-    ...DEFAULT_SCHEDULE,
+    ...defaultSchedule,
     ...overrides,
     lastUpdated: new Date().toISOString(),
     sections: overrides.sections ? [...overrides.sections] : [],
@@ -89,13 +119,14 @@ const createEmptyScheduleSnapshot = (overrides: Partial<ScheduleSnapshot> = {}):
 
 const normalizeSchedule = (raw: unknown): ScheduleSnapshot => {
   const now = new Date().toISOString();
+  const defaultSchedule = createDefaultScheduleSnapshot();
   if (!raw || typeof raw !== 'object') return createEmptyScheduleSnapshot();
   const data = raw as Partial<ScheduleSnapshot>;
   return {
-    version: typeof data.version === 'number' ? data.version : DEFAULT_SCHEDULE.version,
-    termYear: typeof data.termYear === 'number' ? data.termYear : DEFAULT_SCHEDULE.termYear,
-    termCode: typeof data.termCode === 'string' ? data.termCode : DEFAULT_SCHEDULE.termCode,
-    campus: typeof data.campus === 'string' ? data.campus : DEFAULT_SCHEDULE.campus,
+    version: typeof data.version === 'number' ? data.version : defaultSchedule.version,
+    termYear: typeof data.termYear === 'number' ? data.termYear : defaultSchedule.termYear,
+    termCode: typeof data.termCode === 'string' ? data.termCode : defaultSchedule.termCode,
+    campus: typeof data.campus === 'string' ? data.campus : defaultSchedule.campus,
     lastUpdated: typeof data.lastUpdated === 'string' ? data.lastUpdated : now,
     sections: Array.isArray(data.sections) ? (data.sections as ScheduleSection[]) : [],
   };
@@ -254,6 +285,45 @@ export const getActiveScheduleEntry = (): ScheduleEntry => {
   const active = ensureActiveEntry(workspace);
   saveScheduleWorkspace(workspace);
   return active;
+};
+
+export const getCurrentSemesterScheduleEntry = (campus = 'NB'): ScheduleEntry => {
+  const workspace = loadScheduleWorkspace();
+  const currentTerm = getCurrentSemesterTerm();
+  const isCurrentSemesterEntry = (entry: ScheduleEntry) => (
+    entry.snapshot.termYear === currentTerm.termYear
+    && entry.snapshot.termCode === currentTerm.termCode
+    && entry.snapshot.campus === campus
+  );
+  const activeEntry = workspace.schedules.find((entry) => entry.id === workspace.activeScheduleId);
+
+  if (activeEntry && isCurrentSemesterEntry(activeEntry) && activeEntry.snapshot.sections.length > 0) {
+    return activeEntry;
+  }
+
+  const matchingEntries = workspace.schedules.filter(isCurrentSemesterEntry);
+  const matchingEntry = matchingEntries.sort((left, right) => {
+    const leftSynced = left.lastSyncedAt ? 1 : 0;
+    const rightSynced = right.lastSyncedAt ? 1 : 0;
+    if (leftSynced !== rightSynced) return rightSynced - leftSynced;
+    return right.updatedAt.localeCompare(left.updatedAt);
+  })[0];
+
+  if (matchingEntry) {
+    workspace.activeScheduleId = matchingEntry.id;
+    saveScheduleWorkspace(workspace);
+    return matchingEntry;
+  }
+
+  const entry = createScheduleEntry(createEmptyScheduleSnapshot({
+    termYear: currentTerm.termYear,
+    termCode: currentTerm.termCode,
+    campus,
+  }));
+  workspace.schedules = [...workspace.schedules, entry];
+  workspace.activeScheduleId = entry.id;
+  saveScheduleWorkspace(workspace);
+  return entry;
 };
 
 export const loadSchedule = (): ScheduleSnapshot => {

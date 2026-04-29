@@ -739,8 +739,8 @@ function Panel({
 function InfoGrid({ items }: { items: Array<[string, string]> }) {
   return (
     <dl className="grid gap-3 sm:grid-cols-2">
-      {items.map(([label, value]) => (
-        <div key={label} className="rounded-xl border border-border bg-surface-2/60 p-3">
+      {items.map(([label, value], index) => (
+        <div key={`${label}-${index}`} className="rounded-xl border border-border bg-surface-2/60 p-3">
           <dt className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{label}</dt>
           <dd className="mt-1 break-words text-sm font-medium text-foreground">{value}</dd>
         </div>
@@ -814,8 +814,8 @@ function RequirementCard({
         <div className="mt-4 rounded-lg border border-warning/25 bg-warning/5 p-3">
           <p className="text-xs font-medium uppercase tracking-[0.14em] text-warning">Still needed</p>
           <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
-            {requirement.stillNeeded.map((needed) => (
-              <li key={needed.label}>
+            {requirement.stillNeeded.map((needed, index) => (
+              <li key={`${needed.label}-${index}`}>
                 <span className="text-foreground">{needed.label}</span>
                 {needed.courseOptions && needed.courseOptions.length > 0 && (
                   <span> · {needed.courseOptions.join(' or ')}</span>
@@ -828,8 +828,8 @@ function RequirementCard({
 
       {requirement.notes && requirement.notes.length > 0 && (
         <ul className="mt-4 space-y-1 text-sm leading-6 text-muted-foreground">
-          {requirement.notes.map((note) => (
-            <li key={note}>{note}</li>
+          {requirement.notes.map((note, index) => (
+            <li key={`${note}-${index}`}>{note}</li>
           ))}
         </ul>
       )}
@@ -873,8 +873,8 @@ function NoteList({ title, notes }: { title: string; notes?: string[] }) {
     <div className="mt-4">
       <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">{title}</p>
       <ul className="mt-2 space-y-1 text-sm leading-6 text-muted-foreground">
-        {notes.map((note) => (
-          <li key={note}>{note}</li>
+        {notes.map((note, index) => (
+          <li key={`${note}-${index}`}>{note}</li>
         ))}
       </ul>
     </div>
@@ -932,8 +932,8 @@ function MetadataBlock({
         <p className="mt-2 text-sm text-muted-foreground">No metadata saved.</p>
       ) : (
         <dl className="mt-3 space-y-2">
-          {entries.map(([label, value]) => (
-            <div key={label} className="rounded-lg border border-border bg-surface-2/60 p-3">
+          {entries.map(([label, value], index) => (
+            <div key={`${label}-${index}`} className="rounded-lg border border-border bg-surface-2/60 p-3">
               <dt className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                 {titleCase(label)}
               </dt>
