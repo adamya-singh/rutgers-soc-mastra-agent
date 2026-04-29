@@ -70,16 +70,17 @@ An AI-powered course scheduling assistant for Rutgers University students. The a
 
 | Technology | Purpose |
 |------------|---------|
-| **Next.js 14+** | React framework with App Router |
+| **Next.js 15.4.8** | React framework with App Router |
+| **React 19.1.0** | UI runtime |
 | **Cedar OS** | AI-native UI components, Mastra integration |
-| **Tailwind CSS** | Utility-first styling |
-| **TypeScript** | Type safety |
+| **Tailwind CSS 4** | Utility-first styling |
+| **TypeScript 5** | Type safety |
 
 ### Backend Integration
 
 | Service | Purpose |
 |---------|---------|
-| **Mastra Agent** | AI backend at `http://localhost:4111` |
+| **Mastra Agent** | AI backend at `http://localhost:4112` |
 | **Supabase** | Auth, SOC catalog data, saved schedules, browser sessions, Degree Navigator profiles |
 | **Firebase App Hosting + Cloud Run** | Frontend and backend deployment |
 
@@ -88,13 +89,13 @@ An AI-powered course scheduling assistant for Rutgers University students. The a
 ```json
 {
   "dependencies": {
-    "next": "^14.x",
-    "react": "^18.x",
-    "cedar-os": "latest",
+    "next": "15.4.8",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "cedar-os": "^0.1.18",
     "@supabase/supabase-js": "^2.x",
-    "tailwindcss": "^3.x",
-    "zustand": "^4.x",
-    "date-fns": "^3.x"
+    "tailwindcss": "^4",
+    "ai": "^5.x"
   }
 }
 ```

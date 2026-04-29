@@ -1,56 +1,74 @@
-# Google Vertex AI setup (billing to existing GCP credits)
+# Google Vertex AI Setup
 
-This project is configured to route Gemini/Veo usage through **Vertex AI** so charges hit our GCP billing account (covered by existing credits). Follow these steps to replicate in another project.
+This repository uses Google Vertex AI for Gemini-backed Mastra agent responses and, optionally, Stagehand browser automation.
 
-## 1) Prerequisites in Google Cloud
-- Use the GCP project that holds the credits and has billing enabled.
-- Enable **Vertex AI API** in that project.
-- Create a **service account** for the app and grant it the minimum roles for Vertex AI GenAI usage (e.g., `roles/aiplatform.user`; add storage roles only if you store assets in GCS).
+## 1. Prerequisites In Google Cloud
 
-## 2) Service account key (local/dev)
-- Create a JSON key for the service account (for local or non-GCP hosting). Rotate regularly.
-- Save the full JSON into the env var `GCP_SERVICE_ACCOUNT_KEY` (stringified JSON).
-- Do **not** commit the key; use a secrets manager in real deployments.
+- Use a GCP project with billing enabled.
+- Enable the Vertex AI API in that project.
+- Create or attach a service account with Vertex AI access, for example `roles/aiplatform.user`.
+- For Cloud Run, prefer attaching the service account to the workload instead of using a JSON key.
 
-## 3) Required environment variables
-Set these where the app runs (local `.env`, hosting secrets, CI):
-- `GCP_PROJECT_ID` — the project with credits/billing.
-- `GCP_LOCATION` — region for models (we default to `us-central1`).
-- `GCP_SERVICE_ACCOUNT_KEY` — JSON for the service account (only needed when not using ADC on GCP).
+## 2. Local Credentials
 
-## 4) SDK client configuration (code)
-File: `ai-video-gen/src/lib/ai/vertex-client.ts`
-- Uses **Google Gen AI SDK** in Vertex mode:
-  - `vertexai: true`
-  - `project: GCP_PROJECT_ID`
-  - `location: GCP_LOCATION`
-  - `googleAuthOptions.credentials` from `GCP_SERVICE_ACCOUNT_KEY`
-- Models we call:
-  - Images: `gemini-2.5-flash-image` (a.k.a. Nano Banana)
-  - Video: `veo-3.0-generate-preview` (Veo 3)
+For local development, use Application Default Credentials or a service account key file:
 
-## 5) How to run locally
-1) Ensure the env vars above are set.
-2) Install deps: `pnpm install` (or npm/yarn).
-3) Run the app as usual; Vertex AI requests will authenticate via the provided service account key and bill the specified project.
+```bash
+gcloud auth application-default login
+```
 
-## 6) Production auth option (preferred)
-- If running on GCP (Cloud Run/GKE/Compute), use **Application Default Credentials (ADC)** by attaching the service account to the workload.
-- In that case, you can omit `GCP_SERVICE_ACCOUNT_KEY`; ADC will supply credentials and still bill the same project.
+If you use a service account JSON key, store it outside the repository and point `GOOGLE_APPLICATION_CREDENTIALS` at the absolute path. Do not commit keys or `.env` files.
 
-## 7) Why this bills our credits
-- Setting `vertexai: true` + `project` ensures calls go through Vertex AI in the chosen project.
-- Vertex AI billing is tied to the project’s billing account, so usage draws from that project’s credits (unlike the standalone Gemini Developer API path).
+## 3. Environment Variables
 
-## 8) Quick verification checklist
-- `Vertex AI API` enabled in the target project.
-- Service account exists with Vertex permissions.
-- `GCP_PROJECT_ID` matches the credited project; `GCP_LOCATION` set.
-- Local/non-GCP: `GCP_SERVICE_ACCOUNT_KEY` present and parseable JSON.
-- Calls return 200 and appear in Cloud Console > Vertex AI > Monitoring/Billing.
+Set these in `cedar-mastra-agent/.env`, deployment secrets, or the runtime environment:
 
-## 9) Troubleshooting
-- 403/permission: check service account role and that you’re hitting the correct project/region.
-- Invalid JSON: ensure `GCP_SERVICE_ACCOUNT_KEY` is valid, escaped JSON.
-- Model not found: verify regional availability and access for `gemini-2.5-flash-image` / `veo-3.0-generate-preview`.
-- Charges not on credits: confirm requests are routed via Vertex (not Gemini Dev API) and the project has billing enabled.
+- `GOOGLE_VERTEX_PROJECT` - GCP project used for Vertex AI calls.
+- `GOOGLE_VERTEX_LOCATION` - Vertex region or location, for example `global`.
+- `GOOGLE_APPLICATION_CREDENTIALS` - optional local path to a service account JSON file.
+
+For Stagehand browser tools that should use Vertex/Gemini, also set:
+
+- `STAGEHAND_MODEL_PROVIDER=vertex`
+- `STAGEHAND_MODEL_NAME=vertex/gemini-3.1-pro-preview` or another supported Vertex model with the `vertex/` prefix.
+
+Stagehand can alternatively use `STAGEHAND_MODEL_API_KEY` or `OPENAI_API_KEY` for API-key-backed models.
+
+## 4. Code Paths
+
+Vertex configuration is initialized in:
+
+- `cedar-mastra-agent/src/backend/src/mastra/agents/soc-agent.ts` for the Rutgers SOC Mastra agent.
+- `cedar-mastra-agent/src/backend/src/browser/browserService.ts` for Stagehand observe, extract, and act tools when Vertex mode is enabled.
+
+Both paths read `GOOGLE_VERTEX_PROJECT`, `GOOGLE_VERTEX_LOCATION`, and `GOOGLE_APPLICATION_CREDENTIALS`.
+
+## 5. How To Run Locally
+
+```bash
+cd cedar-mastra-agent
+npm install
+npm --prefix src/backend install
+npm run dev
+```
+
+The root `dev` script loads `cedar-mastra-agent/.env` and starts both the Next.js app and Mastra backend.
+
+## 6. Production Auth
+
+On Cloud Run, attach the service account to the backend service and set `GOOGLE_VERTEX_PROJECT` and `GOOGLE_VERTEX_LOCATION` as runtime environment variables. With workload credentials attached, `GOOGLE_APPLICATION_CREDENTIALS` is not required.
+
+## 7. Quick Verification Checklist
+
+- Vertex AI API is enabled in the target project.
+- The runtime service account has Vertex AI permissions.
+- `GOOGLE_VERTEX_PROJECT` and `GOOGLE_VERTEX_LOCATION` are set.
+- Local-only `GOOGLE_APPLICATION_CREDENTIALS`, if used, points to a readable JSON key outside the repo.
+- Backend requests complete successfully and appear in Google Cloud Vertex AI monitoring or billing views.
+
+## 8. Troubleshooting
+
+- 403 or permission errors: check service account roles, project, and location.
+- Missing credentials locally: run `gcloud auth application-default login` or set `GOOGLE_APPLICATION_CREDENTIALS`.
+- Stagehand model errors: keep the `vertex/` prefix in `STAGEHAND_MODEL_NAME` when `STAGEHAND_MODEL_PROVIDER=vertex`.
+- Unexpected billing project: confirm the runtime is using the intended `GOOGLE_VERTEX_PROJECT`.

@@ -39,7 +39,7 @@ npm install && npm --prefix src/backend install
 ```
 
 2. **Set up environment variables:**
-   Create a `.env` file in the root directory (see `.env.example`):
+   Create a `.env` file in the app root directory with the required variables:
 
 ```env
 # Google Vertex AI
@@ -66,7 +66,7 @@ npm run dev
 This runs both the Next.js frontend and Mastra backend concurrently:
 
 - Frontend: http://localhost:3000
-- Backend API: http://localhost:4111
+- Backend API: http://localhost:4112
 
 ## Project Architecture
 
@@ -173,4 +173,4 @@ npm run dev:mastra
 
 ## License
 
-MIT License - see LICENSE file for details.
+License information has not been added to this repository yet.

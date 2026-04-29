@@ -1,0 +1,10 @@
+node_modules
+.next
+.env
+.env.*
+!.env.example
+npm-debug.log*
+*.log
+src/backend/node_modules
+src/backend/.mastra
+src/backend/dist

@@ -13,8 +13,8 @@ Architecture:
 
 Pick names and reuse them throughout:
 
-- `GCP_PROJECT_ID`: `concise-foundry-465822-d7`.
-- `GCP_REGION`: `global` (Vertex model location for Gemini 3 models).
+- `PROJECT_ID`: `concise-foundry-465822-d7`.
+- `VERTEX_LOCATION`: `global` (Vertex model location for Gemini 3 models).
 - `CLOUD_RUN_REGION`: `us-east4` (must not be `global`).
 - `AR_LOCATION`: `us-east4`.
 - `SERVICE_NAME`: `rutgers-agent-mastra-backend`.
@@ -100,9 +100,9 @@ gcloud artifacts repositories create rutgers-agent-backend-ar \
 
 ---
 
-## 5) Add a Dockerfile for the backend
+## 5) Confirm the backend Dockerfile
 
-Create `cedar-mastra-agent/src/backend/Dockerfile` with this content:
+`cedar-mastra-agent/src/backend/Dockerfile` contains:
 
 ```Dockerfile
 FROM node:22-slim
@@ -127,12 +127,14 @@ EXPOSE 8080
 CMD ["pnpm", "run", "start"]
 ```
 
-Add `cedar-mastra-agent/src/backend/.dockerignore`:
+`cedar-mastra-agent/src/backend/.dockerignore` contains:
 
 ```text
 node_modules
 dist
 .env
+.mastra
+*.log
 ```
 
 Notes:
