@@ -2,6 +2,7 @@ import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 
 import { extractBrowserSessionIdFromAdditionalContext } from '../../../browser/runtimeContext.js';
+import { enrichDegreeNavigatorCourseTitles } from '../../../degree-navigator/courseTitleEnrichment.js';
 import { upsertDegreeNavigatorProfile } from '../../../degree-navigator/repository.js';
 import {
   DegreeNavigatorCapture,
@@ -22,6 +23,7 @@ type SaveDegreeNavigatorProfileDeps = {
     userId: string,
     input: DegreeNavigatorCapture,
   ) => Promise<DegreeNavigatorProfileRow>;
+  enrichCapture?: (input: DegreeNavigatorCapture) => Promise<DegreeNavigatorCapture>;
 };
 
 export const SAVE_DEGREE_NAVIGATOR_PROFILE_DESCRIPTION = `Save a validated Degree Navigator capture for the authenticated user.
@@ -50,8 +52,10 @@ export async function runSaveDegreeNavigatorProfile(
     source: 'degree_navigator',
     sourceSessionId: runtimeSessionId ?? context.sourceSessionId,
   });
+  const enrichCapture = deps.enrichCapture ?? enrichDegreeNavigatorCourseTitles;
+  const enrichedCapture = await enrichCapture(capture);
   const upsertProfile = deps.upsertProfile ?? upsertDegreeNavigatorProfile;
-  const profile = await upsertProfile(userId, capture);
+  const profile = await upsertProfile(userId, enrichedCapture);
 
   return { profile };
 }

@@ -122,7 +122,13 @@ interface DegreeNavigatorProfileRow {
   updatedAt: string;
 }
 
-type MetadataValue = string | number | boolean | null | MetadataValue[] | { [key: string]: MetadataValue };
+type MetadataValue =
+  | string
+  | number
+  | boolean
+  | null
+  | MetadataValue[]
+  | { [key: string]: MetadataValue };
 
 interface AccountInfo {
   id: string;
@@ -232,7 +238,9 @@ function renderMetadataValue(value: MetadataValue): string {
   return String(value);
 }
 
-function getAccountInfo(sessionUser: NonNullable<Awaited<ReturnType<typeof supabaseClient.auth.getUser>>['data']['user']>): AccountInfo {
+function getAccountInfo(
+  sessionUser: NonNullable<Awaited<ReturnType<typeof supabaseClient.auth.getUser>>['data']['user']>,
+): AccountInfo {
   return {
     id: sessionUser.id,
     email: sessionUser.email ?? null,
@@ -241,7 +249,10 @@ function getAccountInfo(sessionUser: NonNullable<Awaited<ReturnType<typeof supab
     updatedAt: sessionUser.updated_at ?? null,
     lastSignInAt: sessionUser.last_sign_in_at ?? null,
     role: sessionUser.role ?? null,
-    provider: typeof sessionUser.app_metadata.provider === 'string' ? sessionUser.app_metadata.provider : null,
+    provider:
+      typeof sessionUser.app_metadata.provider === 'string'
+        ? sessionUser.app_metadata.provider
+        : null,
     appMetadata: sessionUser.app_metadata as Record<string, MetadataValue>,
     userMetadata: sessionUser.user_metadata as Record<string, MetadataValue>,
   };
@@ -269,10 +280,7 @@ export default function ProfilePage() {
       setSuccessMessage(null);
 
       const [{ data: sessionData, error: sessionError }, { data: userData, error: userError }] =
-        await Promise.all([
-          supabaseClient.auth.getSession(),
-          supabaseClient.auth.getUser(),
-        ]);
+        await Promise.all([supabaseClient.auth.getSession(), supabaseClient.auth.getUser()]);
 
       if (!isMounted) return;
 
@@ -347,7 +355,9 @@ export default function ProfilePage() {
       const { data, error: sessionError } = await supabaseClient.auth.getSession();
       const accessToken = data.session?.access_token;
       if (sessionError || !accessToken) {
-        throw new Error(sessionError?.message ?? 'Sign in again before clearing Degree Navigator information.');
+        throw new Error(
+          sessionError?.message ?? 'Sign in again before clearing Degree Navigator information.',
+        );
       }
 
       const response = await fetch(buildMastraApiUrl('/degree-navigator/profile'), {
@@ -356,7 +366,9 @@ export default function ProfilePage() {
           Authorization: `Bearer ${accessToken}`,
         },
       });
-      const json = (await response.json()) as ClearDegreeNavigatorProfileResponse & { error?: string };
+      const json = (await response.json()) as ClearDegreeNavigatorProfileResponse & {
+        error?: string;
+      };
       if (!response.ok) {
         throw new Error(json.error ?? `Degree Navigator clear request failed (${response.status})`);
       }
@@ -382,7 +394,8 @@ export default function ProfilePage() {
     () =>
       degreeProfile?.audits.reduce(
         (total, audit) =>
-          total + audit.requirements.filter((requirement) => requirement.status === 'complete').length,
+          total +
+          audit.requirements.filter((requirement) => requirement.status === 'complete').length,
         0,
       ) ?? 0,
     [degreeProfile],
@@ -416,7 +429,8 @@ export default function ProfilePage() {
             Sign in to see your profile.
           </h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            Your account details and Degree Navigator capture are private to your authenticated Rutgers SOC account.
+            Your account details and Degree Navigator capture are private to your authenticated
+            Rutgers SOC account.
           </p>
           <Link
             href="/login"
@@ -436,13 +450,15 @@ export default function ProfilePage() {
           <div className="absolute right-0 top-0 h-56 w-56 -translate-y-1/2 translate-x-1/3 rounded-full bg-primary/10 blur-3xl" />
           <div className="relative flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">Student profile</p>
+              <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
+                Student profile
+              </p>
               <h1 className="mt-3 text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
                 {degreeProfile?.studentName ?? account.email ?? 'Your profile'}
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-                A quiet overview of your Rutgers SOC account, saved Degree Navigator capture, programs,
-                audits, and transcript history.
+                A quiet overview of your Rutgers SOC account, saved Degree Navigator capture,
+                programs, audits, and transcript history.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -484,7 +500,10 @@ export default function ProfilePage() {
         )}
 
         <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard label="Credits earned" value={formatNumber(degreeProfile?.degreeCreditsEarned)} />
+          <MetricCard
+            label="Credits earned"
+            value={formatNumber(degreeProfile?.degreeCreditsEarned)}
+          />
           <MetricCard
             label="Cumulative GPA"
             value={formatNumber(degreeProfile?.cumulativeGpa, {
@@ -521,13 +540,15 @@ export default function ProfilePage() {
                   ['NetID', degreeProfile.netid ?? 'Not available'],
                   [
                     'School',
-                    [degreeProfile.schoolCode, degreeProfile.schoolName].filter(Boolean).join(', ') ||
-                      'Not available',
+                    [degreeProfile.schoolCode, degreeProfile.schoolName]
+                      .filter(Boolean)
+                      .join(', ') || 'Not available',
                   ],
                   [
                     'Graduation',
-                    [degreeProfile.graduationMonth, degreeProfile.graduationYear].filter(Boolean).join(' ') ||
-                      'Not available',
+                    [degreeProfile.graduationMonth, degreeProfile.graduationYear]
+                      .filter(Boolean)
+                      .join(' ') || 'Not available',
                   ],
                   ['Planned courses', formatNumber(degreeProfile.plannedCourseCount)],
                   ['Captured', formatDateTime(degreeProfile.capturedAt)],
@@ -557,7 +578,8 @@ export default function ProfilePage() {
                         <div>
                           <h3 className="text-sm font-semibold text-foreground">{program.title}</h3>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            {[program.code, program.campus].filter(Boolean).join(' · ') || 'No code listed'}
+                            {[program.code, program.campus].filter(Boolean).join(' · ') ||
+                              'No code listed'}
                           </p>
                         </div>
                         {program.kind && <Pill>{titleCase(program.kind)}</Pill>}
@@ -567,7 +589,10 @@ export default function ProfilePage() {
                 </div>
               </Panel>
 
-              <Panel title="Audit Summary" eyebrow={`${completedRequirementCount} completed requirements`}>
+              <Panel
+                title="Audit Summary"
+                eyebrow={`${completedRequirementCount} completed requirements`}
+              >
                 <div className="space-y-4">
                   {degreeProfile.audits.map((audit, index) => (
                     <div key={`${audit.programCode ?? audit.title}-${index}`} className="space-y-3">
@@ -582,17 +607,21 @@ export default function ProfilePage() {
                           </div>
                           {audit.completedRequirements && (
                             <Pill>
-                              {audit.completedRequirements.completed}/{audit.completedRequirements.total} complete
+                              {audit.completedRequirements.completed}/
+                              {audit.completedRequirements.total} complete
                             </Pill>
                           )}
                         </div>
                         {audit.overallStatus && (
-                          <p className="mt-3 text-sm leading-6 text-muted-foreground">{audit.overallStatus}</p>
+                          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                            {audit.overallStatus}
+                          </p>
                         )}
                         {audit.gpa?.value !== undefined && (
                           <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
                             <Pill>
-                              {audit.gpa.label ?? 'GPA'} {formatNumber(audit.gpa.value, {
+                              {audit.gpa.label ?? 'GPA'}{' '}
+                              {formatNumber(audit.gpa.value, {
                                 minimumFractionDigits: 3,
                                 maximumFractionDigits: 3,
                               })}
@@ -627,7 +656,10 @@ export default function ProfilePage() {
               <Panel title="Audit Notes" eyebrow="Conditions, notes, and unused courses">
                 <div className="space-y-4">
                   {degreeProfile.audits.map((audit, index) => (
-                    <AuditDetails key={`${audit.programCode ?? audit.title}-details-${index}`} audit={audit} />
+                    <AuditDetails
+                      key={`${audit.programCode ?? audit.title}-details-${index}`}
+                      audit={audit}
+                    />
                   ))}
                 </div>
               </Panel>
@@ -637,7 +669,10 @@ export default function ProfilePage() {
               <Panel title="Transcript" eyebrow={`${degreeProfile.transcriptTerms.length} terms`}>
                 <div className="space-y-4">
                   {degreeProfile.transcriptTerms.map((term) => (
-                    <div key={`${term.label}-${term.source}`} className="rounded-xl border border-border bg-surface-2/60 p-4">
+                    <div
+                      key={`${term.label}-${term.source}`}
+                      className="rounded-xl border border-border bg-surface-2/60 p-4"
+                    >
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                           <h3 className="text-sm font-semibold text-foreground">{term.label}</h3>
@@ -659,7 +694,10 @@ export default function ProfilePage() {
                 <InfoGrid
                   items={[
                     ['Captured from', degreeProfile.runNotes.capturedFrom ?? 'Not available'],
-                    ['Captured at', formatDateTime(degreeProfile.runNotes.capturedAt ?? degreeProfile.capturedAt)],
+                    [
+                      'Captured at',
+                      formatDateTime(degreeProfile.runNotes.capturedAt ?? degreeProfile.capturedAt),
+                    ],
                     ['Source session', degreeProfile.sourceSessionId ?? 'Not stored'],
                     ['Schema version', String(degreeProfile.schemaVersion)],
                   ]}
@@ -669,13 +707,25 @@ export default function ProfilePage() {
                     {degreeProfile.runNotes.disclaimer}
                   </p>
                 )}
-                <NoteList title="Extraction warnings" notes={degreeProfile.runNotes.extractionWarnings} />
-                <NoteList title="Unavailable routes" notes={degreeProfile.runNotes.unavailableRoutes} />
+                <NoteList
+                  title="Extraction warnings"
+                  notes={degreeProfile.runNotes.extractionWarnings}
+                />
+                <NoteList
+                  title="Unavailable routes"
+                  notes={degreeProfile.runNotes.unavailableRoutes}
+                />
               </Panel>
 
               <Panel title="Metadata" eyebrow="Account fields">
-                <MetadataBlock title="User metadata" entries={metadataEntries(account.userMetadata)} />
-                <MetadataBlock title="App metadata" entries={metadataEntries(account.appMetadata)} />
+                <MetadataBlock
+                  title="User metadata"
+                  entries={metadataEntries(account.userMetadata)}
+                />
+                <MetadataBlock
+                  title="App metadata"
+                  entries={metadataEntries(account.appMetadata)}
+                />
               </Panel>
             </section>
           </>
@@ -690,9 +740,14 @@ function ProfileShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="focus-ring -mx-1 inline-flex items-center gap-2 rounded px-1 py-1">
+          <Link
+            href="/"
+            className="focus-ring -mx-1 inline-flex items-center gap-2 rounded px-1 py-1"
+          >
             <span aria-hidden="true" className="h-2 w-2 rounded-sm bg-primary" />
-            <span className="text-sm font-semibold tracking-tight text-foreground">Rutgers SOC</span>
+            <span className="text-sm font-semibold tracking-tight text-foreground">
+              Rutgers SOC
+            </span>
           </Link>
           <Link
             href="/"
@@ -710,7 +765,9 @@ function ProfileShell({ children }: { children: React.ReactNode }) {
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-border bg-surface-1 p-5 shadow-elev-1">
-      <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
+      <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+        {label}
+      </p>
       <p className="mt-3 text-3xl font-semibold tracking-tight text-foreground">{value}</p>
     </div>
   );
@@ -728,7 +785,9 @@ function Panel({
   return (
     <section className="rounded-2xl border border-border bg-surface-1 p-5 shadow-elev-1 sm:p-6">
       <div className="mb-5">
-        {eyebrow && <p className="text-xs font-medium uppercase tracking-[0.16em] text-primary">{eyebrow}</p>}
+        {eyebrow && (
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-primary">{eyebrow}</p>
+        )}
         <h2 className="mt-1 text-xl font-semibold tracking-tight text-foreground">{title}</h2>
       </div>
       {children}
@@ -740,8 +799,13 @@ function InfoGrid({ items }: { items: Array<[string, string]> }) {
   return (
     <dl className="grid gap-3 sm:grid-cols-2">
       {items.map(([label, value], index) => (
-        <div key={`${label}-${index}`} className="rounded-xl border border-border bg-surface-2/60 p-3">
-          <dt className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{label}</dt>
+        <div
+          key={`${label}-${index}`}
+          className="rounded-xl border border-border bg-surface-2/60 p-3"
+        >
+          <dt className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            {label}
+          </dt>
           <dd className="mt-1 break-words text-sm font-medium text-foreground">{value}</dd>
         </div>
       ))}
@@ -786,7 +850,9 @@ function RequirementCard({
     <article className="rounded-xl border border-border bg-surface-2/60 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{auditTitle}</p>
+          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            {auditTitle}
+          </p>
           <h3 className="mt-1 text-sm font-semibold text-foreground">
             {[requirement.code, requirement.title].filter(Boolean).join(' · ')}
           </h3>
@@ -808,11 +874,15 @@ function RequirementCard({
         </p>
       )}
 
-      {requirement.courses && requirement.courses.length > 0 && <CourseList courses={requirement.courses} />}
+      {requirement.courses && requirement.courses.length > 0 && (
+        <CourseList courses={requirement.courses} />
+      )}
 
       {requirement.stillNeeded && requirement.stillNeeded.length > 0 && (
         <div className="mt-4 rounded-lg border border-warning/25 bg-warning/5 p-3">
-          <p className="text-xs font-medium uppercase tracking-[0.14em] text-warning">Still needed</p>
+          <p className="text-xs font-medium uppercase tracking-[0.14em] text-warning">
+            Still needed
+          </p>
           <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
             {requirement.stillNeeded.map((needed, index) => (
               <li key={`${needed.label}-${index}`}>
@@ -858,7 +928,9 @@ function AuditDetails({ audit }: { audit: DegreeNavigatorAudit }) {
       <NoteList title="Notes" notes={audit.notes} />
       {audit.unusedCourses && audit.unusedCourses.length > 0 && (
         <div className="mt-4">
-          <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Unused courses</p>
+          <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            Unused courses
+          </p>
           <CourseList courses={audit.unusedCourses} />
         </div>
       )}
@@ -871,7 +943,9 @@ function NoteList({ title, notes }: { title: string; notes?: string[] }) {
 
   return (
     <div className="mt-4">
-      <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">{title}</p>
+      <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+        {title}
+      </p>
       <ul className="mt-2 space-y-1 text-sm leading-6 text-muted-foreground">
         {notes.map((note, index) => (
           <li key={`${note}-${index}`}>{note}</li>
@@ -886,6 +960,7 @@ function CourseList({ courses }: { courses: DegreeNavigatorCourseRef[] }) {
     <div className="mt-4 grid gap-2">
       {courses.map((course, index) => {
         const details = courseDetails(course);
+        const displayTitle = course.title ?? course.courseCode;
         return (
           <div
             key={`${course.courseCode}-${course.termLabel ?? ''}-${index}`}
@@ -894,8 +969,13 @@ function CourseList({ courses }: { courses: DegreeNavigatorCourseRef[] }) {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <p className="text-sm font-medium text-foreground">
-                  {course.courseCode}
-                  {course.title ? <span className="font-normal text-muted-foreground"> · {course.title}</span> : null}
+                  {displayTitle}
+                  {course.title ? (
+                    <span className="font-normal text-muted-foreground">
+                      {' '}
+                      · {course.courseCode}
+                    </span>
+                  ) : null}
                 </p>
                 {details.length > 0 && (
                   <p className="mt-1 text-xs text-muted-foreground">{details.join(' · ')}</p>
@@ -933,11 +1013,16 @@ function MetadataBlock({
       ) : (
         <dl className="mt-3 space-y-2">
           {entries.map(([label, value], index) => (
-            <div key={`${label}-${index}`} className="rounded-lg border border-border bg-surface-2/60 p-3">
+            <div
+              key={`${label}-${index}`}
+              className="rounded-lg border border-border bg-surface-2/60 p-3"
+            >
               <dt className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                 {titleCase(label)}
               </dt>
-              <dd className="mt-1 break-words text-sm text-foreground">{renderMetadataValue(value)}</dd>
+              <dd className="mt-1 break-words text-sm text-foreground">
+                {renderMetadataValue(value)}
+              </dd>
             </div>
           ))}
         </dl>

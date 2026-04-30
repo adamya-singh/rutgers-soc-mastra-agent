@@ -121,6 +121,7 @@ describe('saveDegreeNavigatorProfile tool', () => {
         createCapture(),
         { get: () => undefined },
         {
+          enrichCapture: async (capture) => capture,
           upsertProfile: async (userId, capture) => {
             called = true;
             return createProfileRow(userId, capture);
@@ -163,6 +164,7 @@ describe('saveDegreeNavigatorProfile tool', () => {
         },
       },
       {
+        enrichCapture: async (capture) => capture,
         upsertProfile: async (userId, input) => {
           savedUserId = userId;
           savedCapture = input;
@@ -184,8 +186,11 @@ describe('saveDegreeNavigatorProfile tool', () => {
     await assert.rejects(
       runSaveDegreeNavigatorProfile(
         {} as DegreeNavigatorCapture,
-        { get: (key: string) => (key === 'authenticatedUserId' ? AUTHENTICATED_USER_ID : undefined) },
         {
+          get: (key: string) => (key === 'authenticatedUserId' ? AUTHENTICATED_USER_ID : undefined),
+        },
+        {
+          enrichCapture: async (capture) => capture,
           upsertProfile: async (userId, capture) => {
             called = true;
             return createProfileRow(userId, capture);
@@ -195,5 +200,44 @@ describe('saveDegreeNavigatorProfile tool', () => {
     );
 
     assert.strictEqual(called, false);
+  });
+
+  it('enriches captures before saving', async () => {
+    let savedCapture: DegreeNavigatorCapture | null = null;
+    const result = await runSaveDegreeNavigatorProfile(
+      createCapture({
+        transcriptTerms: [
+          {
+            label: 'Fall 2024',
+            source: 'transcript',
+            courses: [
+              {
+                courseCode: '01:640:250',
+              },
+            ],
+          },
+        ],
+      }),
+      { get: (key: string) => (key === 'authenticatedUserId' ? AUTHENTICATED_USER_ID : undefined) },
+      {
+        enrichCapture: async (capture) => ({
+          ...capture,
+          transcriptTerms: capture.transcriptTerms.map((term) => ({
+            ...term,
+            courses: term.courses.map((course) => ({
+              ...course,
+              title: course.courseCode === '01:640:250' ? 'Linear Algebra' : course.title,
+            })),
+          })),
+        }),
+        upsertProfile: async (userId, capture) => {
+          savedCapture = capture;
+          return createProfileRow(userId, capture);
+        },
+      },
+    );
+
+    assert.strictEqual(savedCapture?.transcriptTerms[0].courses[0].title, 'Linear Algebra');
+    assert.strictEqual(result.profile.transcriptTerms[0].courses[0].title, 'Linear Algebra');
   });
 });

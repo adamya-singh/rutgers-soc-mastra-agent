@@ -35,6 +35,7 @@ import {
   getDegreeNavigatorProfile,
   upsertDegreeNavigatorProfile,
 } from '../degree-navigator/repository.js';
+import { enrichDegreeNavigatorCourseTitles } from '../degree-navigator/courseTitleEnrichment.js';
 
 const ClearDegreeNavigatorProfileResponseSchema = z.object({
   cleared: z.boolean(),
@@ -45,7 +46,10 @@ function toOpenApiSchema(schema: unknown) {
   return zodToJsonSchema(schema as never) as Record<string, unknown>;
 }
 
-function handleBrowserError(c: { json: (payload: unknown, status: number) => Response }, error: unknown) {
+function handleBrowserError(
+  c: { json: (payload: unknown, status: number) => Response },
+  error: unknown,
+) {
   if (error instanceof AuthError) {
     return c.json({ error: error.message }, error.status);
   }
@@ -86,7 +90,10 @@ function handleBrowserError(c: { json: (payload: unknown, status: number) => Res
   return c.json({ error: 'Internal error' }, 500);
 }
 
-function handleRouteError(c: { json: (payload: unknown, status: number) => Response }, error: unknown) {
+function handleRouteError(
+  c: { json: (payload: unknown, status: number) => Response },
+  error: unknown,
+) {
   if (error instanceof AuthError) {
     return c.json({ error: error.message }, error.status);
   }
@@ -109,7 +116,11 @@ function handleRouteError(c: { json: (payload: unknown, status: number) => Respo
 }
 
 function logUnexpectedRouteError(error: unknown): void {
-  if (error instanceof AuthError || error instanceof ZodError || error instanceof BrowserSessionError) {
+  if (
+    error instanceof AuthError ||
+    error instanceof ZodError ||
+    error instanceof BrowserSessionError
+  ) {
     return;
   }
 
@@ -141,12 +152,7 @@ export const apiRoutes = [
       try {
         const authenticatedUser = await requireAuthenticatedUser(c);
         const body = await c.req.json();
-        const {
-          prompt,
-          temperature,
-          maxTokens,
-          additionalContext,
-        } = ChatInputSchema.parse(body);
+        const { prompt, temperature, maxTokens, additionalContext } = ChatInputSchema.parse(body);
 
         return createSSEStream(async (controller) => {
           const run = await chatWorkflow.createRunAsync();
@@ -225,7 +231,11 @@ export const apiRoutes = [
         const authenticatedUser = await requireAuthenticatedUser(c);
         const body = await c.req.json();
         const capture = UpsertDegreeNavigatorProfileRequestSchema.parse(body);
-        const profile = await upsertDegreeNavigatorProfile(authenticatedUser.userId, capture);
+        const enrichedCapture = await enrichDegreeNavigatorCourseTitles(capture);
+        const profile = await upsertDegreeNavigatorProfile(
+          authenticatedUser.userId,
+          enrichedCapture,
+        );
         return c.json({ profile }, 200);
       } catch (error) {
         logUnexpectedRouteError(error);
@@ -385,7 +395,8 @@ export const apiRoutes = [
       try {
         const authenticatedUser = await requireAuthenticatedUser(c);
         const body = await c.req.json();
-        const { sessionId, reason, allowUntracked } = CloseBrowserSessionWithPolicyRequestSchema.parse(body);
+        const { sessionId, reason, allowUntracked } =
+          CloseBrowserSessionWithPolicyRequestSchema.parse(body);
         const result = await closeSessionWithPolicy({
           sessionId,
           ownerId: authenticatedUser.userId,
@@ -433,7 +444,8 @@ export const apiRoutes = [
           rawBody = text ? JSON.parse(text) : {};
         }
 
-        const { sessionId, reason, allowUntracked, accessToken } = CloseBrowserSessionBeaconRequestSchema.parse(rawBody);
+        const { sessionId, reason, allowUntracked, accessToken } =
+          CloseBrowserSessionBeaconRequestSchema.parse(rawBody);
         const authenticatedUser = await requireAuthenticatedUserWithFallbackToken(c, accessToken);
         const result = await closeSessionWithPolicy({
           sessionId,
