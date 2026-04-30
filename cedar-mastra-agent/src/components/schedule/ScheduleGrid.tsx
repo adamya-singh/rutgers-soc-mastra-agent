@@ -1,6 +1,10 @@
 'use client';
 
 import React from 'react';
+import {
+  useRegisterState,
+  useSubscribeStateToAgentContext,
+} from 'cedar-os';
 import { supabaseClient } from '@/lib/supabaseClient';
 import {
   DEFAULT_SCHEDULE,
@@ -21,6 +25,11 @@ import {
   type ScheduleEntry,
   type ScheduleSnapshot,
 } from '@/lib/scheduleStorage';
+import {
+  buildActiveScheduleAgentContext,
+  type ActiveScheduleAgentContext,
+  type ActiveScheduleSyncStatus,
+} from '@/lib/scheduleAgentContext';
 import {
   deleteRemoteSchedule,
   hydrateFromRemote,
@@ -663,6 +672,18 @@ export const ScheduleGrid: React.FC = () => {
     return schedule.sections.reduce((sum, s) => sum + (s.credits ?? 0), 0);
   }, [schedule]);
 
+  const activeScheduleSyncStatus: ActiveScheduleSyncStatus = !isLoaded || isHydrating
+    ? 'loading'
+    : !isLoggedIn
+      ? 'signed_out'
+      : syncState === 'saving'
+        ? 'saving'
+        : syncState === 'error' || syncError
+          ? 'error'
+          : syncStatus === 'saved'
+            ? 'saved'
+            : 'dirty';
+
   // ----- Compute used campus colors (for legend) -----
   const usedCampusColors = React.useMemo(() => {
     const seen = new Set<string>();
@@ -785,6 +806,47 @@ export const ScheduleGrid: React.FC = () => {
     return { blocks: nextBlocks, sidebarItems: nextSidebar };
   }, [schedule]);
 
+  const activeScheduleAgentContext = React.useMemo(
+    () =>
+      buildActiveScheduleAgentContext({
+        schedule,
+        activeEntry,
+        activeScheduleId,
+        scheduleName,
+        totalCredits,
+        syncStatus: activeScheduleSyncStatus,
+      }),
+    [
+      activeEntry,
+      activeScheduleId,
+      activeScheduleSyncStatus,
+      schedule,
+      scheduleName,
+      totalCredits,
+    ],
+  );
+
+  const ignoreActiveScheduleAgentContextUpdate = React.useCallback(
+    (_nextValue: ActiveScheduleAgentContext) => {},
+    [],
+  );
+
+  useRegisterState({
+    key: 'activeSchedule',
+    description: 'Current schedule shown in the week view',
+    value: activeScheduleAgentContext,
+    setValue: ignoreActiveScheduleAgentContextUpdate,
+  });
+
+  useSubscribeStateToAgentContext(
+    'activeSchedule',
+    (activeSchedule) => ({ activeSchedule }),
+    {
+      showInChat: true,
+      color: '#16A34A',
+    },
+  );
+
   const timeSlots = React.useMemo(() => {
     return Array.from({ length: TOTAL_SLOTS }, (_, index) => {
       const minutesFromStart = index * SLOT_MINUTES;
@@ -794,6 +856,7 @@ export const ScheduleGrid: React.FC = () => {
       return {
         key: `slot-${index}`,
         label: minute === 0 ? formatHourLabel(hour) : '',
+        showBottomBorder: (totalMinutes + SLOT_MINUTES) % 60 === 0,
       };
     });
   }, []);
@@ -1018,7 +1081,7 @@ export const ScheduleGrid: React.FC = () => {
                 {timeSlots.map((slot, rowIndex) => (
                   <div
                     key={slot.key}
-                    className="col-start-1 flex items-start justify-center border-b border-r border-border text-[11px] text-muted-foreground"
+                    className={`col-start-1 flex items-start justify-center border-r border-border text-[11px] text-muted-foreground ${slot.showBottomBorder ? 'border-b' : ''}`}
                     style={{ gridRowStart: rowIndex + 2 }}
                   >
                     {slot.label}
@@ -1029,7 +1092,7 @@ export const ScheduleGrid: React.FC = () => {
                   timeSlots.map((slot, rowIndex) => (
                     <div
                       key={`${dayIndex}-${slot.key}`}
-                      className="border-b border-r border-border bg-surface-1"
+                      className={`border-r border-border bg-surface-1 ${slot.showBottomBorder ? 'border-b' : ''}`}
                       style={{ gridColumnStart: dayIndex + 2, gridRowStart: rowIndex + 2 }}
                     />
                   )),

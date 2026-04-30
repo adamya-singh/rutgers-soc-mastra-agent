@@ -34,6 +34,59 @@ describe('security hardening', () => {
           },
         },
       },
+      activeSchedule: {
+        data: {
+          activeSchedule: {
+            activeScheduleId: 'schedule_1',
+            name: 'Spring schedule',
+            termYear: 2026,
+            termCode: '1',
+            termLabel: 'Spring',
+            campus: 'NB',
+            totalCredits: 4,
+            sectionCount: 1,
+            syncStatus: 'saved',
+            sections: [
+              {
+                indexNumber: '09214',
+                courseString: '01:198:111',
+                courseTitle: 'INTRO COMPUTER SCI',
+                credits: 4,
+                sectionNumber: '01',
+                instructors: ['MENENDEZ, FRANCISCO'],
+                isOpen: true,
+                meetings: [
+                  {
+                    day: 'M',
+                    startTimeMilitary: '1020',
+                    endTimeMilitary: '1140',
+                    building: 'HLL',
+                    room: '116',
+                    campus: 'Busch',
+                  },
+                ],
+              },
+            ],
+            weekView: {
+              days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+              startHour: 8,
+              endHour: 22,
+              visibleBlocks: [
+                {
+                  indexNumber: '09214',
+                  label: '01:198:111-01',
+                  day: 'Mon',
+                  startTime: '10:20 AM',
+                  endTime: '11:40 AM',
+                  location: 'HLL 116',
+                  isClosed: false,
+                },
+              ],
+              overflowOrSidebarItems: [],
+            },
+          },
+        },
+      },
       stateSetters: {
         setSearchResults: {
           argsSchema: {
@@ -61,6 +114,57 @@ describe('security hardening', () => {
         browserSession: {
           sessionId: 'session_1',
           status: 'ready',
+        },
+      },
+      activeSchedule: {
+        activeSchedule: {
+          activeScheduleId: 'schedule_1',
+          name: 'Spring schedule',
+          termYear: 2026,
+          termCode: '1',
+          termLabel: 'Spring',
+          campus: 'NB',
+          totalCredits: 4,
+          sectionCount: 1,
+          syncStatus: 'saved',
+          sections: [
+            {
+              indexNumber: '09214',
+              courseString: '01:198:111',
+              courseTitle: 'INTRO COMPUTER SCI',
+              credits: 4,
+              sectionNumber: '01',
+              instructors: ['MENENDEZ, FRANCISCO'],
+              isOpen: true,
+              meetings: [
+                {
+                  day: 'M',
+                  startTimeMilitary: '1020',
+                  endTimeMilitary: '1140',
+                  building: 'HLL',
+                  room: '116',
+                  campus: 'Busch',
+                },
+              ],
+            },
+          ],
+          weekView: {
+            days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+            startHour: 8,
+            endHour: 22,
+            visibleBlocks: [
+              {
+                indexNumber: '09214',
+                label: '01:198:111-01',
+                day: 'Mon',
+                startTime: '10:20 AM',
+                endTime: '11:40 AM',
+                location: 'HLL 116',
+                isClosed: false,
+              },
+            ],
+            overflowOrSidebarItems: [],
+          },
         },
       },
     });
