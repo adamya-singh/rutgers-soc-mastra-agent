@@ -10,6 +10,8 @@ import {
   BrowserSessionResponseSchema,
   CloseBrowserSessionWithPolicyRequestSchema,
   CreateBrowserSessionRequestSchema,
+  DegreeNavigatorExtractionRequestSchema,
+  DegreeNavigatorExtractionResponseSchema,
   DegreeNavigatorReadinessRequestSchema,
   DegreeNavigatorReadinessResponseSchema,
   StatusBrowserSessionRequestSchema,
@@ -17,6 +19,7 @@ import {
 import {
   closeSessionWithPolicy,
   createSession,
+  extractDegreeNavigatorFromSession,
   getDegreeNavigatorReadiness,
   getSession,
 } from '../browser/browserService.js';
@@ -364,6 +367,40 @@ export const apiRoutes = [
         const { sessionId } = DegreeNavigatorReadinessRequestSchema.parse(body);
         const readiness = await getDegreeNavigatorReadiness(sessionId, authenticatedUser.userId);
         return c.json(readiness, 200);
+      } catch (error) {
+        logUnexpectedRouteError(error);
+        return handleBrowserError(c, error);
+      }
+    },
+  }),
+  registerApiRoute('/browser/session/degree-navigator-extract', {
+    method: 'POST',
+    openapi: {
+      requestBody: {
+        content: {
+          'application/json': {
+            schema: toOpenApiSchema(DegreeNavigatorExtractionRequestSchema),
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Stored raw Degree Navigator extraction evidence from the active browser session',
+          content: {
+            'application/json': {
+              schema: toOpenApiSchema(DegreeNavigatorExtractionResponseSchema),
+            },
+          },
+        },
+      },
+    },
+    handler: async (c) => {
+      try {
+        const authenticatedUser = await requireAuthenticatedUser(c);
+        const body = await c.req.json();
+        const { sessionId } = DegreeNavigatorExtractionRequestSchema.parse(body);
+        const result = await extractDegreeNavigatorFromSession(sessionId, authenticatedUser.userId);
+        return c.json(result, 200);
       } catch (error) {
         logUnexpectedRouteError(error);
         return handleBrowserError(c, error);

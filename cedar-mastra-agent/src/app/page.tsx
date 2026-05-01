@@ -91,6 +91,19 @@ interface DegreeNavigatorReadinessResponse {
   checkedAt: string;
 }
 
+interface DegreeNavigatorExtractionResponse {
+  runId: string;
+  summary: {
+    pageCount: number;
+    auditPageCount: number;
+    myDegreesPageCount: number;
+    linkCount: number;
+    tableCount: number;
+    sectionCount: number;
+    courseCodeCount: number;
+  };
+}
+
 interface PersistedBrowserSessionRecord {
   sessionId: string;
   userId: string;
@@ -102,22 +115,14 @@ const HIDDEN_TIMEOUT_MS = 30_000;
 const IDLE_TIMEOUT_MS = 60_000;
 const DEGREE_NAVIGATOR_SYNC_POLL_MS = 2500;
 const DEGREE_NAVIGATOR_SYNC_TIMEOUT_MS = 5 * 60_000;
-const DEGREE_NAVIGATOR_SYNC_PROMPT = `Read my Degree Navigator information from the active browser session and sync the complete capture to the application.
+function buildDegreeNavigatorExtractionPrompt(result: DegreeNavigatorExtractionResponse): string {
+  const { runId, summary } = result;
+  return `Read the Degree Navigator extraction run ${runId}, normalize all profile, program, audit, requirement, and transcript data, then save it to the application with saveDegreeNavigatorProfile exactly once.
 
-Use read-only browser observation/extraction across as many Degree Navigator views as needed before saving. Do not stop at the transcript page if audit/program report pages are available.
+Extraction summary: ${summary.pageCount} pages (${summary.auditPageCount} audit pages, ${summary.myDegreesPageCount} My Degrees pages), ${summary.tableCount} tables, ${summary.sectionCount} text sections, ${summary.linkCount} links, and ${summary.courseCodeCount} discovered course codes.
 
-Extract and normalize all fields supported by saveDegreeNavigatorProfile:
-- Student profile and freshness fields: name, RUID, NetID, school code/name, declared graduation month/year, degree credits earned, cumulative GPA, planned course count, capturedAt, and sourceSessionId when available.
-- All declared programs of study with code, title, campus, and kind.
-- Every audit/program report, including programCode, title, versionTerm/report term, completedCredits when shown, completedRequirements counts, overallStatus, GPA label/value/status/quality points/credits, conditions, notes, and unusedCourses.
-- Every requirement in every audit, including code, title, status, summary, completedCount, totalCount, neededCount, applied/listed courses, stillNeeded labels with courseOptions, and requirement notes.
-- Every course reference with courseCode, real title when visible, campus, credits, grade/status, specialCode, repeatedCourseCode, usedAs mappings, termLabel, and rawText when it preserves Degree Navigator details.
-- Every transcript, AP credit, placement, and other term with label/year/termName/termCode/source and all courses. Prefer real course titles from link metadata or transcript details; do not save "N/A" titles when real titles are visible.
-- Run notes: advisory disclaimer, extraction warnings, unavailable routes, and any route/page that could not be captured.
-
-Do not save placeholder audit data such as "Basic Details Extraction", "Mock Requirement", or incomplete audit shells when real audit data is visible. If a section is unavailable, record that in runNotes rather than inventing data.
-
-After building the most complete capture, call saveDegreeNavigatorProfile exactly once.`;
+Use readDegreeNavigatorExtractionRun with this runId. Do not navigate or scrape the browser yourself. If the extraction run is missing or unusable, stop and explain the problem instead of falling back to browser automation.`;
+}
 
 function getBrowserPaneStatus(session: BrowserSessionState | null): BrowserPaneStatus {
   if (!session) {
@@ -274,10 +279,16 @@ export default function HomePage() {
         | '/browser/session/create'
         | '/browser/session/status'
         | '/browser/session/degree-navigator-readiness'
+        | '/browser/session/degree-navigator-extract'
         | '/browser/session/close'
         | '/browser/session/close-beacon',
       payload: object,
-    ): Promise<BrowserSessionApiResponse | BrowserCloseApiResponse | DegreeNavigatorReadinessResponse> => {
+    ): Promise<
+      | BrowserSessionApiResponse
+      | BrowserCloseApiResponse
+      | DegreeNavigatorReadinessResponse
+      | DegreeNavigatorExtractionResponse
+    > => {
       if (!accessToken) {
         throw new Error('Sign in before using browser sessions.');
       }
@@ -607,6 +618,15 @@ export default function HomePage() {
     [callBrowserSessionApi],
   );
 
+  const extractDegreeNavigator = React.useCallback(
+    async (sessionId: string): Promise<DegreeNavigatorExtractionResponse> => {
+      return (await callBrowserSessionApi('/browser/session/degree-navigator-extract', {
+        sessionId,
+      })) as DegreeNavigatorExtractionResponse;
+    },
+    [callBrowserSessionApi],
+  );
+
   const syncFromDegreeNavigator = React.useCallback(async () => {
     const runId = degreeNavigatorSyncRunRef.current + 1;
     degreeNavigatorSyncRunRef.current = runId;
@@ -653,14 +673,35 @@ export default function HomePage() {
       }
 
       setDegreeNavigatorSyncStatus('syncing');
-      setDegreeNavigatorSyncMessage('Login detected. Asking the assistant to read and save your Degree Navigator data.');
-      dispatchCedarPrompt(DEGREE_NAVIGATOR_SYNC_PROMPT);
+      setDegreeNavigatorSyncMessage('Login detected. Collecting Degree Navigator evidence from the secure browser.');
+
+      const result = await extractDegreeNavigator(session.sessionId);
+      if (degreeNavigatorSyncRunRef.current !== runId) {
+        return;
+      }
+
+      if (!result.runId) {
+        throw new Error('Degree Navigator extraction completed without a run id.');
+      }
+
+      dispatchCedarPrompt(buildDegreeNavigatorExtractionPrompt(result));
       setDegreeNavigatorSyncStatus('synced');
-      setDegreeNavigatorSyncMessage('Sync started in the assistant. You can watch progress in the chat.');
+      setDegreeNavigatorSyncMessage(
+        `Collected ${result.summary.auditPageCount} audit pages. The assistant is normalizing and saving the profile now.`,
+      );
     } catch (error) {
       if (degreeNavigatorSyncRunRef.current !== runId) {
         return;
       }
+
+      if (error instanceof Error && error.message.includes('Degree Navigator extraction')) {
+        if (degreeNavigatorSyncRunRef.current !== runId) {
+          return;
+        }
+
+        console.warn('Degree Navigator extraction failed.', error);
+      }
+
       setDegreeNavigatorSyncStatus('error');
       setDegreeNavigatorSyncMessage(
         error instanceof Error ? error.message : 'Unable to sync from Degree Navigator.',
@@ -669,6 +710,7 @@ export default function HomePage() {
   }, [
     checkDegreeNavigatorReadiness,
     ensureDegreeNavigatorSession,
+    extractDegreeNavigator,
   ]);
 
   React.useEffect(() => {

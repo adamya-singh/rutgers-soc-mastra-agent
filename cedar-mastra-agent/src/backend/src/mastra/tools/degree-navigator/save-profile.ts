@@ -29,6 +29,35 @@ type SaveDegreeNavigatorProfileDeps = {
 export const SAVE_DEGREE_NAVIGATOR_PROFILE_DESCRIPTION = `Save a validated Degree Navigator capture for the authenticated user.
 Use after extracting and normalizing the student's Degree Navigator information. Do not include or infer a user id; ownership comes from authenticated runtime context.`;
 
+export function assertSafeDegreeNavigatorProfileSave(capture: DegreeNavigatorCapture): void {
+  const transcriptCourseCount = capture.transcriptTerms.reduce(
+    (sum, term) => sum + term.courses.length,
+    0,
+  );
+  const studentName = capture.profile.name?.trim() ?? '';
+  const netid = capture.profile.netid?.trim() ?? '';
+
+  if (capture.programs.length > 15) {
+    throw new Error(
+      `Refusing to save Degree Navigator profile with ${capture.programs.length} programs; expected no more than 15.`,
+    );
+  }
+
+  if (transcriptCourseCount > 150) {
+    throw new Error(
+      `Refusing to save Degree Navigator profile with ${transcriptCourseCount} transcript courses; expected no more than 150.`,
+    );
+  }
+
+  if (/^RUID\s*:/i.test(studentName)) {
+    throw new Error('Refusing to save Degree Navigator profile with a malformed student name.');
+  }
+
+  if (netid === ':') {
+    throw new Error('Refusing to save Degree Navigator profile with a malformed NetID.');
+  }
+}
+
 function requireAuthenticatedUserId(runtimeContext: RuntimeContextLike): string {
   const authenticatedUserId = runtimeContext.get('authenticatedUserId');
   if (typeof authenticatedUserId === 'string' && authenticatedUserId.trim().length > 0) {
@@ -52,6 +81,7 @@ export async function runSaveDegreeNavigatorProfile(
     source: 'degree_navigator',
     sourceSessionId: runtimeSessionId ?? context.sourceSessionId,
   });
+  assertSafeDegreeNavigatorProfileSave(capture);
   const enrichCapture = deps.enrichCapture ?? enrichDegreeNavigatorCourseTitles;
   const enrichedCapture = await enrichCapture(capture);
   const upsertProfile = deps.upsertProfile ?? upsertDegreeNavigatorProfile;

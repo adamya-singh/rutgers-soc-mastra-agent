@@ -60,7 +60,7 @@ function mapRowToSession(row: BrowserSessionRow): BrowserSessionState {
     provider: 'browserbase',
     sessionId: row.session_id,
     liveViewUrl: row.live_view_url,
-    target: row.target,
+    target: row.target as BrowserSessionState['target'],
     status: row.status,
     ownerId: row.user_id ?? row.owner_id,
     createdAt: row.created_at,

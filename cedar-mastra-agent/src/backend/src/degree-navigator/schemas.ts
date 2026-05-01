@@ -175,6 +175,60 @@ export const DegreeNavigatorProfileResponseSchema = z.object({
   profile: DegreeNavigatorProfileRowSchema.nullable(),
 });
 
+export const DegreeNavigatorExtractionPageKindSchema = z.enum([
+  'my_degrees',
+  'degree_audit',
+  'unknown',
+]);
+
+export const DegreeNavigatorExtractionPayloadSchema = z.object({
+  capturedAt: z.string().datetime(),
+  sourceSessionId: z.string().min(1),
+  pages: z.array(z.object({
+    url: z.string().url(),
+    title: z.string().min(1).optional(),
+    kind: DegreeNavigatorExtractionPageKindSchema,
+    headings: z.array(z.string().min(1)),
+    tables: z.array(z.array(z.array(z.string()))),
+    sections: z.array(z.object({
+      heading: z.string().min(1).optional(),
+      text: z.string().min(1),
+    })),
+    links: z.array(z.object({
+      text: z.string(),
+      href: z.string().url(),
+    })),
+    courseCodes: z.array(z.string().min(1)).default([]),
+  })),
+});
+
+export const DegreeNavigatorExtractionSummarySchema = z.object({
+  pageCount: z.number().int(),
+  auditPageCount: z.number().int(),
+  myDegreesPageCount: z.number().int(),
+  linkCount: z.number().int(),
+  tableCount: z.number().int(),
+  sectionCount: z.number().int(),
+  courseCodeCount: z.number().int(),
+});
+
+export const DegreeNavigatorExtractionRunStatusSchema = z.enum([
+  'created',
+  'read',
+  'expired',
+]);
+
+export const DegreeNavigatorExtractionRunSchema = z.object({
+  id: z.string().uuid(),
+  userId: z.string().uuid(),
+  browserSessionId: z.string().min(1),
+  status: DegreeNavigatorExtractionRunStatusSchema,
+  payload: DegreeNavigatorExtractionPayloadSchema,
+  summary: DegreeNavigatorExtractionSummarySchema,
+  createdAt: z.string(),
+  expiresAt: z.string(),
+});
+
 export type DegreeNavigatorCourseRef = z.infer<typeof DegreeNavigatorCourseRefSchema>;
 export type DegreeNavigatorProfile = z.infer<typeof DegreeNavigatorProfileSchema>;
 export type DegreeNavigatorProgram = z.infer<typeof DegreeNavigatorProgramSchema>;
@@ -185,3 +239,8 @@ export type DegreeNavigatorRunNotes = z.infer<typeof DegreeNavigatorRunNotesSche
 export type DegreeNavigatorCapture = z.infer<typeof DegreeNavigatorCaptureSchema>;
 export type DegreeNavigatorCaptureInput = z.infer<typeof DegreeNavigatorCaptureInputSchema>;
 export type DegreeNavigatorProfileRow = z.infer<typeof DegreeNavigatorProfileRowSchema>;
+export type DegreeNavigatorExtractionPageKind = z.infer<typeof DegreeNavigatorExtractionPageKindSchema>;
+export type DegreeNavigatorExtractionPayload = z.infer<typeof DegreeNavigatorExtractionPayloadSchema>;
+export type DegreeNavigatorExtractionSummary = z.infer<typeof DegreeNavigatorExtractionSummarySchema>;
+export type DegreeNavigatorExtractionRunStatus = z.infer<typeof DegreeNavigatorExtractionRunStatusSchema>;
+export type DegreeNavigatorExtractionRun = z.infer<typeof DegreeNavigatorExtractionRunSchema>;

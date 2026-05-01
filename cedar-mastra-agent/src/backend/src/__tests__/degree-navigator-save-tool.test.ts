@@ -240,4 +240,111 @@ describe('saveDegreeNavigatorProfile tool', () => {
     assert.strictEqual(savedCapture?.transcriptTerms[0].courses[0].title, 'Linear Algebra');
     assert.strictEqual(result.profile.transcriptTerms[0].courses[0].title, 'Linear Algebra');
   });
+
+  it('rejects obviously duplicated program saves before enrichment or persistence', async () => {
+    let called = false;
+
+    await assert.rejects(
+      runSaveDegreeNavigatorProfile(
+        createCapture({
+          programs: Array.from({ length: 40 }, (_, index) => ({
+            title: `Duplicated Program ${index}`,
+          })),
+        }),
+        { get: (key: string) => (key === 'authenticatedUserId' ? AUTHENTICATED_USER_ID : undefined) },
+        {
+          enrichCapture: async (capture) => capture,
+          upsertProfile: async (userId, capture) => {
+            called = true;
+            return createProfileRow(userId, capture);
+          },
+        },
+      ),
+      /40 programs/,
+    );
+
+    assert.strictEqual(called, false);
+  });
+
+  it('rejects transcript course counts that match the bad fast-sync duplication pattern', async () => {
+    let called = false;
+
+    await assert.rejects(
+      runSaveDegreeNavigatorProfile(
+        createCapture({
+          transcriptTerms: [
+            {
+              label: 'Duplicated Transcript',
+              source: 'transcript',
+              courses: Array.from({ length: 392 }, (_, index) => ({
+                courseCode: `01:198:${String(100 + (index % 899)).padStart(3, '0')}`,
+              })),
+            },
+          ],
+        }),
+        { get: (key: string) => (key === 'authenticatedUserId' ? AUTHENTICATED_USER_ID : undefined) },
+        {
+          enrichCapture: async (capture) => capture,
+          upsertProfile: async (userId, capture) => {
+            called = true;
+            return createProfileRow(userId, capture);
+          },
+        },
+      ),
+      /392 transcript courses/,
+    );
+
+    assert.strictEqual(called, false);
+  });
+
+  it('rejects profile names parsed from RUID labels', async () => {
+    let called = false;
+
+    await assert.rejects(
+      runSaveDegreeNavigatorProfile(
+        createCapture({
+          profile: {
+            name: 'RUID: 123456789',
+          },
+        }),
+        { get: (key: string) => (key === 'authenticatedUserId' ? AUTHENTICATED_USER_ID : undefined) },
+        {
+          enrichCapture: async (capture) => capture,
+          upsertProfile: async (userId, capture) => {
+            called = true;
+            return createProfileRow(userId, capture);
+          },
+        },
+      ),
+      /malformed student name/,
+    );
+
+    assert.strictEqual(called, false);
+  });
+
+  it('rejects malformed NetID placeholders produced by broad text scraping', async () => {
+    let called = false;
+
+    await assert.rejects(
+      runSaveDegreeNavigatorProfile(
+        createCapture({
+          profile: {
+            name: 'Jane Student',
+            netid: ':',
+          },
+        }),
+        { get: (key: string) => (key === 'authenticatedUserId' ? AUTHENTICATED_USER_ID : undefined) },
+        {
+          enrichCapture: async (capture) => capture,
+          upsertProfile: async (userId, capture) => {
+            called = true;
+            return createProfileRow(userId, capture);
+          },
+        },
+      ),
+      /malformed NetID/,
+    );
+
+    assert.strictEqual(called, false);
+  });
 });

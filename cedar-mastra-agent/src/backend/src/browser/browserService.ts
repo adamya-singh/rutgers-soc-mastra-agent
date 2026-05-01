@@ -3,6 +3,10 @@ import {
   BrowserSessionRepository,
   createSupabaseBrowserSessionRepository,
 } from './sessionRepository.js';
+import { createDegreeNavigatorExtractionRun } from '../degree-navigator/extractionRunRepository.js';
+import { scrapeDegreeNavigatorFast } from '../degree-navigator/fastSyncScraper.js';
+import type { DegreeNavigatorScrapePage } from '../degree-navigator/fastSyncScraper.js';
+import type { DegreeNavigatorExtractionSummary } from '../degree-navigator/schemas.js';
 import {
   BrowserSessionCloseReason,
   BrowserSessionError,
@@ -53,6 +57,11 @@ export interface DegreeNavigatorReadinessResult {
   urlPath?: string;
   title?: string;
   checkedAt: string;
+}
+
+export interface DegreeNavigatorExtractionResult {
+  runId: string;
+  summary: DegreeNavigatorExtractionSummary;
 }
 
 interface DegreeNavigatorPageSnapshot {
@@ -117,6 +126,7 @@ interface PlaywrightPageLike {
   goto: (url: string, options?: { waitUntil?: string }) => Promise<unknown>;
   title?: () => Promise<string>;
   url?: () => string;
+  waitForTimeout?: (ms: number) => Promise<void>;
   evaluate?: <T>(pageFunction: () => T | Promise<T>) => Promise<T>;
 }
 
@@ -665,7 +675,7 @@ async function withStagehand<T>(
     );
   } finally {
     if (stagehand && typeof stagehand.close === 'function') {
-      await stagehand.close().catch(() => undefined);
+      await Promise.resolve(stagehand.close()).catch(() => undefined);
     }
   }
 }
@@ -801,6 +811,74 @@ async function playwrightDegreeNavigatorSnapshot(
     throw new BrowserSessionError(
       'BROWSER_PROVIDER_ERROR',
       `Degree Navigator readiness check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    );
+  } finally {
+    if (browser) {
+      if (typeof browser.disconnect === 'function') {
+        browser.disconnect();
+      } else {
+        await browser.close().catch(() => undefined);
+      }
+    }
+  }
+}
+
+async function playwrightFastDegreeNavigatorExtract(
+  sessionId: string,
+  connectUrl: string,
+  ownerId: string,
+): Promise<DegreeNavigatorExtractionResult> {
+  let browser: PlaywrightBrowserLike | null = null;
+
+  try {
+    const playwrightModule = (await importModule('playwright-core')) as {
+      chromium?: {
+        connectOverCDP?: (endpointURL: string) => Promise<PlaywrightBrowserLike>;
+      };
+    };
+    const chromium = playwrightModule.chromium;
+    if (!chromium || typeof chromium.connectOverCDP !== 'function') {
+      throw new BrowserSessionError(
+        'BROWSER_PROVIDER_ERROR',
+        'Playwright chromium.connectOverCDP is unavailable for Degree Navigator extraction.',
+      );
+    }
+
+    browser = await chromium.connectOverCDP(connectUrl);
+    const context = browser.contexts()[0] ?? (await browser.newContext());
+    const page = context.pages()[0] ?? (await context.newPage());
+    if (
+      typeof page.evaluate !== 'function' ||
+      typeof page.title !== 'function' ||
+      typeof page.url !== 'function' ||
+      typeof page.waitForTimeout !== 'function'
+    ) {
+      throw new BrowserSessionError(
+        'BROWSER_PROVIDER_ERROR',
+        'Playwright page APIs are unavailable for Degree Navigator extraction.',
+      );
+    }
+
+    const extraction = await scrapeDegreeNavigatorFast(page as DegreeNavigatorScrapePage, {
+      sessionId,
+      capturedAt: new Date().toISOString(),
+    });
+    const run = await createDegreeNavigatorExtractionRun({
+      userId: ownerId,
+      browserSessionId: sessionId,
+      payload: extraction.payload,
+      summary: extraction.summary,
+    });
+
+    return { runId: run.id, summary: run.summary };
+  } catch (error) {
+    if (error instanceof BrowserSessionError) {
+      throw error;
+    }
+
+    throw new BrowserSessionError(
+      'BROWSER_PROVIDER_ERROR',
+      `Degree Navigator extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
     );
   } finally {
     if (browser) {
@@ -1250,6 +1328,37 @@ export async function getDegreeNavigatorReadiness(
     readiness.readiness === 'ready' ? 'ready' : session.status,
   );
   return readiness;
+}
+
+export async function extractDegreeNavigatorFromSession(
+  sessionId: string,
+  ownerId: string,
+): Promise<DegreeNavigatorExtractionResult> {
+  const session = await sessionRepository.getOwned(sessionId, ownerId);
+  if (session.target !== 'degree_navigator') {
+    throw new BrowserSessionError('INVALID_BROWSER_TARGET', `Unsupported browser target: ${session.target}`);
+  }
+
+  const connectUrl = await resolveSessionConnectUrl(sessionId);
+  if (!connectUrl) {
+    throw new BrowserSessionError(
+      'BROWSER_PROVIDER_ERROR',
+      'Browser session is running, but no inspection URL is available for Degree Navigator extraction.',
+    );
+  }
+
+  const readinessSnapshot = await playwrightDegreeNavigatorSnapshot(connectUrl);
+  const readiness = classifyDegreeNavigatorReadiness(readinessSnapshot);
+  if (readiness.readiness !== 'ready') {
+    throw new BrowserSessionError(
+      'BROWSER_PROVIDER_ERROR',
+      `Degree Navigator is not ready for extraction yet. Current readiness: ${readiness.readiness}.`,
+    );
+  }
+
+  const result = await playwrightFastDegreeNavigatorExtract(sessionId, connectUrl, ownerId);
+  await sessionRepository.touch(sessionId, ownerId, 'ready');
+  return result;
 }
 
 export function touchSession(sessionId: string, ownerId: string): Promise<BrowserSessionState> {

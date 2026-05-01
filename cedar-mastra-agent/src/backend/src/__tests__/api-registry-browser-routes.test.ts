@@ -8,6 +8,7 @@ import {
 } from '../browser/browserService.js';
 import { BrowserSessionRepository, createInMemoryBrowserSessionRepository } from '../browser/sessionRepository.js';
 import { setAuthTokenVerifier } from '../auth/supabaseAuth.js';
+import { SOC_TOOLS, TOOL_REGISTRY } from '../mastra/tools/toolDefinitions.js';
 
 const TEST_USER_ID = '00000000-0000-4000-8000-000000000001';
 
@@ -39,26 +40,40 @@ describe('browser session API routes', () => {
     };
   });
 
-  it('registers create/status/readiness/close/close-beacon browser session endpoints', () => {
+  it('registers create/status/readiness/extract/close/close-beacon browser session endpoints', () => {
     const byPath = new Map(apiRoutes.map((route) => [route.path, route]));
 
     const createRoute = byPath.get('/browser/session/create');
     const statusRoute = byPath.get('/browser/session/status');
     const readinessRoute = byPath.get('/browser/session/degree-navigator-readiness');
+    const extractRoute = byPath.get('/browser/session/degree-navigator-extract');
     const closeRoute = byPath.get('/browser/session/close');
     const closeBeaconRoute = byPath.get('/browser/session/close-beacon');
 
     assert.ok(createRoute, 'Missing /browser/session/create route');
     assert.ok(statusRoute, 'Missing /browser/session/status route');
     assert.ok(readinessRoute, 'Missing /browser/session/degree-navigator-readiness route');
+    assert.ok(extractRoute, 'Missing /browser/session/degree-navigator-extract route');
     assert.ok(closeRoute, 'Missing /browser/session/close route');
     assert.ok(closeBeaconRoute, 'Missing /browser/session/close-beacon route');
 
     assert.strictEqual(createRoute?.method, 'POST');
     assert.strictEqual(statusRoute?.method, 'POST');
     assert.strictEqual(readinessRoute?.method, 'POST');
+    assert.strictEqual(extractRoute?.method, 'POST');
     assert.strictEqual(closeRoute?.method, 'POST');
     assert.strictEqual(closeBeaconRoute?.method, 'POST');
+  });
+
+  it('makes the extraction run read tool available to the agent tool registry', () => {
+    assert.strictEqual(
+      TOOL_REGISTRY.degreeNavigator.readDegreeNavigatorExtractionRun.id,
+      'readDegreeNavigatorExtractionRun',
+    );
+    assert.ok(
+      SOC_TOOLS.some((tool) => tool.id === 'readDegreeNavigatorExtractionRun'),
+      'Missing readDegreeNavigatorExtractionRun in SOC tools',
+    );
   });
 
   it('accepts text/plain close-beacon payloads and returns 200', async () => {

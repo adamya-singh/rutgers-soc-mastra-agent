@@ -22,6 +22,7 @@ import {
   browserAct,
   readDegreeNavigatorProfile,
   saveDegreeNavigatorProfile,
+  readDegreeNavigatorExtractionRun,
 } from './index.js';
 import { mastraDocsSearchTool } from './mastraDocsSearchTool.js';
 
@@ -282,6 +283,7 @@ export const TOOL_REGISTRY = {
   },
   degreeNavigator: {
     readDegreeNavigatorProfile,
+    readDegreeNavigatorExtractionRun,
     saveDegreeNavigatorProfile,
   },
   textManipulation: {
@@ -322,6 +324,7 @@ export const SOC_TOOLS = [
   browserExtract,
   browserAct,
   readDegreeNavigatorProfile,
+  readDegreeNavigatorExtractionRun,
   saveDegreeNavigatorProfile,
 ];
 

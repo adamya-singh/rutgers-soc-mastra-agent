@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DegreeNavigatorExtractionSummarySchema } from '../degree-navigator/schemas.js';
 
 export const BrowserTargetSchema = z.enum(['degree_navigator']);
 
@@ -43,6 +44,13 @@ export const DegreeNavigatorReadinessResponseSchema = z.object({
   urlPath: z.string().optional(),
   title: z.string().optional(),
   checkedAt: z.string().min(1),
+});
+
+export const DegreeNavigatorExtractionRequestSchema = StatusBrowserSessionRequestSchema;
+
+export const DegreeNavigatorExtractionResponseSchema = z.object({
+  runId: z.string().uuid(),
+  summary: DegreeNavigatorExtractionSummarySchema,
 });
 
 export const CloseBrowserSessionRequestSchema = StatusBrowserSessionRequestSchema;

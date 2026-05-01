@@ -16,6 +16,7 @@ import {
   browserExtract,
   browserAct,
   readDegreeNavigatorProfile,
+  readDegreeNavigatorExtractionRun,
   saveDegreeNavigatorProfile,
 } from '../tools/index.js';
 import {
@@ -134,7 +135,7 @@ and explore the Schedule of Classes (SOC) database.
 4. **Sensitive actions need confirmation**: For submit/register/drop/confirm actions, require explicit user confirmation and pass a confirmation token before calling \`browserAct\`.
 5. **Observe before action**: Use \`browserObserve\` or \`browserExtract\` before complex actions.
 6. **Saving student data**: When the user asks to save or sync Degree Navigator information, first extract and normalize it to the Degree Navigator capture schema, then call \`saveDegreeNavigatorProfile\`. Never provide or infer a user id; the backend scopes the save to the authenticated user.
-7. **Sync button prompts**: If the prompt says to sync from the active Degree Navigator browser session, proceed directly with read-only observation/extraction and save the capture. Do not ask for Rutgers credentials or ask the user to repeat information that is visible in the logged-in browser session.
+7. **Extraction run syncs**: If the prompt provides a Degree Navigator extraction \`runId\`, call \`readDegreeNavigatorExtractionRun\`, normalize all profile/program/audit/requirement/transcript evidence into the Degree Navigator capture schema, then call \`saveDegreeNavigatorProfile\` exactly once. Do not use browser navigation, browser observation, or browser extraction for runId syncs. If the extraction run is missing or unusable, stop and explain the issue instead of scraping the browser yourself.
 
 ## Saved Degree Navigator Data
 
@@ -197,6 +198,7 @@ export const socAgent = new Agent({
     browserExtract,
     browserAct,
     readDegreeNavigatorProfile,
+    readDegreeNavigatorExtractionRun,
     saveDegreeNavigatorProfile,
     changeText: changeTextTool,
     addNewTextLine: addNewTextLineTool,

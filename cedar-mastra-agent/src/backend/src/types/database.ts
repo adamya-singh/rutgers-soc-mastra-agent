@@ -173,6 +173,39 @@ export type Database = {
         }
         Relationships: []
       }
+      degree_navigator_extraction_runs: {
+        Row: {
+          browser_session_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          payload: Json
+          status: string
+          summary: Json
+          user_id: string
+        }
+        Insert: {
+          browser_session_id: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          payload: Json
+          status?: string
+          summary?: Json
+          user_id: string
+        }
+        Update: {
+          browser_session_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          payload?: Json
+          status?: string
+          summary?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
       course_campus_locations: {
         Row: {
           code: string
