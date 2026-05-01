@@ -1,7 +1,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 
-import { classifyDegreeNavigatorReadiness } from '../browser/browserService.js';
+import {
+  classifyDegreeNavigatorReadiness,
+  isTransientDegreeNavigatorReadinessError,
+} from '../browser/browserService.js';
 
 describe('Degree Navigator readiness classifier', () => {
   it('treats Rutgers SSO pages as awaiting login', () => {
@@ -45,5 +48,25 @@ describe('Degree Navigator readiness classifier', () => {
 
     assert.strictEqual(readiness.readiness, 'unknown');
     assert.strictEqual(readiness.urlHost, 'example.com');
+  });
+
+  it('treats Playwright navigation races as transient readiness errors', () => {
+    assert.strictEqual(
+      isTransientDegreeNavigatorReadinessError(
+        new Error('page.evaluate: Execution context was destroyed, most likely because of a navigation'),
+      ),
+      true,
+    );
+    assert.strictEqual(
+      isTransientDegreeNavigatorReadinessError(new Error('Protocol error: Cannot find context with specified id')),
+      true,
+    );
+  });
+
+  it('does not treat unrelated provider failures as transient readiness errors', () => {
+    assert.strictEqual(
+      isTransientDegreeNavigatorReadinessError(new Error('Browserbase credentials are missing.')),
+      false,
+    );
   });
 });

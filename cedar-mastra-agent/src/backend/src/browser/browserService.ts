@@ -36,6 +36,8 @@ const RUTGERS_LOGIN_HOSTS = new Set([
 const BROWSER_REAPER_INTERVAL_MS = 10_000;
 const BROWSER_REAPER_IDLE_CUTOFF_MS = 60_000;
 const BROWSER_SESSION_TIMEOUT_SECONDS = 60 * 60;
+const DEGREE_NAVIGATOR_READINESS_SNAPSHOT_ATTEMPTS = 3;
+const DEGREE_NAVIGATOR_READINESS_RETRY_MS = 500;
 const DEGREE_NAVIGATOR_BROWSER_VIEWPORT = {
   width: 1024,
   height: 620,
@@ -68,6 +70,18 @@ interface DegreeNavigatorPageSnapshot {
   url?: string;
   title?: string;
   hasPostLoginMarker?: boolean;
+}
+
+export function isTransientDegreeNavigatorReadinessError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  const normalized = message.toLowerCase();
+
+  return (
+    normalized.includes('execution context was destroyed') ||
+    normalized.includes('most likely because of a navigation') ||
+    normalized.includes('cannot find context with specified id') ||
+    normalized.includes('frame was detached')
+  );
 }
 
 export interface ProviderTerminationResult {
@@ -778,31 +792,62 @@ async function playwrightDegreeNavigatorSnapshot(
     browser = await chromium.connectOverCDP(connectUrl);
     const context = browser.contexts()[0] ?? (await browser.newContext());
     const page = context.pages()[0] ?? (await context.newPage());
-    const url = typeof page.url === 'function' ? page.url() : undefined;
-    const title = typeof page.title === 'function' ? await page.title() : undefined;
-    const hasPostLoginMarker =
-      typeof page.evaluate === 'function'
-        ? await page.evaluate(() => {
-            const bodyText = document.body?.innerText?.slice(0, 8000).toLowerCase() ?? '';
-            const actionText = Array.from(document.querySelectorAll('a,button'))
-              .map((element) => element.textContent ?? '')
-              .join(' ')
-              .toLowerCase();
+    let latestSnapshot: DegreeNavigatorPageSnapshot = {};
 
-            const hasExitAction = /\b(log\s*out|logout|sign\s*out)\b/.test(actionText);
-            const hasDegreeNavigatorShell = bodyText.includes('degree navigator');
-            const hasStudentDataSurface = /\b(audit|program|transcript|requirement|school|student)\b/.test(bodyText);
-            const hasLoginPrompt = /\b(netid|password|login|log in|sign in|duo|two-step)\b/.test(bodyText);
+    for (let attempt = 1; attempt <= DEGREE_NAVIGATOR_READINESS_SNAPSHOT_ATTEMPTS; attempt += 1) {
+      try {
+        const url = typeof page.url === 'function' ? page.url() : undefined;
+        const title = typeof page.title === 'function' ? await page.title() : undefined;
+        latestSnapshot = {
+          url,
+          title,
+        };
+        const hasPostLoginMarker =
+          typeof page.evaluate === 'function'
+            ? await page.evaluate(() => {
+                const bodyText = document.body?.innerText?.slice(0, 8000).toLowerCase() ?? '';
+                const actionText = Array.from(document.querySelectorAll('a,button'))
+                  .map((element) => element.textContent ?? '')
+                  .join(' ')
+                  .toLowerCase();
 
-            return hasExitAction || (hasDegreeNavigatorShell && hasStudentDataSurface && !hasLoginPrompt);
-          })
-        : false;
+                const hasExitAction = /\b(log\s*out|logout|sign\s*out)\b/.test(actionText);
+                const hasDegreeNavigatorShell = bodyText.includes('degree navigator');
+                const hasStudentDataSurface = /\b(audit|program|transcript|requirement|school|student)\b/.test(bodyText);
+                const hasLoginPrompt = /\b(netid|password|login|log in|sign in|duo|two-step)\b/.test(bodyText);
 
-    return {
-      url,
-      title,
-      hasPostLoginMarker,
-    };
+                return hasExitAction || (hasDegreeNavigatorShell && hasStudentDataSurface && !hasLoginPrompt);
+              })
+            : false;
+
+        return {
+          url,
+          title,
+          hasPostLoginMarker,
+        };
+      } catch (error) {
+        if (!isTransientDegreeNavigatorReadinessError(error)) {
+          throw error;
+        }
+
+        latestSnapshot = {
+          url: typeof page.url === 'function' ? page.url() : latestSnapshot.url,
+          title: latestSnapshot.title,
+        };
+
+        if (attempt === DEGREE_NAVIGATOR_READINESS_SNAPSHOT_ATTEMPTS) {
+          return latestSnapshot;
+        }
+
+        if (typeof page.waitForTimeout === 'function') {
+          await page.waitForTimeout(DEGREE_NAVIGATOR_READINESS_RETRY_MS);
+        } else {
+          await new Promise((resolve) => setTimeout(resolve, DEGREE_NAVIGATOR_READINESS_RETRY_MS));
+        }
+      }
+    }
+
+    return latestSnapshot;
   } catch (error) {
     if (error instanceof BrowserSessionError) {
       throw error;

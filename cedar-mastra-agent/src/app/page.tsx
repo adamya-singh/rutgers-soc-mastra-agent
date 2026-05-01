@@ -115,6 +115,19 @@ const HIDDEN_TIMEOUT_MS = 30_000;
 const IDLE_TIMEOUT_MS = 60_000;
 const DEGREE_NAVIGATOR_SYNC_POLL_MS = 2500;
 const DEGREE_NAVIGATOR_SYNC_TIMEOUT_MS = 5 * 60_000;
+function isTransientDegreeNavigatorReadinessError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  const normalized = message.toLowerCase();
+
+  return (
+    normalized.includes('degree navigator readiness check failed') &&
+    (normalized.includes('execution context was destroyed') ||
+      normalized.includes('most likely because of a navigation') ||
+      normalized.includes('cannot find context with specified id') ||
+      normalized.includes('frame was detached'))
+  );
+}
+
 function buildDegreeNavigatorExtractionPrompt(result: DegreeNavigatorExtractionResponse): string {
   const { runId, summary } = result;
   return `Read the Degree Navigator extraction run ${runId}, normalize all profile, program, audit, requirement, and transcript data, then save it to the application with saveDegreeNavigatorProfile exactly once.
@@ -649,7 +662,25 @@ export default function HomePage() {
           return;
         }
 
-        const readiness = await checkDegreeNavigatorReadiness(session.sessionId);
+        let readiness: DegreeNavigatorReadinessResponse;
+        try {
+          readiness = await checkDegreeNavigatorReadiness(session.sessionId);
+        } catch (error) {
+          if (!isTransientDegreeNavigatorReadinessError(error)) {
+            throw error;
+          }
+
+          if (Date.now() - startedAt > DEGREE_NAVIGATOR_SYNC_TIMEOUT_MS) {
+            throw new Error('Timed out waiting for Degree Navigator login. Try Sync again after signing in.');
+          }
+
+          setDegreeNavigatorSyncMessage('Waiting for Degree Navigator to finish loading after login.');
+          await new Promise((resolve) => {
+            window.setTimeout(resolve, DEGREE_NAVIGATOR_SYNC_POLL_MS);
+          });
+          continue;
+        }
+
         if (readiness.readiness === 'ready') {
           break;
         }
