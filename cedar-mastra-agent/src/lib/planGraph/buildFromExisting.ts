@@ -46,6 +46,18 @@ export type DnRequirement = {
   stillNeeded?: Array<{
     label: string;
     courseOptions?: string[];
+    requiredCount?: number;
+    completedCount?: number;
+    neededCount?: number;
+    description?: string;
+  }>;
+  requirementOptions?: Array<{
+    label: string;
+    courseOptions?: string[];
+    requiredCount?: number;
+    completedCount?: number;
+    neededCount?: number;
+    description?: string;
   }>;
   notes?: string[];
 };
@@ -347,17 +359,24 @@ export function buildPlanGraphFromExisting(
           }
         }
 
-        (req.stillNeeded ?? []).forEach((needed, neededIndex) => {
-          const options = needed.courseOptions ?? [];
+        const requirementOptions = req.requirementOptions ?? req.stillNeeded ?? [];
+        const stillNeeded = req.requirementOptions
+          ? req.stillNeeded ?? []
+          : req.status === 'complete'
+            ? []
+            : req.stillNeeded ?? [];
+
+        requirementOptions.forEach((option, optionIndex) => {
+          const options = option.courseOptions ?? [];
           if (options.length === 0) {
-            const noteId = `note-${reqId}-need-${neededIndex}`;
+            const noteId = `note-${reqId}-option-${optionIndex}`;
             addNode({
               id: noteId,
               kind: 'note',
-              label: needed.label,
-              data: { body: needed.label, severity: 'info', source: 'system' },
+              label: option.label,
+              data: { body: option.description ?? option.label, severity: 'info', source: 'system' },
             });
-            addEdge(reqId, noteId, 'contains', 'still needed');
+            addEdge(reqId, noteId, 'contains', 'requirement option');
             return;
           }
           const placeholderCourses = options.map((code) =>
@@ -370,7 +389,7 @@ export function buildPlanGraphFromExisting(
             ),
           );
           for (const id of placeholderCourses) {
-            addEdge(reqId, id, 'satisfies', 'still needed');
+            addEdge(reqId, id, 'satisfies', 'requirement option');
           }
           if (placeholderCourses.length > 1) {
             for (let i = 0; i < placeholderCourses.length - 1; i += 1) {
@@ -380,6 +399,25 @@ export function buildPlanGraphFromExisting(
                 'alternative_to',
               );
             }
+          }
+        });
+
+        stillNeeded.forEach((needed, neededIndex) => {
+          const options = needed.courseOptions ?? [];
+          if (options.length === 0) {
+            const noteId = `note-${reqId}-need-${neededIndex}`;
+            addNode({
+              id: noteId,
+              kind: 'note',
+              label: needed.label,
+              data: { body: needed.description ?? needed.label, severity: 'warning', source: 'system' },
+            });
+            addEdge(reqId, noteId, 'contains', 'still needed');
+            return;
+          }
+          for (const code of options) {
+            const courseId = ensureCourseNode({ courseCode: code, status: 'planned' }, {});
+            addEdge(reqId, courseId, 'satisfies', 'still needed');
           }
         });
       });

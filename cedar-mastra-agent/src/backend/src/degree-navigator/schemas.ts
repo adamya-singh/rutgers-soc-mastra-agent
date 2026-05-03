@@ -56,6 +56,17 @@ export const DegreeNavigatorProgramSchema = z.object({
   kind: z.enum(['core', 'major', 'minor', 'certificate', 'other']).optional(),
 });
 
+export const DegreeNavigatorRequirementOptionSchema = z.object({
+  label: z.string().min(1),
+  courseOptions: z.array(z.string().min(1)).optional(),
+  requiredCount: z.number().int().optional(),
+  completedCount: z.number().int().optional(),
+  neededCount: z.number().int().optional(),
+  description: z.string().min(1).optional(),
+});
+
+export const DegreeNavigatorStillNeededSchema = DegreeNavigatorRequirementOptionSchema;
+
 export const DegreeNavigatorRequirementSchema: z.ZodType<{
   code?: string;
   title: string;
@@ -65,11 +76,10 @@ export const DegreeNavigatorRequirementSchema: z.ZodType<{
   totalCount?: number;
   neededCount?: number;
   courses?: z.infer<typeof DegreeNavigatorCourseRefSchema>[];
-  stillNeeded?: Array<{
-    label: string;
-    courseOptions?: string[];
-  }>;
+  stillNeeded?: z.infer<typeof DegreeNavigatorStillNeededSchema>[];
+  requirementOptions?: z.infer<typeof DegreeNavigatorRequirementOptionSchema>[];
   notes?: string[];
+  conditions?: string[];
 }> = z.object({
   code: z.string().min(1).optional(),
   title: z.string().min(1),
@@ -79,11 +89,10 @@ export const DegreeNavigatorRequirementSchema: z.ZodType<{
   totalCount: z.number().int().optional(),
   neededCount: z.number().int().optional(),
   courses: z.array(DegreeNavigatorCourseRefSchema).optional(),
-  stillNeeded: z.array(z.object({
-    label: z.string().min(1),
-    courseOptions: z.array(z.string().min(1)).optional(),
-  })).optional(),
+  stillNeeded: z.array(DegreeNavigatorStillNeededSchema).optional(),
+  requirementOptions: z.array(DegreeNavigatorRequirementOptionSchema).optional(),
   notes: z.array(z.string().min(1)).optional(),
+  conditions: z.array(z.string().min(1)).optional(),
 });
 
 export const DegreeNavigatorAuditSchema = z.object({
@@ -178,8 +187,55 @@ export const DegreeNavigatorProfileResponseSchema = z.object({
 export const DegreeNavigatorExtractionPageKindSchema = z.enum([
   'my_degrees',
   'degree_audit',
+  'transcript',
   'unknown',
 ]);
+
+export const DegreeNavigatorExtractionCourseHintSchema = z.object({
+  courseCode: z.string().min(1),
+  credits: z.number().optional(),
+  termLabel: z.string().min(1).optional(),
+  grade: z.string().min(1).optional(),
+  status: z.string().min(1).optional(),
+  specialCode: z.string().min(1).optional(),
+  usedAs: z.string().min(1).optional(),
+  rawText: z.string().min(1).optional(),
+});
+
+export const DegreeNavigatorExtractionCourseOptionGroupSchema = z.object({
+  label: z.string().min(1),
+  courseOptions: z.array(z.string().min(1)).default([]),
+  requiredCount: z.number().int().optional(),
+  completedCount: z.number().int().optional(),
+  neededCount: z.number().int().optional(),
+  description: z.string().min(1).optional(),
+});
+
+export const DegreeNavigatorExtractionRequirementHintSchema = z.object({
+  code: z.string().min(1).optional(),
+  title: z.string().min(1),
+  status: z.string().min(1).optional(),
+  summary: z.string().min(1).optional(),
+  completedCount: z.number().int().optional(),
+  totalCount: z.number().int().optional(),
+  neededCount: z.number().int().optional(),
+  description: z.string().min(1).optional(),
+  notes: z.array(z.string().min(1)).default([]),
+  conditions: z.array(z.string().min(1)).default([]),
+  courseOptions: z.array(z.string().min(1)).default([]),
+  courseOptionGroups: z.array(DegreeNavigatorExtractionCourseOptionGroupSchema).default([]),
+  completedCourses: z.array(DegreeNavigatorExtractionCourseHintSchema).default([]),
+  rawText: z.string().min(1).optional(),
+});
+
+export const DegreeNavigatorExtractionTranscriptTermHintSchema = z.object({
+  label: z.string().min(1),
+  year: z.number().int().optional(),
+  termName: z.string().min(1).optional(),
+  termCode: z.string().min(1).optional(),
+  source: z.enum(['transcript', 'ap_credit', 'placement', 'other']).default('transcript'),
+  courses: z.array(DegreeNavigatorExtractionCourseHintSchema).default([]),
+});
 
 export const DegreeNavigatorExtractionPayloadSchema = z.object({
   capturedAt: z.string().datetime(),
@@ -199,6 +255,41 @@ export const DegreeNavigatorExtractionPayloadSchema = z.object({
       href: z.string().url(),
     })),
     courseCodes: z.array(z.string().min(1)).default([]),
+    profileHint: z.object({
+      name: z.string().min(1).optional(),
+      ruid: z.string().min(1).optional(),
+      netid: z.string().min(1).optional(),
+      schoolCode: z.string().min(1).optional(),
+      schoolName: z.string().min(1).optional(),
+      graduationYear: z.string().min(1).optional(),
+      graduationMonth: z.string().min(1).optional(),
+      plannedCourseCount: z.number().int().optional(),
+    }).optional(),
+    programHints: z.array(z.object({
+      code: z.string().min(1).optional(),
+      title: z.string().min(1),
+      campus: z.string().min(1).optional(),
+      kind: z.enum(['core', 'major', 'minor', 'certificate', 'other']).optional(),
+      auditUrl: z.string().url().optional(),
+    })).default([]),
+    auditHint: z.object({
+      programCode: z.string().min(1).optional(),
+      title: z.string().min(1).optional(),
+      versionTerm: z.string().min(1).optional(),
+      completedCredits: z.number().nullable().optional(),
+      completedRequirements: z.object({
+        completed: z.number().int(),
+        total: z.number().int(),
+      }).optional(),
+      gpa: z.object({
+        label: z.string().min(1).optional(),
+        value: z.number().optional(),
+        status: z.string().min(1).optional(),
+      }).optional(),
+      requirements: z.array(DegreeNavigatorExtractionRequirementHintSchema).default([]),
+      conditions: z.array(z.string().min(1)).default([]),
+    }).optional(),
+    transcriptTermHints: z.array(DegreeNavigatorExtractionTranscriptTermHintSchema).default([]),
   })),
 });
 

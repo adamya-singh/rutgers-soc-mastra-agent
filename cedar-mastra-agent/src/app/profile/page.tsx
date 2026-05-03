@@ -56,8 +56,21 @@ interface DegreeNavigatorRequirement {
   stillNeeded?: Array<{
     label: string;
     courseOptions?: string[];
+    requiredCount?: number;
+    completedCount?: number;
+    neededCount?: number;
+    description?: string;
+  }>;
+  requirementOptions?: Array<{
+    label: string;
+    courseOptions?: string[];
+    requiredCount?: number;
+    completedCount?: number;
+    neededCount?: number;
+    description?: string;
   }>;
   notes?: string[];
+  conditions?: string[];
 }
 
 interface DegreeNavigatorAudit {
@@ -157,17 +170,6 @@ function applyStoredTheme() {
   const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
   const theme = stored === 'light' || stored === 'dark' ? stored : prefersDark ? 'dark' : 'light';
   document.documentElement.classList.toggle('dark', theme === 'dark');
-}
-
-function formatDate(value?: string | null) {
-  if (!value) return 'Not available';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(date);
 }
 
 function formatDateTime(value?: string | null) {
@@ -845,6 +847,12 @@ function RequirementCard({
       : requirement.neededCount !== undefined
         ? `${requirement.neededCount} needed`
         : null;
+  const requirementOptions = requirement.requirementOptions ?? (
+    requirement.status === 'complete' ? requirement.stillNeeded : undefined
+  );
+  const stillNeeded = requirement.status === 'incomplete' || requirement.status === 'projected'
+    ? requirement.stillNeeded
+    : undefined;
 
   return (
     <article className="rounded-xl border border-border bg-surface-2/60 p-4">
@@ -878,15 +886,42 @@ function RequirementCard({
         <CourseList courses={requirement.courses} />
       )}
 
-      {requirement.stillNeeded && requirement.stillNeeded.length > 0 && (
+      {requirementOptions && requirementOptions.length > 0 && (
+        <div className="mt-4 rounded-lg border border-border bg-surface-1 p-3">
+          <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            Requirement options
+          </p>
+          <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
+            {requirementOptions.map((option, index) => (
+              <li key={`${option.label}-${index}`}>
+                <span className="text-foreground">{option.label}</span>
+                {option.requiredCount !== undefined && (
+                  <span> · requires {option.requiredCount}</span>
+                )}
+                {option.completedCount !== undefined && (
+                  <span> · {option.completedCount} completed</span>
+                )}
+                {option.courseOptions && option.courseOptions.length > 0 && (
+                  <span> · {option.courseOptions.join(' or ')}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {stillNeeded && stillNeeded.length > 0 && (
         <div className="mt-4 rounded-lg border border-warning/25 bg-warning/5 p-3">
           <p className="text-xs font-medium uppercase tracking-[0.14em] text-warning">
             Still needed
           </p>
           <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
-            {requirement.stillNeeded.map((needed, index) => (
+            {stillNeeded.map((needed, index) => (
               <li key={`${needed.label}-${index}`}>
                 <span className="text-foreground">{needed.label}</span>
+                {needed.neededCount !== undefined && (
+                  <span> · needs {needed.neededCount}</span>
+                )}
                 {needed.courseOptions && needed.courseOptions.length > 0 && (
                   <span> · {needed.courseOptions.join(' or ')}</span>
                 )}

@@ -9,6 +9,7 @@ import type {
   DegreeNavigatorCapture,
   DegreeNavigatorProfileRow,
 } from '../degree-navigator/schemas.js';
+import { DegreeNavigatorCaptureSchema } from '../degree-navigator/schemas.js';
 
 const AUTHENTICATED_USER_ID = '11111111-1111-4111-8111-111111111111';
 
@@ -241,6 +242,92 @@ describe('saveDegreeNavigatorProfile tool', () => {
     assert.strictEqual(result.profile.transcriptTerms[0].courses[0].title, 'Linear Algebra');
   });
 
+  it('preserves requirement conditions and structured still-needed metadata through validation', () => {
+    const parsed = DegreeNavigatorCaptureSchema.parse(createCapture({
+      audits: [
+        {
+          title: 'Computer Science Major',
+          conditions: ['No more than 1 course with a grade equal to D may be used.'],
+          requirements: [
+            {
+              title: 'Requirement R4 : Physics or Chemistry Courses',
+              status: 'incomplete',
+              conditions: ['No more than 1 course with a grade equal to D may be used.'],
+              requirementOptions: [
+                {
+                  label: 'Physics sequence',
+                  requiredCount: 4,
+                  completedCount: 2,
+                  neededCount: 2,
+                  description: '4 courses from Physics sequence',
+                  courseOptions: ['01:750:203', '01:750:204', '01:750:205', '01:750:206'],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }));
+
+    assert.strictEqual(parsed.audits[0].requirements[0].conditions?.[0], 'No more than 1 course with a grade equal to D may be used.');
+    assert.strictEqual(parsed.audits[0].requirements[0].requirementOptions?.[0].requiredCount, 4);
+    assert.strictEqual(parsed.audits[0].requirements[0].requirementOptions?.[0].neededCount, 2);
+  });
+
+  it('normalizes requirement options separately from true still-needed groups', async () => {
+    let savedCapture: DegreeNavigatorCapture | null = null;
+
+    await runSaveDegreeNavigatorProfile(
+      createCapture({
+        audits: [
+          {
+            title: 'Computer Science Major',
+            requirements: [
+              {
+                title: 'Requirement R1 : Computer Science Core',
+                status: 'complete',
+                courses: [{ courseCode: '01:198:111', title: 'Intro Computer Science', status: 'completed' }],
+                stillNeeded: [
+                  {
+                    label: 'Intro to Computer Science',
+                    requiredCount: 1,
+                    courseOptions: ['01:198:111'],
+                  },
+                ],
+              },
+              {
+                title: 'Requirement R2 : Data Science Context',
+                status: 'incomplete',
+                courses: [],
+                stillNeeded: [
+                  {
+                    label: 'Data in Context',
+                    requiredCount: 1,
+                    courseOptions: ['04:547:225'],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+      { get: (key: string) => (key === 'authenticatedUserId' ? AUTHENTICATED_USER_ID : undefined) },
+      {
+        enrichCapture: async (capture) => capture,
+        upsertProfile: async (userId, capture) => {
+          savedCapture = capture;
+          return createProfileRow(userId, capture);
+        },
+      },
+    );
+
+    const [completeRequirement, incompleteRequirement] = savedCapture!.audits[0].requirements;
+    assert.strictEqual(completeRequirement.requirementOptions?.length, 1);
+    assert.deepStrictEqual(completeRequirement.stillNeeded, []);
+    assert.strictEqual(incompleteRequirement.requirementOptions?.length, 1);
+    assert.strictEqual(incompleteRequirement.stillNeeded?.[0].courseOptions?.[0], '04:547:225');
+  });
+
   it('rejects obviously duplicated program saves before enrichment or persistence', async () => {
     let called = false;
 
@@ -346,5 +433,142 @@ describe('saveDegreeNavigatorProfile tool', () => {
     );
 
     assert.strictEqual(called, false);
+  });
+
+  it('rejects course-code placeholder titles that remain after enrichment', async () => {
+    let called = false;
+
+    await assert.rejects(
+      runSaveDegreeNavigatorProfile(
+        createCapture({
+          transcriptTerms: [
+            {
+              label: 'Fall 2024',
+              source: 'transcript',
+              courses: Array.from({ length: 6 }, (_, index) => ({
+                courseCode: `01:198:${String(111 + index).padStart(3, '0')}`,
+                title: `01:198:${String(111 + index).padStart(3, '0')}`,
+              })),
+            },
+          ],
+        }),
+        { get: (key: string) => (key === 'authenticatedUserId' ? AUTHENTICATED_USER_ID : undefined) },
+        {
+          enrichCapture: async (capture) => capture,
+          upsertProfile: async (userId, capture) => {
+            called = true;
+            return createProfileRow(userId, capture);
+          },
+        },
+      ),
+      /placeholder titles/,
+    );
+
+    assert.strictEqual(called, false);
+  });
+
+  it('rejects audit-level conditions that are not copied to requirements', async () => {
+    let called = false;
+
+    await assert.rejects(
+      runSaveDegreeNavigatorProfile(
+        createCapture({
+          audits: [
+            {
+              title: 'Computer Science Major',
+              conditions: ['No more than 1 course with a grade equal to D may be used.'],
+              requirements: [
+                {
+                  title: 'Requirement R1 : Computer Science Core',
+                  status: 'complete',
+                },
+              ],
+            },
+          ],
+        }),
+        { get: (key: string) => (key === 'authenticatedUserId' ? AUTHENTICATED_USER_ID : undefined) },
+        {
+          enrichCapture: async (capture) => capture,
+          upsertProfile: async (userId, capture) => {
+            called = true;
+            return createProfileRow(userId, capture);
+          },
+        },
+      ),
+      /audit conditions/,
+    );
+
+    assert.strictEqual(called, false);
+  });
+
+  it('allows requirement summaries that use ordinary count language', async () => {
+    let called = false;
+
+    await runSaveDegreeNavigatorProfile(
+      createCapture({
+        audits: [
+          {
+            title: 'Computer Science Major',
+            requirements: [
+              {
+                title: 'Requirement R3 : Computer Science Electives',
+                status: 'projected',
+                summary: 'A total of 7 courses with at least 5 courses from Computer Science electives.',
+                courses: [
+                  {
+                    courseCode: '01:198:439',
+                    title: 'Intro Data Science',
+                    status: 'completed',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+      { get: (key: string) => (key === 'authenticatedUserId' ? AUTHENTICATED_USER_ID : undefined) },
+      {
+        enrichCapture: async (capture) => capture,
+        upsertProfile: async (userId, capture) => {
+          called = true;
+          return createProfileRow(userId, capture);
+        },
+      },
+    );
+
+    assert.strictEqual(called, true);
+  });
+
+  it('moves learning-goal text from conditions into notes before saving', async () => {
+    let savedCapture: DegreeNavigatorCapture | null = null;
+    const learningGoal = 'Students will be able to apply basic principles and concepts in the physical sciences.';
+
+    await runSaveDegreeNavigatorProfile(
+      createCapture({
+        audits: [
+          {
+            title: 'SAS Core',
+            requirements: [
+              {
+                title: 'Requirement R2 : Natural Sciences',
+                status: 'incomplete',
+                conditions: [learningGoal],
+              },
+            ],
+          },
+        ],
+      }),
+      { get: (key: string) => (key === 'authenticatedUserId' ? AUTHENTICATED_USER_ID : undefined) },
+      {
+        enrichCapture: async (capture) => capture,
+        upsertProfile: async (userId, capture) => {
+          savedCapture = capture;
+          return createProfileRow(userId, capture);
+        },
+      },
+    );
+
+    assert.deepStrictEqual(savedCapture?.audits[0].requirements[0].conditions, undefined);
+    assert.deepStrictEqual(savedCapture?.audits[0].requirements[0].notes, [learningGoal]);
   });
 });

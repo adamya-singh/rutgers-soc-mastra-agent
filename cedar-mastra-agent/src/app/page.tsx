@@ -134,7 +134,7 @@ function buildDegreeNavigatorExtractionPrompt(result: DegreeNavigatorExtractionR
 
 Extraction summary: ${summary.pageCount} pages (${summary.auditPageCount} audit pages, ${summary.myDegreesPageCount} My Degrees pages), ${summary.tableCount} tables, ${summary.sectionCount} text sections, ${summary.linkCount} links, and ${summary.courseCodeCount} discovered course codes.
 
-Use readDegreeNavigatorExtractionRun with this runId. Do not navigate or scrape the browser yourself. If the extraction run is missing or unusable, stop and explain the problem instead of falling back to browser automation.`;
+Use readDegreeNavigatorExtractionRun with this runId. Prefer the structured profileHint, programHints, auditHint.requirements, auditHint.requirements.courseOptionGroups, transcriptTermHints, and courseCodes fields over noisy raw table text. Save all allowed course option groups as requirementOptions; save stillNeeded only for genuinely unmet groups. Copy rule constraints into requirement conditions, including minimum grade, maximum D-grade, residency, or distinct-course rules. Put advising prose and learning-goal text in notes, not conditions. Use table-derived transcriptTermHints for transcript/AP/placement terms before falling back to raw tables. Preserve requirement descriptions, completed/current/planned courses, used-as mappings, special codes, and transcript terms when present. Do not navigate or scrape the browser yourself. If the extraction run is missing or unusable, stop and explain the problem instead of falling back to browser automation.`;
 }
 
 function getBrowserPaneStatus(session: BrowserSessionState | null): BrowserPaneStatus {

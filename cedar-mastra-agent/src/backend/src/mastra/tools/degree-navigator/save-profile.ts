@@ -9,6 +9,7 @@ import {
   DegreeNavigatorCaptureInput,
   DegreeNavigatorCaptureInputSchema,
   DegreeNavigatorCaptureSchema,
+  DegreeNavigatorRequirement,
   DegreeNavigatorProfileResponseSchema,
   DegreeNavigatorProfileRowSchema,
   DegreeNavigatorProfileRow,
@@ -58,6 +59,166 @@ export function assertSafeDegreeNavigatorProfileSave(capture: DegreeNavigatorCap
   }
 }
 
+function countCourseCodePlaceholderTitles(capture: DegreeNavigatorCapture): number {
+  const courses = [
+    ...capture.transcriptTerms.flatMap((term) => term.courses),
+    ...capture.audits.flatMap((audit) => [
+      ...audit.requirements.flatMap((requirement) => requirement.courses ?? []),
+      ...(audit.unusedCourses ?? []),
+    ]),
+  ];
+
+  return courses.filter((course) => course.title?.trim() === course.courseCode.trim()).length;
+}
+
+function hasConditionLikeText(values: Array<string | undefined>): boolean {
+  return values.some((value) =>
+    /\b(no more than|minimum grade|must achieve|required grade|grade equal to|may be used)\b/i.test(value ?? ''),
+  );
+}
+
+function normalizeConditionLikeText(value: string): string {
+  return value.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function isRuleCondition(value: string): boolean {
+  return /\b(no more than|minimum grade|must achieve|required grade|grade equal to|may be used|residency|distinct and separate|cannot be used)\b/i.test(value);
+}
+
+function isLearningGoalOrAdvisingNote(value: string): boolean {
+  return /\b(students will be able to|students will meet|students must meet|recommended|advising|learning goals?)\b/i.test(value);
+}
+
+function dedupeStrings(values: string[] | undefined): string[] | undefined {
+  const deduped = [...new Map(
+    (values ?? [])
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .map((value) => [normalizeConditionLikeText(value), value] as const),
+  ).values()];
+  return deduped.length > 0 ? deduped : undefined;
+}
+
+function splitRequirementNotesAndConditions(
+  requirement: DegreeNavigatorRequirement,
+): Pick<DegreeNavigatorRequirement, 'notes' | 'conditions'> {
+  const notes = [...(requirement.notes ?? [])];
+  const conditions: string[] = [];
+  for (const condition of requirement.conditions ?? []) {
+    if (isLearningGoalOrAdvisingNote(condition) && !isRuleCondition(condition)) {
+      notes.push(condition);
+    } else {
+      conditions.push(condition);
+    }
+  }
+
+  return {
+    notes: dedupeStrings(notes),
+    conditions: dedupeStrings(conditions),
+  };
+}
+
+function normalizeRequirementOptions(requirement: DegreeNavigatorRequirement): DegreeNavigatorRequirement {
+  const requirementOptions = requirement.requirementOptions ?? requirement.stillNeeded ?? [];
+  const satisfiedCourseCodes = new Set(
+    (requirement.courses ?? [])
+      .filter((course) => course.status !== 'unused')
+      .map((course) => course.courseCode),
+  );
+  const normalizedOptions = requirementOptions.map((option) => {
+    const optionCodes = option.courseOptions ?? [];
+    const completedCount = optionCodes.filter((code) => satisfiedCourseCodes.has(code)).length;
+    const requiredCount = option.requiredCount ?? (optionCodes.length === 1 ? 1 : undefined);
+    const neededCount = requiredCount !== undefined
+      ? Math.max(requiredCount - completedCount, 0)
+      : option.neededCount;
+    return {
+      ...option,
+      ...(completedCount > 0 ? { completedCount } : {}),
+      ...(neededCount !== undefined ? { neededCount } : {}),
+    };
+  });
+  const hasSatisfiedOption = (option: typeof normalizedOptions[number]) =>
+    (option.courseOptions ?? []).some((code) => satisfiedCourseCodes.has(code));
+  const stillNeeded = requirement.status === 'complete'
+    ? []
+    : normalizedOptions.filter((option) => {
+        if (option.neededCount !== undefined) return option.neededCount > 0;
+        return !hasSatisfiedOption(option);
+      });
+  const splitFields = splitRequirementNotesAndConditions(requirement);
+
+  return {
+    ...requirement,
+    ...splitFields,
+    requirementOptions: normalizedOptions.length > 0 ? normalizedOptions : undefined,
+    stillNeeded: stillNeeded.length > 0 ? stillNeeded : [],
+  };
+}
+
+export function normalizeDegreeNavigatorCaptureForSave(capture: DegreeNavigatorCapture): DegreeNavigatorCapture {
+  return {
+    ...capture,
+    audits: capture.audits.map((audit) => ({
+      ...audit,
+      requirements: audit.requirements.map(normalizeRequirementOptions),
+    })),
+  };
+}
+
+export function assertCompleteDegreeNavigatorProfileSave(capture: DegreeNavigatorCapture): void {
+  const placeholderTitleCount = countCourseCodePlaceholderTitles(capture);
+  if (placeholderTitleCount > 5) {
+    throw new Error(
+      `Refusing to save Degree Navigator profile with ${placeholderTitleCount} course-code placeholder titles after enrichment.`,
+    );
+  }
+
+  const incompleteRequirementsMissingDetails = capture.audits
+    .flatMap((audit) => audit.requirements)
+    .filter((requirement) =>
+      requirement.status === 'incomplete' &&
+      requirement.summary === 'N/A' &&
+      (requirement.stillNeeded?.length ?? 0) === 0 &&
+      (requirement.notes?.length ?? 0) === 0,
+    );
+
+  if (incompleteRequirementsMissingDetails.length > 3) {
+    throw new Error(
+      `Refusing to save Degree Navigator profile with ${incompleteRequirementsMissingDetails.length} incomplete requirements missing details.`,
+    );
+  }
+
+  const auditsWithUnassignedConditions = capture.audits.filter((audit) =>
+    (audit.conditions?.length ?? 0) > 0 &&
+    !audit.requirements.some((requirement) => (requirement.conditions?.length ?? 0) > 0),
+  );
+  if (auditsWithUnassignedConditions.length > 0) {
+    throw new Error('Refusing to save Degree Navigator profile with audit conditions that were not copied to requirements.');
+  }
+
+  const requirementsWithMisplacedConditions = capture.audits
+    .flatMap((audit) => audit.requirements)
+    .filter((requirement) =>
+      (requirement.conditions?.length ?? 0) === 0 &&
+      hasConditionLikeText([requirement.summary, ...(requirement.notes ?? [])]),
+    );
+  if (requirementsWithMisplacedConditions.length > 0) {
+    throw new Error('Refusing to save Degree Navigator profile with condition text outside requirement conditions.');
+  }
+
+  const requirementsWithNotesInConditions = capture.audits
+    .flatMap((audit) => audit.requirements)
+    .filter((requirement) =>
+      (requirement.conditions ?? []).some((condition) =>
+        isLearningGoalOrAdvisingNote(condition) && !isRuleCondition(condition),
+      ),
+    );
+  if (requirementsWithNotesInConditions.length > 0) {
+    throw new Error('Refusing to save Degree Navigator profile with advising or learning-goal notes in requirement conditions.');
+  }
+}
+
 function requireAuthenticatedUserId(runtimeContext: RuntimeContextLike): string {
   const authenticatedUserId = runtimeContext.get('authenticatedUserId');
   if (typeof authenticatedUserId === 'string' && authenticatedUserId.trim().length > 0) {
@@ -84,8 +245,10 @@ export async function runSaveDegreeNavigatorProfile(
   assertSafeDegreeNavigatorProfileSave(capture);
   const enrichCapture = deps.enrichCapture ?? enrichDegreeNavigatorCourseTitles;
   const enrichedCapture = await enrichCapture(capture);
+  const normalizedCapture = normalizeDegreeNavigatorCaptureForSave(enrichedCapture);
+  assertCompleteDegreeNavigatorProfileSave(normalizedCapture);
   const upsertProfile = deps.upsertProfile ?? upsertDegreeNavigatorProfile;
-  const profile = await upsertProfile(userId, enrichedCapture);
+  const profile = await upsertProfile(userId, normalizedCapture);
 
   return { profile };
 }

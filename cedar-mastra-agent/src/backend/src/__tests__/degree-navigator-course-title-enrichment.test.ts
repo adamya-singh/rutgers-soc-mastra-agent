@@ -7,6 +7,9 @@ import type { DegreeNavigatorCapture } from '../degree-navigator/schemas.js';
 type CourseTitleRow = {
   course_string: string | null;
   title: string | null;
+  year?: number | null;
+  term?: string | null;
+  campus?: string | null;
 };
 
 type QueryCall =
@@ -134,14 +137,9 @@ describe('Degree Navigator course title enrichment', () => {
         (call): call is Extract<QueryCall, { method: 'in' }> =>
           call.method === 'in' && call.column === 'course_string',
       ),
-      [
-        {
-          method: 'in',
-          column: 'course_string',
-          values: ['01:640:250'],
-        },
-      ],
+      [{ method: 'in', column: 'course_string', values: ['01:640:250'] }],
     );
+    assert.strictEqual(calls.some((call) => call.method === 'eq'), false);
   });
 
   it('preserves existing titles and reuses them for duplicate course refs', async () => {
@@ -168,6 +166,67 @@ describe('Degree Navigator course title enrichment', () => {
     assert.strictEqual(result.audits[0].requirements[0].courses?.[0].title, 'Linear Algebra');
     assert.strictEqual(result.audits[0].requirements[0].courses?.[1].title, 'Linear Algebra');
     assert.strictEqual(calls.length, 0);
+  });
+
+  it('replaces course-code placeholder titles from SOC data', async () => {
+    const { client, calls } = createSupabaseClient({
+      data: [
+        {
+          course_string: '01:198:111',
+          title: 'Intro Computer Science',
+        },
+      ],
+      error: null,
+    });
+
+    const result = await enrichDegreeNavigatorCourseTitles(
+      createCapture([
+        {
+          courseCode: '01:198:111',
+          title: '01:198:111',
+        },
+      ]),
+      {
+        supabaseClient: client as never,
+        year: 2026,
+        term: '1',
+      },
+    );
+
+    assert.strictEqual(result.transcriptTerms[0].courses[0].title, 'Intro Computer Science');
+    assert.ok(calls.some((call) => call.method === 'in' && call.column === 'course_string'));
+  });
+
+  it('uses a matching future term title when default term has no row', async () => {
+    const { client } = createSupabaseClient({
+      data: [
+        {
+          course_string: '04:547:225',
+          title: 'DATA IN CONTEXT',
+          year: 2026,
+          term: '9',
+          campus: 'NB',
+        },
+      ],
+      error: null,
+    });
+
+    const result = await enrichDegreeNavigatorCourseTitles(
+      createCapture([
+        {
+          courseCode: '04:547:225',
+          termLabel: 'Fall 2026',
+          status: 'current',
+        },
+      ]),
+      {
+        supabaseClient: client as never,
+        year: 2026,
+        term: '1',
+      },
+    );
+
+    assert.strictEqual(result.transcriptTerms[0].courses[0].title, 'DATA IN CONTEXT');
   });
 
   it('ignores invalid course codes without querying', async () => {
