@@ -1345,7 +1345,7 @@ export default function HomePage() {
         <div className="mx-auto flex h-14 w-full max-w-[1400px] items-center justify-between px-4 sm:px-6">
           <Link href="/" className="focus-ring -mx-1 inline-flex items-center gap-2 rounded px-1 py-1">
             <span aria-hidden="true" className="h-2 w-2 rounded-sm bg-primary" />
-            <span className="text-sm font-semibold tracking-tight text-foreground">Rutgers SOC</span>
+            <span className="text-sm font-semibold tracking-tight text-foreground">SOCAgent</span>
           </Link>
 
           <div className="flex items-center gap-1">
@@ -1445,7 +1445,7 @@ export default function HomePage() {
                 onAddSection={handleAddSection}
               />
               <div className="min-h-0 flex-1 overflow-hidden">
-                <EmbeddedCedarChat title="Course Assistant" />
+                <EmbeddedCedarChat title="SOCAgent" />
               </div>
             </div>
           </div>

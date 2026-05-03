@@ -77,7 +77,7 @@ export default function LoginPage() {
       <div className="w-full max-w-[400px]">
         <div className="mb-7 flex items-center gap-2">
           <span aria-hidden="true" className="h-2 w-2 rounded-sm bg-primary" />
-          <span className="text-sm font-semibold tracking-tight text-foreground">Rutgers SOC</span>
+          <span className="text-sm font-semibold tracking-tight text-foreground">SOCAgent</span>
         </div>
 
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">

@@ -45,7 +45,7 @@ const vertex = createVertex({
 });
 
 /**
- * System prompt for the Rutgers SOC Agent
+ * System prompt for SOCAgent
  * 
  * Includes Rutgers-specific knowledge and behavioral guidelines.
  */
@@ -174,7 +174,7 @@ When conflicts are found:
  * the Rutgers course database.
  */
 export const socAgent = new Agent({
-  name: 'Rutgers SOC Agent',
+  name: 'SOCAgent',
   instructions: SYSTEM_PROMPT,
   memory,
   // Anthropic (commented out - using Vertex AI instead):

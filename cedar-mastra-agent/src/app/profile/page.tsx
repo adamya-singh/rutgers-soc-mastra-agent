@@ -432,7 +432,7 @@ export default function ProfilePage() {
           </h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
             Your account details and Degree Navigator capture are private to your authenticated
-            Rutgers SOC account.
+            SOCAgent account.
           </p>
           <Link
             href="/login"
@@ -459,7 +459,7 @@ export default function ProfilePage() {
                 {degreeProfile?.studentName ?? account.email ?? 'Your profile'}
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-                A quiet overview of your Rutgers SOC account, saved Degree Navigator capture,
+                A quiet overview of your SOCAgent account, saved Degree Navigator capture,
                 programs, audits, and transcript history.
               </p>
             </div>
@@ -748,7 +748,7 @@ function ProfileShell({ children }: { children: React.ReactNode }) {
           >
             <span aria-hidden="true" className="h-2 w-2 rounded-sm bg-primary" />
             <span className="text-sm font-semibold tracking-tight text-foreground">
-              Rutgers SOC
+              SOCAgent
             </span>
           </Link>
           <Link
