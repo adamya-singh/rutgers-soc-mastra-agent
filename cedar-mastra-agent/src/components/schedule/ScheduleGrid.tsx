@@ -54,6 +54,7 @@ type GridBlock = {
   overflowTop: boolean;
   overflowBottom: boolean;
   label: string;
+  visibleLabel: string;
   subtitle: string;
   meta: string;
   color: string;
@@ -67,7 +68,7 @@ type GridBlock = {
 type SidebarItem = {
   key: string;
   label: string;
-  subtitle: string;
+  subtitle?: string;
   detail: string;
   muted?: boolean;
   isClosed?: boolean;
@@ -714,6 +715,7 @@ export const ScheduleGrid: React.FC = () => {
       const meetings = section.meetingTimes || [];
       const courseLabel = section.courseString || 'Course';
       const title = section.courseTitle || '';
+      const visibleCourseLabel = title || courseLabel;
       const sectionLabel = section.sectionNumber ? `Sec ${section.sectionNumber}` : '';
       const instructor = section.instructors && section.instructors.length > 0 ? section.instructors[0] : '';
       const sectionOnline = Boolean(section.isOnline);
@@ -723,8 +725,7 @@ export const ScheduleGrid: React.FC = () => {
         if (sectionOnline) {
           nextSidebar.push({
             key: `online-${section.indexNumber}`,
-            label: courseLabel,
-            subtitle: title,
+            label: visibleCourseLabel,
             detail: 'Online or async',
             isClosed,
             indexNumber: section.indexNumber,
@@ -754,8 +755,7 @@ export const ScheduleGrid: React.FC = () => {
 
           nextSidebar.push({
             key: `side-${section.indexNumber}-${day || 'tba'}-${index}`,
-            label: courseLabel,
-            subtitle: title,
+            label: visibleCourseLabel,
             detail,
             muted: meetingOnline,
             isClosed,
@@ -791,8 +791,9 @@ export const ScheduleGrid: React.FC = () => {
           overflowTop,
           overflowBottom,
           label: `${courseLabel}${section.sectionNumber ? `-${section.sectionNumber}` : ''}`,
+          visibleLabel: visibleCourseLabel,
           subtitle: location || meeting.campus || 'TBA location',
-          meta: instructor || title,
+          meta: instructor,
           color: resolveCampusColor(meeting.campus, meetingOnline),
           tooltip,
           isClosed,
@@ -1118,7 +1119,7 @@ export const ScheduleGrid: React.FC = () => {
                     }}
                   >
                     {block.isClosed && (
-                      <span className="absolute right-1 top-1 rounded-full bg-white/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-red-600">
+                      <span className="absolute bottom-1 right-1 rounded-full bg-white/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-red-600">
                         FULL
                       </span>
                     )}
@@ -1128,7 +1129,7 @@ export const ScheduleGrid: React.FC = () => {
                     {block.overflowBottom && (
                       <span className="absolute bottom-0 left-0 right-0 h-2 bg-white/30" />
                     )}
-                    <span className="font-semibold leading-tight">{block.label}</span>
+                    <span className="font-semibold leading-tight">{block.visibleLabel}</span>
                     <span className="leading-tight text-white/90">{block.subtitle}</span>
                     {block.meta && (
                       <span className="truncate leading-tight text-white/80">{block.meta}</span>
