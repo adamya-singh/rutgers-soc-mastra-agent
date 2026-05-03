@@ -37,11 +37,6 @@ export const AddNewTextLineSchema = z.object({
     .describe('Text style to apply'),
 });
 
-// Schema for the changeText state setter
-export const ChangeTextSchema = z.object({
-  newText: z.string().min(1, 'Text cannot be empty').describe('The new text to display'),
-});
-
 const SectionMeetingTimeSchema = z.object({
   day: z.string().optional(),
   startTimeMilitary: z.string().optional(),
@@ -153,20 +148,6 @@ export const ensureDegreeNavigatorSessionTool = createMastraToolForFrontendTool(
     description:
       'Open or reuse the Browserbase Degree Navigator session displayed in the embedded browser pane. Use this before browser automation when the user asks to open or use the browser.',
     toolId: 'ensureDegreeNavigatorSession',
-    streamEventFn: streamJSONEvent,
-    errorSchema: ErrorResponseSchema,
-  },
-);
-
-// Create backend tools for the state setter
-export const changeTextTool = createMastraToolForStateSetter(
-  'mainText', // The state key
-  'changeText', // The state setter name
-  ChangeTextSchema,
-  {
-    description:
-      'Change the main text displayed on the screen. This tool allows the agent to modify the primary text content that users see, replacing the current text with new content.',
-    toolId: 'changeText',
     streamEventFn: streamJSONEvent,
     errorSchema: ErrorResponseSchema,
   },
@@ -287,7 +268,6 @@ export const TOOL_REGISTRY = {
     saveDegreeNavigatorProfile,
   },
   textManipulation: {
-    changeTextTool,
     addNewTextLineTool,
     addSectionToScheduleTool,
     removeSectionFromScheduleTool,
@@ -329,7 +309,6 @@ export const SOC_TOOLS = [
 ];
 
 export const ALL_TOOLS = [
-  changeTextTool,
   addNewTextLineTool,
   ensureDegreeNavigatorSessionTool,
   addSectionToScheduleTool,

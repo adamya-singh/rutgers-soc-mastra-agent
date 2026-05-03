@@ -24,7 +24,6 @@ describe('security hardening', () => {
 
   it('keeps tool schemas out of model-visible additional context', () => {
     const context = buildModelVisibleAdditionalContext({
-      mainText: { data: '' },
       browserClientId: { data: 'browser_1' },
       browserSession: {
         data: {
@@ -108,7 +107,6 @@ describe('security hardening', () => {
     });
 
     assert.deepStrictEqual(context, {
-      mainText: '',
       browserClientId: 'browser_1',
       browserSession: {
         browserSession: {

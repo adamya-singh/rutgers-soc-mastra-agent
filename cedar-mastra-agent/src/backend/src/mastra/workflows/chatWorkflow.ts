@@ -36,7 +36,7 @@ type AdditionalContextEntry = {
 
 type AdditionalContextMap = Record<string, AdditionalContextEntry | AdditionalContextEntry[] | unknown>;
 
-const MODEL_VISIBLE_CONTEXT_KEYS = ['mainText', 'browserClientId', 'browserSession', 'activeSchedule'] as const;
+const MODEL_VISIBLE_CONTEXT_KEYS = ['browserClientId', 'browserSession', 'activeSchedule'] as const;
 
 function readAdditionalContextValue(entry: unknown): unknown {
   if (!entry) {

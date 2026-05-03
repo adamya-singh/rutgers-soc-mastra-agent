@@ -6,7 +6,6 @@ import { motion } from 'motion/react';
 import React, { useCallback, useEffect, useRef } from 'react';
 
 import './ChatInput.css';
-import { ContextBadgeRow } from '@/cedar/components/chatInput/ContextBadgeRow';
 import { useCedarEditor } from 'cedar-os';
 import Container3DButton from '@/cedar/components/containers/Container3DButton';
 import { VoiceIndicator } from '@/cedar/components/voice/VoiceIndicator';
@@ -223,9 +222,6 @@ export const ChatInput: React.FC<{
         className,
       )}
     >
-      {/* Input context row showing selected context nodes */}
-      <ContextBadgeRow editor={editor} />
-
       {/* Chat editor row */}
       <div className="relative w-full h-fit" id="cedar-chat-input">
         {voice.isListening || voice.isSpeaking ? (

@@ -197,7 +197,6 @@ function isUsableBrowserSession(
 export default function HomePage() {
   const [theme, setTheme] = React.useState<'light' | 'dark'>('dark');
 
-  const [mainText, setMainText] = React.useState('');
   const [textLines, setTextLines] = React.useState<string[]>([]);
   const [searchResults, setSearchResults] = React.useState<SearchResultItem[]>([]);
   const [userEmail, setUserEmail] = React.useState<string | null>(null);
@@ -987,29 +986,6 @@ export default function HomePage() {
   }, [browserSession, closeBrowserSessionWithReason]);
 
   useRegisterState({
-    key: 'mainText',
-    description: 'The main text that can be modified by Cedar',
-    value: mainText,
-    setValue: setMainText,
-    stateSetters: {
-      changeText: {
-        name: 'changeText',
-        description: 'Change the main text to a new value',
-        argsSchema: z.object({
-          newText: z.string().min(1, 'Text cannot be empty').describe('The new text to display'),
-        }),
-        execute: (
-          _currentText: string,
-          setValue: (newValue: string) => void,
-          args: { newText: string },
-        ) => {
-          setValue(args.newText);
-        },
-      },
-    },
-  });
-
-  useRegisterState({
     key: 'browserClientId',
     description: 'Browser client identity used to enforce session ownership',
     value: browserClientId,
@@ -1213,11 +1189,6 @@ export default function HomePage() {
         },
       },
     },
-  });
-
-  useSubscribeStateToAgentContext('mainText', (mainText) => ({ mainText }), {
-    showInChat: true,
-    color: '#4F46E5',
   });
 
   useSubscribeStateToAgentContext(

@@ -843,7 +843,7 @@ export const ScheduleGrid: React.FC = () => {
     'activeSchedule',
     (activeSchedule) => ({ activeSchedule }),
     {
-      showInChat: true,
+      showInChat: false,
       color: '#16A34A',
     },
   );

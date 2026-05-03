@@ -21,7 +21,6 @@ import {
 } from '../tools/index.js';
 import {
   addNewTextLineTool,
-  changeTextTool,
   addSectionToScheduleTool,
   removeSectionFromScheduleTool,
   clearSearchResultsTool,
@@ -200,7 +199,6 @@ export const socAgent = new Agent({
     readDegreeNavigatorProfile,
     readDegreeNavigatorExtractionRun,
     saveDegreeNavigatorProfile,
-    changeText: changeTextTool,
     addNewTextLine: addNewTextLineTool,
     addSectionToSchedule: addSectionToScheduleTool,
     removeSectionFromSchedule: removeSectionFromScheduleTool,
