@@ -115,6 +115,12 @@ const HIDDEN_TIMEOUT_MS = 30_000;
 const IDLE_TIMEOUT_MS = 60_000;
 const DEGREE_NAVIGATOR_SYNC_POLL_MS = 2500;
 const DEGREE_NAVIGATOR_SYNC_TIMEOUT_MS = 5 * 60_000;
+const DEGREE_NAVIGATOR_LOGIN_HOSTS = new Set([
+  'cas.rutgers.edu',
+  'idps.rutgers.edu',
+  'weblogin.rutgers.edu',
+]);
+
 function isTransientDegreeNavigatorReadinessError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error ?? '');
   const normalized = message.toLowerCase();
@@ -194,6 +200,14 @@ function isUsableBrowserSession(
   return Boolean(session && session.status !== 'closed' && session.status !== 'error');
 }
 
+function isDegreeNavigatorLoginPage(readiness: DegreeNavigatorReadinessResponse | null): boolean {
+  return Boolean(
+    readiness?.readiness === 'awaiting_login' &&
+      readiness.urlHost &&
+      DEGREE_NAVIGATOR_LOGIN_HOSTS.has(readiness.urlHost.toLowerCase()),
+  );
+}
+
 export default function HomePage() {
   const [theme, setTheme] = React.useState<'light' | 'dark'>('dark');
 
@@ -213,6 +227,8 @@ export default function HomePage() {
   const [degreeNavigatorSyncStatus, setDegreeNavigatorSyncStatus] =
     React.useState<DegreeNavigatorSyncStatus>('idle');
   const [degreeNavigatorSyncMessage, setDegreeNavigatorSyncMessage] = React.useState<string | null>(null);
+  const [degreeNavigatorReadiness, setDegreeNavigatorReadiness] =
+    React.useState<DegreeNavigatorReadinessResponse | null>(null);
   const browserSectionRef = React.useRef<HTMLElement | null>(null);
   const hiddenTimeoutRef = React.useRef<number | null>(null);
   const idleTimeoutRef = React.useRef<number | null>(null);
@@ -448,6 +464,7 @@ export default function HomePage() {
             setBrowserSession(null);
             setBrowserPaneStatus('idle');
             setAutoStopMessage(null);
+            setDegreeNavigatorReadiness(null);
           }
           clearActiveBrowserSessionRecord();
           return true;
@@ -495,6 +512,7 @@ export default function HomePage() {
 
     setBrowserError(null);
     setBrowserPaneStatus('launching');
+    setDegreeNavigatorReadiness(null);
 
     if (!userId) {
       setBrowserPaneStatus('error');
@@ -555,6 +573,7 @@ export default function HomePage() {
       setBrowserSession(null);
       setBrowserPaneStatus('idle');
       setBrowserError(null);
+      setDegreeNavigatorReadiness(null);
       clearActiveBrowserSessionRecord();
       return;
     }
@@ -589,6 +608,7 @@ export default function HomePage() {
         if (result.session.status === 'closed') {
           setBrowserSession(null);
           setBrowserPaneStatus('idle');
+          setDegreeNavigatorReadiness(null);
           clearActiveBrowserSessionRecord();
           return;
         }
@@ -623,9 +643,11 @@ export default function HomePage() {
 
   const checkDegreeNavigatorReadiness = React.useCallback(
     async (sessionId: string): Promise<DegreeNavigatorReadinessResponse> => {
-      return (await callBrowserSessionApi('/browser/session/degree-navigator-readiness', {
+      const readiness = (await callBrowserSessionApi('/browser/session/degree-navigator-readiness', {
         sessionId,
       })) as DegreeNavigatorReadinessResponse;
+      setDegreeNavigatorReadiness(readiness);
+      return readiness;
     },
     [callBrowserSessionApi],
   );
@@ -776,6 +798,7 @@ export default function HomePage() {
       setBrowserSession(null);
       setBrowserPaneStatus('idle');
       setBrowserError('Browserbase live view disconnected. Launch a new session to continue.');
+      setDegreeNavigatorReadiness(null);
       degreeNavigatorSyncRunRef.current += 1;
       setDegreeNavigatorSyncStatus('error');
       setDegreeNavigatorSyncMessage('Degree Navigator sync stopped because the live view disconnected.');
@@ -1338,6 +1361,8 @@ export default function HomePage() {
         return 'Sync from Degree Navigator';
     }
   })();
+  const showDegreeNavigatorLoginNotice =
+    Boolean(browserSession) && isDegreeNavigatorLoginPage(degreeNavigatorReadiness);
 
   const renderContent = () => (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
@@ -1435,7 +1460,7 @@ export default function HomePage() {
         </DialogContent>
       </Dialog>
 
-      <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-4 sm:px-6 sm:py-6">
+      <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 pt-4 pb-28 sm:px-6 sm:pt-6 sm:pb-32">
         <section className="grid w-full grid-cols-1 items-stretch gap-4 sm:gap-6 lg:grid-cols-[minmax(320px,1fr)_minmax(0,1.8fr)] xl:grid-cols-[minmax(360px,1fr)_minmax(0,2fr)]">
           <div className="relative h-[min(640px,75vh)] min-w-0 lg:h-auto lg:min-h-0">
             <div className="flex h-full min-w-0 flex-col gap-4 lg:absolute lg:inset-0">
@@ -1473,7 +1498,7 @@ export default function HomePage() {
           ref={browserSectionRef}
           className="mt-10 scroll-mt-20 border-t border-border pt-8"
         >
-          <div className="mb-4 flex flex-col gap-1">
+          <div className="invisible mb-4 flex flex-col gap-1">
             <h2 className="text-base font-semibold text-foreground">Degree Navigator</h2>
             <p className="text-sm text-muted-foreground">
               Launch a private browser session, sign in yourself, then let the assistant act inside it.
@@ -1489,33 +1514,55 @@ export default function HomePage() {
                 <h3 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
                   Sync from Degree Navigator
                 </h3>
-                <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                  Opens the secure browser if needed, waits for you to finish Rutgers login, then asks the
-                  assistant to read Degree Navigator and save your profile, audits, and transcript terms.
-                </p>
-                <p
-                  className={`mt-3 text-sm ${
-                    degreeNavigatorSyncStatus === 'error'
-                      ? 'text-destructive'
-                      : degreeNavigatorSyncStatus === 'synced'
-                        ? 'text-success'
-                        : 'text-muted-foreground'
-                  }`}
-                >
-                  <span className="font-medium">
+                <div className="relative mt-3 flex min-h-14 max-w-2xl flex-wrap items-center rounded-lg border border-primary/20 bg-background/70 px-4 py-4 text-sm shadow-elev-1">
+                  <span
+                    className={`font-medium ${
+                      degreeNavigatorSyncStatus === 'error'
+                        ? 'text-destructive'
+                        : degreeNavigatorSyncStatus === 'synced'
+                          ? 'text-success'
+                          : 'text-foreground'
+                    }`}
+                  >
                     {getDegreeNavigatorSyncStatusLabel(degreeNavigatorSyncStatus)}.
                   </span>{' '}
-                  {degreeNavigatorSyncMessage ?? 'Start when you are ready to sign in.'}
-                </p>
+                  <span className="ml-1 text-muted-foreground">
+                    {degreeNavigatorSyncMessage ?? 'Start when you are ready to sign in.'}
+                  </span>
+                  {showDegreeNavigatorLoginNotice && (
+                    <div className="absolute left-full top-1/2 z-20 ml-3 w-80 max-w-[calc(100vw-3rem)] -translate-y-1/2 rounded-lg border-2 border-primary/60 bg-primary/15 px-4 py-3 text-sm shadow-elev-1 backdrop-blur">
+                      <span className="absolute -left-1.5 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rotate-45 border-b-2 border-l-2 border-primary/60 bg-primary/15" />
+                      <p className="text-sm font-semibold text-foreground">Login needed</p>
+                      <p className="mt-1.5 text-sm leading-6 text-foreground/80">
+                        Complete Rutgers login in the Degree Navigator browser window to continue syncing.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={syncFromDegreeNavigator}
-                disabled={isDegreeNavigatorSyncBusy || isStoppingSession}
-                className="focus-ring inline-flex min-h-14 shrink-0 items-center justify-center rounded-lg bg-primary px-6 py-4 text-base font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground lg:min-w-[260px]"
-              >
-                {degreeNavigatorSyncButtonLabel}
-              </button>
+              <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="group relative">
+                  <button
+                    type="button"
+                    aria-label="About Degree Navigator sync"
+                    className="focus-ring flex h-9 w-9 items-center justify-center rounded-full border border-primary/25 bg-background/70 text-sm font-semibold text-primary shadow-elev-1 transition hover:border-primary/50 hover:bg-primary/10"
+                  >
+                    i
+                  </button>
+                  <div className="pointer-events-none absolute right-0 top-full z-20 mt-2 w-80 max-w-[calc(100vw-3rem)] rounded-lg border border-primary/20 bg-background px-4 py-3 text-sm text-foreground opacity-0 shadow-elev-1 transition group-hover:opacity-100 group-focus-within:opacity-100">
+                    Opens the secure browser, waits for you to finish Rutgers login, then asks SOCAgent
+                    to read Degree Navigator and save your profile, audits, and transcript terms.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={syncFromDegreeNavigator}
+                  disabled={isDegreeNavigatorSyncBusy || isStoppingSession}
+                  className="focus-ring inline-flex min-h-14 shrink-0 items-center justify-center rounded-lg bg-primary px-6 py-4 text-base font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground lg:min-w-[260px]"
+                >
+                  {degreeNavigatorSyncButtonLabel}
+                </button>
+              </div>
             </div>
           </div>
 
