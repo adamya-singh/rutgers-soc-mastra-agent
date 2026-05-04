@@ -60,7 +60,7 @@
 
 :root {
   --radius: 0.5rem;
-  --background: #fafafa;
+  --background: #f2f4f8;
   --foreground: #0b1220;
   --surface-0: #ffffff;
   --surface-1: #ffffff;
@@ -109,7 +109,7 @@
 
 .dark {
   color-scheme: dark;
-  --background: #0c0e12;
+  --background: #06080c;
   --foreground: #ecf0f8;
   --surface-0: #0c0e12;
   --surface-1: #14171d;

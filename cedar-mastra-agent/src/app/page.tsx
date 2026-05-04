@@ -1514,7 +1514,7 @@ export default function HomePage() {
                 <h3 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
                   Sync from Degree Navigator
                 </h3>
-                <div className="relative mt-3 flex min-h-14 max-w-2xl flex-wrap items-center rounded-lg border border-primary/20 bg-background/70 px-4 py-4 text-sm shadow-elev-1">
+                <div className="relative mt-3 flex min-h-16 max-w-2xl flex-wrap items-center rounded-lg border border-primary/20 bg-background/70 px-5 py-4 text-base shadow-elev-1">
                   <span
                     className={`font-medium ${
                       degreeNavigatorSyncStatus === 'error'
