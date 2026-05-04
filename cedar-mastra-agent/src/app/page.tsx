@@ -1534,7 +1534,7 @@ export default function HomePage() {
                       <span className="absolute -left-1.5 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rotate-45 border-b-2 border-l-2 border-primary/60 bg-primary/15" />
                       <p className="text-sm font-semibold text-foreground">Login needed</p>
                       <p className="mt-1.5 text-sm leading-6 text-foreground/80">
-                        Complete Rutgers login in the Degree Navigator browser window to continue syncing.
+                        Sign in to Degree Navigator to continue.
                       </p>
                     </div>
                   )}
