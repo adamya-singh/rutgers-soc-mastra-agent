@@ -1,4 +1,3 @@
-import Container3D from '@/cedar/components/containers/Container3D';
 import { SocVercelChat } from '@/cedar/components/vercelChat/SocVercelChat';
 import { useCedarStore } from 'cedar-os';
 import { X } from 'lucide-react';
@@ -10,7 +9,7 @@ interface EmbeddedCedarChatProps {
 	showHeader?: boolean;
 	showCloseButton?: boolean;
 	onClose?: () => void;
-	stream?: boolean; // Whether to use streaming for responses
+	stream?: boolean;
 	className?: string;
 }
 
@@ -34,20 +33,21 @@ export const EmbeddedCedarChat: React.FC<EmbeddedCedarChatProps> = ({
 
 	return (
 		<div className={`h-full min-h-0 w-full overflow-hidden ${className}`}>
-			<Container3D className='flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl border border-border bg-surface-2 text-sm backdrop-blur-0'>
-				{/* Header */}
+			<div className='flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl border border-border bg-surface-1 text-sm shadow-elev-1'>
 				{showHeader && (
-					<div className='z-20 flex min-w-0 flex-shrink-0 flex-row items-center justify-between border-b border-border px-5 pt-3'>
-						<div className='flex items-center min-w-0 flex-1'>
+					<div className='z-20 flex min-w-0 flex-shrink-0 flex-row items-center justify-between border-b border-border-subtle px-4 py-2.5'>
+						<div className='flex min-w-0 flex-1 items-center'>
 							{companyLogo && (
-								<div className='flex-shrink-0 w-6 h-6 mr-2'>{companyLogo}</div>
+								<div className='mr-2 h-5 w-5 flex-shrink-0'>{companyLogo}</div>
 							)}
-							<span className='truncate text-lg font-semibold text-foreground'>{title}</span>
+							<span className='truncate text-sm font-medium text-foreground'>
+								{title}
+							</span>
 						</div>
 						{showCloseButton && (
-							<div className='flex items-center gap-2 flex-shrink-0'>
+							<div className='flex flex-shrink-0 items-center gap-2'>
 								<button
-									className='rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-3 hover:text-foreground'
+									className='rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground'
 									onClick={handleClose}
 									aria-label='Close chat'>
 									<X className='h-4 w-4' strokeWidth={2.5} />
@@ -58,7 +58,7 @@ export const EmbeddedCedarChat: React.FC<EmbeddedCedarChatProps> = ({
 				)}
 
 				<SocVercelChat />
-			</Container3D>
+			</div>
 		</div>
 	);
 };

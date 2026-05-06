@@ -1,60 +1,167 @@
 import React, { useEffect, useLayoutEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import Image from 'next/image';
+import { cn } from 'cedar-os';
 
 import MarkdownRenderer from '@/cedar/components/chatMessages/MarkdownRenderer';
 import { ShimmerText } from '@/cedar/components/text/ShimmerText';
-import { cn } from 'cedar-os';
+import { MessageRow } from './parts/MessageRow';
+import { ToolPart, type ToolPartLike } from './parts/ToolPart';
+import { ReasoningPart } from './parts/ReasoningPart';
+import { SourcesRow, type SourceLike } from './parts/SourcesRow';
+import { FilePart, type FilePartLike } from './parts/FilePart';
+import { MessageActions } from './parts/MessageActions';
 import type { SocChatMessage } from './useSocChat';
 
 interface SocChatMessagesProps {
   messages: SocChatMessage[];
   status: 'submitted' | 'streaming' | 'ready' | 'error';
+  onRetry?: () => void | Promise<void>;
   className?: string;
 }
 
-function renderPart(part: SocChatMessage['parts'][number], index: number) {
-  if (part.type === 'text') {
-    return <MarkdownRenderer key={index} content={part.text} />;
-  }
+type AnyPart = SocChatMessage['parts'][number];
 
-  if (part.type === 'file' && part.mediaType.startsWith('image/')) {
-    return (
-      <Image
-        key={index}
-        src={part.url}
-        alt={part.filename ?? 'Uploaded image'}
-        width={512}
-        height={256}
-        unoptimized
-        className="mt-2 max-h-64 max-w-full rounded-lg border border-border object-contain"
-      />
-    );
-  }
+const StreamingCaret: React.FC = () => (
+  <span
+    aria-hidden
+    className="ml-0.5 inline-block h-4 w-[2px] translate-y-[2px] animate-pulse bg-foreground/70 align-middle"
+  />
+);
 
-  if (part.type.startsWith('tool-') || part.type === 'dynamic-tool') {
-    const label = part.type === 'dynamic-tool' ? part.toolName : part.type.replace(/^tool-/, '');
-    return (
-      <div key={index} className="mt-2 rounded-md border border-border bg-surface-1 px-3 py-2 text-xs text-muted-foreground">
-        Agent tool: {label}
-      </div>
-    );
-  }
-
-  if (part.type.startsWith('data-')) {
-    return null;
-  }
-
-  return null;
+function getMessageText(message: SocChatMessage): string {
+  return message.parts
+    .filter((part): part is Extract<AnyPart, { type: 'text' }> => part.type === 'text')
+    .map((part) => part.text)
+    .join('\n')
+    .trim();
 }
+
+function isToolLikePart(part: AnyPart): part is AnyPart & ToolPartLike {
+  return part.type === 'dynamic-tool' || part.type.startsWith('tool-');
+}
+
+interface AssistantBodyProps {
+  message: SocChatMessage;
+  isLastMessage: boolean;
+  isStreaming: boolean;
+}
+
+const AssistantBody: React.FC<AssistantBodyProps> = ({
+  message,
+  isLastMessage,
+  isStreaming,
+}) => {
+  const sources: SourceLike[] = [];
+  const lastTextIndex = (() => {
+    for (let i = message.parts.length - 1; i >= 0; i -= 1) {
+      if (message.parts[i].type === 'text') return i;
+    }
+    return -1;
+  })();
+  const showCaretOnLastText = isLastMessage && isStreaming;
+
+  const nodes: React.ReactNode[] = [];
+
+  message.parts.forEach((part, index) => {
+    if (part.type === 'text') {
+      const isLastTextPart = index === lastTextIndex;
+      nodes.push(
+        <div
+          key={`p-${index}`}
+          className="text-[15px] leading-relaxed text-foreground [&>*+*]:mt-3"
+        >
+          <MarkdownRenderer content={part.text} processPrefix />
+          {showCaretOnLastText && isLastTextPart && <StreamingCaret />}
+        </div>,
+      );
+      return;
+    }
+
+    if (part.type === 'reasoning') {
+      const reasoningPart = part as Extract<AnyPart, { type: 'reasoning' }>;
+      nodes.push(
+        <ReasoningPart
+          key={`p-${index}`}
+          text={reasoningPart.text}
+          streaming={
+            (reasoningPart.state ?? (isLastMessage && isStreaming ? 'streaming' : 'done')) ===
+            'streaming'
+          }
+        />,
+      );
+      return;
+    }
+
+    if (part.type === 'file') {
+      nodes.push(<FilePart key={`p-${index}`} part={part as FilePartLike} />);
+      return;
+    }
+
+    if (part.type === 'source-url' || part.type === 'source-document') {
+      sources.push(part as SourceLike);
+      return;
+    }
+
+    if (isToolLikePart(part)) {
+      nodes.push(<ToolPart key={`p-${index}`} part={part as ToolPartLike} />);
+      return;
+    }
+
+    // step-start, data-* and unknown parts are intentionally ignored.
+  });
+
+  // If we only have the streaming caret and nothing else (i.e. assistant just
+  // started but no text yet), surface a Thinking shimmer so the row isn't blank.
+  const hasVisibleContent = nodes.length > 0;
+  if (!hasVisibleContent && isLastMessage && isStreaming) {
+    nodes.push(
+      <div key="thinking" className="py-1">
+        <ShimmerText text="Thinking..." state="thinking" />
+      </div>,
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {nodes}
+      {sources.length > 0 && <SourcesRow sources={sources} />}
+    </div>
+  );
+};
+
+interface UserBodyProps {
+  message: SocChatMessage;
+}
+
+const UserBody: React.FC<UserBodyProps> = ({ message }) => {
+  return (
+    <div className="space-y-2">
+      {message.parts.map((part, index) => {
+        if (part.type === 'text') {
+          return (
+            <div key={index} className="whitespace-pre-wrap break-words">
+              {part.text}
+            </div>
+          );
+        }
+        if (part.type === 'file') {
+          return <FilePart key={index} part={part as FilePartLike} />;
+        }
+        return null;
+      })}
+    </div>
+  );
+};
 
 export const SocChatMessages: React.FC<SocChatMessagesProps> = ({
   messages,
   status,
+  onRetry,
   className = '',
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const isProcessing = status === 'submitted' || status === 'streaming';
+  const isWaiting = status === 'submitted';
+  const isStreaming = status === 'streaming';
 
   useLayoutEffect(() => {
     if (containerRef.current) {
@@ -69,49 +176,77 @@ export const SocChatMessages: React.FC<SocChatMessagesProps> = ({
         behavior: 'smooth',
       });
     }
-  }, [messages]);
+  }, [messages, isWaiting, isStreaming]);
+
+  const lastMessageId = messages[messages.length - 1]?.id;
+  const lastAssistantId = (() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      if (messages[i].role === 'assistant') return messages[i].id;
+    }
+    return undefined;
+  })();
 
   return (
     <div
       ref={containerRef}
       className={cn(
-        'h-full w-full overflow-x-hidden overflow-y-auto px-3 pb-3',
+        'h-full w-full overflow-x-hidden overflow-y-auto',
         className,
       )}
       style={{ contain: 'paint layout', scrollbarColor: 'rgba(126, 138, 153, 0.6) transparent' }}
     >
-      <div className="relative z-20 px-1 py-1">
+      <div className="mx-auto w-full max-w-3xl px-4 pt-4 pb-6">
         <AnimatePresence initial={false}>
           {messages.map((message, messageIndex) => {
             const previousMessage = messages[messageIndex - 1];
-            const isConsecutive = previousMessage?.role === message.role;
+            const isFirstInGroup = previousMessage?.role !== message.role;
+            const isLastMessage = message.id === lastMessageId;
+            const isLastAssistant = message.id === lastAssistantId;
+            const role = message.role === 'system' ? 'assistant' : message.role;
+
             return (
               <motion.div
                 key={message.id}
-                initial={{ opacity: 0, y: 20, filter: 'blur(4px)' }}
+                initial={{ opacity: 0, y: 12, filter: 'blur(4px)' }}
                 animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                transition={{ duration: 0.15, ease: 'easeOut' }}
-                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} ${
-                  isConsecutive ? 'mt-1' : 'mt-2'
-                }`}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
               >
-                <div
-                  className={cn(
-                    'max-w-[92%] rounded-2xl border px-3 py-2 text-sm shadow-elev-1',
-                    message.role === 'user'
-                      ? 'border-accent/20 bg-accent/10 text-foreground'
-                      : 'border-border bg-surface-1 text-foreground',
+                <MessageRow role={role} isFirstInGroup={isFirstInGroup}>
+                  {role === 'user' ? (
+                    <UserBody message={message} />
+                  ) : (
+                    <>
+                      <AssistantBody
+                        message={message}
+                        isLastMessage={isLastMessage}
+                        isStreaming={isStreaming}
+                      />
+                      {!(isLastMessage && isStreaming) && isLastAssistant && (
+                        <MessageActions
+                          text={getMessageText(message)}
+                          onRetry={onRetry}
+                        />
+                      )}
+                    </>
                   )}
-                >
-                  {message.parts.map(renderPart)}
-                </div>
+                </MessageRow>
               </motion.div>
             );
           })}
-          {isProcessing && (
-            <div className="py-2">
-              <ShimmerText text="Thinking..." state="thinking" />
-            </div>
+
+          {isWaiting && (
+            <motion.div
+              key="pending-assistant"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
+            >
+              <MessageRow role="assistant" isFirstInGroup>
+                <div className="py-1">
+                  <ShimmerText text="Thinking..." state="thinking" />
+                </div>
+              </MessageRow>
+            </motion.div>
           )}
         </AnimatePresence>
       </div>

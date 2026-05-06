@@ -107,7 +107,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 
 						return isInline ? (
 							<code
-								className='rounded px-1 py-0.5 text-sm inline font-mono bg-surface-3 border border-border'
+								className='rounded px-1 py-0.5 text-[0.85em] inline font-mono bg-surface-2 border border-border-subtle'
 								style={{
 									color: styling.color,
 								}}>
@@ -115,21 +115,21 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 							</code>
 						) : (
 							<div
-								className='relative group my-4 w-full rounded-lg border border-border bg-surface-1 font-mono'
+								className='relative group my-3 w-full rounded-lg border border-border-subtle bg-surface-1 font-mono'
 								style={{
 									backgroundColor: 'var(--surface-1)',
 								}}>
 								{match && (
 									<div
-										className='flex w-full items-center justify-between rounded-t-lg border-b border-border bg-surface-2 px-4 py-2 text-xs text-muted-foreground'
+										className='flex w-full items-center justify-between rounded-t-lg border-b border-border-subtle bg-surface-2 px-3 py-1.5 text-[11px] uppercase tracking-wide text-muted-foreground'
 										style={{
 											color: 'var(--muted-foreground)',
 										}}>
-										<span className=''>{match[1]}</span>
-										<div className='flex items-center gap-2'>
+										<span>{match[1]}</span>
+										<div className='flex items-center gap-1'>
 											<button
 												onClick={() => handleCopyCode(codeString)}
-												className='flex items-center gap-1 rounded px-2 py-1 text-muted-foreground transition-colors hover:bg-surface-3 hover:text-foreground'>
+												className='flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] normal-case tracking-normal text-muted-foreground transition-colors hover:bg-surface-3 hover:text-foreground'>
 												{copiedCode === codeString ? (
 													<Check className='w-3 h-3' />
 												) : (
@@ -139,16 +139,12 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 													{copiedCode === codeString ? 'Copied' : 'Copy'}
 												</span>
 											</button>
-											<button
-												className='rounded px-2 py-1 text-muted-foreground transition-colors hover:bg-surface-3 hover:text-foreground'>
-												Edit
-											</button>
 										</div>
 									</div>
 								)}
-								<pre className='p-4 overflow-x-auto w-full'>
+								<pre className='p-3 overflow-x-auto w-full'>
 									<code
-										className='text-sm whitespace-pre text-foreground'>
+										className='text-[13px] leading-relaxed whitespace-pre text-foreground'>
 										{codeString}
 									</code>
 								</pre>
@@ -157,22 +153,22 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 					},
 					pre: ({ children }) => <>{children}</>,
 					h1: ({ children }) => (
-						<h1 className='text-2xl font-bold mt-4 mb-2'>
+						<h1 className='text-xl font-semibold tracking-tight mt-4 mb-1.5'>
 							{processChildren(children)}
 						</h1>
 					),
 					h2: ({ children }) => (
-						<h2 className='text-xl font-bold mt-3 mb-2'>
+						<h2 className='text-lg font-semibold tracking-tight mt-3 mb-1.5'>
 							{processChildren(children)}
 						</h2>
 					),
 					h3: ({ children }) => (
-						<h3 className='text-lg font-bold mt-2 mb-1'>
+						<h3 className='text-base font-semibold mt-2.5 mb-1'>
 							{processChildren(children)}
 						</h3>
 					),
 					h4: ({ children }) => (
-						<h4 className='text-base font-bold mt-2 mb-1'>
+						<h4 className='text-sm font-semibold mt-2 mb-1'>
 							{processChildren(children)}
 						</h4>
 					),
@@ -202,15 +198,17 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 						<em className='italic inline'>{processChildren(children)}</em>
 					),
 					ul: ({ children }) => (
-						<ul className='list-disc list-inside my-2 space-y-1'>{children}</ul>
+						<ul className='list-disc list-outside pl-5 my-2 space-y-1 marker:text-muted-foreground'>
+							{children}
+						</ul>
 					),
 					ol: ({ children }) => (
-						<ol className='list-decimal list-inside my-2 space-y-1'>
+						<ol className='list-decimal list-outside pl-5 my-2 space-y-1 marker:text-muted-foreground'>
 							{children}
 						</ol>
 					),
 					li: ({ children }) => (
-						<li className='ml-2'>{processChildren(children)}</li>
+						<li className='leading-relaxed'>{processChildren(children)}</li>
 					),
 					br: () => <br />,
 					table: ({ children }) => (

@@ -8,11 +8,11 @@ import Container3D from '@/cedar/components/containers/Container3D';
 import { SocVercelChat } from '@/cedar/components/vercelChat/SocVercelChat';
 
 interface SidePanelCedarChatProps {
-	children?: React.ReactNode; // Page content to wrap
+	children?: React.ReactNode;
 	side?: 'left' | 'right';
 	title?: string;
 	collapsedLabel?: string;
-	showCollapsedButton?: boolean; // Control whether to show the collapsed button
+	showCollapsedButton?: boolean;
 	companyLogo?: React.ReactNode;
 	dimensions?: {
 		width?: number;
@@ -20,13 +20,13 @@ interface SidePanelCedarChatProps {
 		maxWidth?: number;
 	};
 	resizable?: boolean;
-	className?: string; // Additional CSS classes for positioning
-	topOffset?: number; // Top offset in pixels (e.g., for navbar height)
-	stream?: boolean; // Whether to use streaming for responses
+	className?: string;
+	topOffset?: number;
+	stream?: boolean;
 }
 
 export const SidePanelCedarChat: React.FC<SidePanelCedarChatProps> = ({
-	children, // Page content
+	children,
 	side = 'right',
 	title = 'Cedar Chat',
 	collapsedLabel = 'How can I help you today?',
@@ -41,7 +41,6 @@ export const SidePanelCedarChat: React.FC<SidePanelCedarChatProps> = ({
 	className = '',
 	topOffset = 0,
 }) => {
-	// Get showChat state and setShowChat from store
 	const showChat = useCedarStore((state) => state.showChat);
 	const setShowChat = useCedarStore((state) => state.setShowChat);
 
@@ -67,22 +66,21 @@ export const SidePanelCedarChat: React.FC<SidePanelCedarChatProps> = ({
 				dimensions={dimensions}
 				resizable={resizable}
 				topOffset={topOffset}
-				panelClassName={`dark:bg-gray-900 ${className}`}
+				panelClassName={`bg-surface-0 ${className}`}
 				panelContent={
-					<Container3D className='flex flex-col h-full'>
-						{/* Header */}
-						<div className='flex-shrink-0 z-20 flex flex-row items-center justify-between px-4 py-2 min-w-0 border-b border-gray-200 dark:border-gray-700'>
-							<div className='flex items-center min-w-0 flex-1'>
+					<Container3D className='flex h-full flex-col'>
+						<div className='z-20 flex min-w-0 flex-shrink-0 flex-row items-center justify-between border-b border-border-subtle px-4 py-2.5'>
+							<div className='flex min-w-0 flex-1 items-center'>
 								{companyLogo && (
-									<div className='flex-shrink-0 w-6 h-6 mr-2'>
-										{companyLogo}
-									</div>
+									<div className='mr-2 h-5 w-5 flex-shrink-0'>{companyLogo}</div>
 								)}
-								<span className='font-bold text-lg truncate'>{title}</span>
+								<span className='truncate text-sm font-medium text-foreground'>
+									{title}
+								</span>
 							</div>
-							<div className='flex items-center gap-2 flex-shrink-0'>
+							<div className='flex flex-shrink-0 items-center gap-2'>
 								<button
-									className='p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors'
+									className='rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground'
 									onClick={() => setShowChat(false)}
 									aria-label='Close chat'>
 									<X className='h-4 w-4' strokeWidth={2.5} />
@@ -93,7 +91,6 @@ export const SidePanelCedarChat: React.FC<SidePanelCedarChatProps> = ({
 						<SocVercelChat />
 					</Container3D>
 				}>
-				{/* Page content that gets squished when panel opens */}
 				{children}
 			</SidePanelContainer>
 		</>

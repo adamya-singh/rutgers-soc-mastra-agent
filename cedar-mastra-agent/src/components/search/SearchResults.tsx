@@ -112,13 +112,27 @@ function ResultCard({
   const isSection = result.type === 'section' && result.section;
   const sectionOpen = result.section?.isOpen;
   const meetingTimes = result.section?.meetingTimes ?? [];
+  const toggleOpen = () => {
+    if (hasContent) {
+      setOpen((current) => !current);
+    }
+  };
 
   return (
     <div className="border-b border-border last:border-b-0">
       {/* Card header — single, dense row */}
-      <button
-        type="button"
-        onClick={() => hasContent && setOpen(!open)}
+      <div
+        role={hasContent ? 'button' : undefined}
+        tabIndex={hasContent ? 0 : undefined}
+        aria-expanded={hasContent ? open : undefined}
+        onClick={toggleOpen}
+        onKeyDown={(e) => {
+          if (!hasContent) return;
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleOpen();
+          }
+        }}
         className={`flex w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-surface-2 ${hasContent ? 'cursor-pointer' : 'cursor-default'}`}
       >
         {/* Open/closed dot */}
@@ -196,7 +210,7 @@ function ResultCard({
             </svg>
           )}
         </div>
-      </button>
+      </div>
 
       {/* Expandable content */}
       <AnimatePresence initial={false}>

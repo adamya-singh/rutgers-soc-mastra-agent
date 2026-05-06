@@ -1,11 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Code, Image as ImageIcon, Mic, SendHorizonal, X } from 'lucide-react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ArrowUp, Mic, Paperclip, Square, X } from 'lucide-react';
 import { useVoice, cn } from 'cedar-os';
 
-import Container3DButton from '@/cedar/components/containers/Container3DButton';
 import { VoiceIndicator } from '@/cedar/components/voice/VoiceIndicator';
-import { PromptSuggestions } from '@/cedar/components/chatInput/PromptSuggestions';
-import { EXAMPLE_PROMPTS } from '@/cedar/config/examplePrompts';
 import {
   CEDAR_SUBMIT_PROMPT_EVENT,
   type CedarSubmitPromptDetail,
@@ -13,16 +10,20 @@ import {
 
 interface SocChatInputProps {
   disabled?: boolean;
+  /** Retained for backwards compatibility; prompt suggestions now live in SocVercelChat. */
   isEmptyThread?: boolean;
   onSubmit: (input: { text: string; files?: FileList }) => Promise<void>;
   onStop?: () => void;
+  className?: string;
 }
+
+const MAX_TEXTAREA_HEIGHT = 220;
 
 export const SocChatInput: React.FC<SocChatInputProps> = ({
   disabled = false,
-  isEmptyThread = false,
   onSubmit,
   onStop,
+  className,
 }) => {
   const [input, setInput] = useState('');
   const [files, setFiles] = useState<FileList | undefined>();
@@ -32,6 +33,18 @@ export const SocChatInput: React.FC<SocChatInputProps> = ({
 
   const hasFiles = Boolean(files && files.length > 0);
   const canSubmit = !disabled && (input.trim().length > 0 || hasFiles);
+
+  const adjustHeight = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    const next = Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT);
+    el.style.height = `${next}px`;
+  }, []);
+
+  useLayoutEffect(() => {
+    adjustHeight();
+  }, [input, adjustHeight]);
 
   const handleVoiceToggle = useCallback(async () => {
     if (!voice.checkVoiceSupport()) {
@@ -112,109 +125,106 @@ export const SocChatInput: React.FC<SocChatInputProps> = ({
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [handleVoiceToggle]);
 
-  const getMicButtonClass = () => {
+  const micDisabled =
+    voice.voicePermissionStatus === 'denied' ||
+    voice.voicePermissionStatus === 'not-supported';
+
+  const micButtonClass = (() => {
     if (voice.isListening) {
-      return 'p-1 text-accent hover:text-accent/90 cursor-pointer animate-pulse';
+      return 'text-accent animate-pulse';
     }
     if (voice.isSpeaking) {
-      return 'p-1 text-emerald-400 hover:text-emerald-300 cursor-pointer';
+      return 'text-success';
     }
-    if (
-      voice.voicePermissionStatus === 'denied' ||
-      voice.voicePermissionStatus === 'not-supported'
-    ) {
-      return 'p-1 text-muted-foreground/60 cursor-not-allowed';
+    if (micDisabled) {
+      return 'text-muted-foreground/50 cursor-not-allowed';
     }
-    return 'p-1 text-muted-foreground hover:text-foreground cursor-pointer';
-  };
+    return 'text-muted-foreground hover:text-foreground';
+  })();
+
+  if (voice.isListening || voice.isSpeaking) {
+    return (
+      <div
+        className={cn(
+          'rounded-2xl border border-border bg-surface-1 p-3 shadow-elev-1',
+          className,
+        )}
+      >
+        <VoiceIndicator
+          voiceState={{
+            isListening: voice.isListening,
+            isSpeaking: voice.isSpeaking,
+            voiceError: voice.voiceError,
+            voicePermissionStatus: voice.voicePermissionStatus,
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className="rounded-2xl border border-border bg-surface-2/85 p-3 text-sm text-foreground shadow-elev-1 backdrop-blur">
-      {voice.isListening || voice.isSpeaking ? (
-        <div className="py-2">
-          <VoiceIndicator
-            voiceState={{
-              isListening: voice.isListening,
-              isSpeaking: voice.isSpeaking,
-              voiceError: voice.voiceError,
-              voicePermissionStatus: voice.voicePermissionStatus,
-            }}
-          />
-        </div>
-      ) : (
-        <>
-          {isEmptyThread && (
-            <PromptSuggestions
-              prompts={EXAMPLE_PROMPTS}
-              count={2}
-              onSelect={(prompt) => {
-                setInput(prompt);
-                void submit(prompt);
-              }}
-              isVisible={isEmptyThread}
-            />
-          )}
-          {hasFiles && (
-            <div className="mb-2 flex flex-wrap gap-2">
-              {Array.from(files ?? []).map((file) => (
-                <div
-                  key={`${file.name}-${file.lastModified}`}
-                  className="flex items-center gap-2 rounded-md border border-border bg-surface-1 px-2 py-1 text-xs"
-                >
-                  <span className="max-w-44 truncate">{file.name}</span>
-                  <button
-                    type="button"
-                    aria-label={`Remove ${file.name}`}
-                    onClick={() => {
-                      setFiles(undefined);
-                      if (fileInputRef.current) fileInputRef.current.value = '';
-                    }}
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
+    <div
+      className={cn(
+        'group/input flex flex-col gap-2 rounded-2xl border border-border bg-surface-1 p-2.5 shadow-elev-1',
+        'transition-colors focus-within:border-accent/40 focus-within:shadow-glow',
+        disabled && 'opacity-90',
+        className,
+      )}
+    >
+      {hasFiles && (
+        <div className="flex flex-wrap gap-2">
+          {Array.from(files ?? []).map((file) => (
+            <div
+              key={`${file.name}-${file.lastModified}`}
+              className="flex items-center gap-2 rounded-md border border-border-subtle bg-surface-2 px-2 py-1 text-xs text-foreground"
+            >
+              <Paperclip className="h-3 w-3 text-muted-foreground" />
+              <span className="max-w-44 truncate">{file.name}</span>
+              <button
+                type="button"
+                aria-label={`Remove ${file.name}`}
+                className="text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  setFiles(undefined);
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                }}
+              >
+                <X className="h-3 w-3" />
+              </button>
             </div>
-          )}
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                void submit();
-              }
-            }}
-            rows={2}
-            className="min-h-12 w-full resize-none bg-transparent py-2 text-foreground outline-none placeholder:text-muted-foreground"
-            placeholder="Ask about courses, schedules, or attach an image..."
-            disabled={disabled}
-          />
-        </>
+          ))}
+        </div>
       )}
 
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+      <textarea
+        ref={textareaRef}
+        value={input}
+        onChange={(event) => setInput(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            void submit();
+          }
+        }}
+        rows={1}
+        className="w-full resize-none bg-transparent px-1 text-[15px] leading-6 text-foreground outline-none placeholder:text-muted-foreground/80"
+        placeholder="Ask about courses, schedules, or attach an image..."
+        disabled={disabled}
+      />
+
+      <div className="flex items-center justify-between gap-2 px-0.5">
+        <div className="flex items-center gap-0.5">
           <button
             type="button"
-            className={getMicButtonClass()}
-            onClick={handleVoiceToggle}
-            disabled={
-              voice.voicePermissionStatus === 'denied' ||
-              voice.voicePermissionStatus === 'not-supported'
-            }
-            title="Start voice chat (M)"
-          >
-            <Mic className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            className="cursor-pointer p-1 text-muted-foreground hover:text-foreground"
+            className={cn(
+              'inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors',
+              'text-muted-foreground hover:bg-surface-2 hover:text-foreground',
+            )}
             onClick={() => fileInputRef.current?.click()}
             title="Attach image"
+            aria-label="Attach image"
           >
-            <ImageIcon className="h-4 w-4" />
+            <Paperclip className="h-4 w-4" />
           </button>
           <input
             ref={fileInputRef}
@@ -228,33 +238,50 @@ export const SocChatInput: React.FC<SocChatInputProps> = ({
           />
           <button
             type="button"
-            className="cursor-pointer p-1 text-muted-foreground hover:text-foreground"
-            title="Code"
+            className={cn(
+              'inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors',
+              !micDisabled && 'hover:bg-surface-2',
+              micButtonClass,
+            )}
+            onClick={handleVoiceToggle}
+            disabled={micDisabled}
+            title="Start voice chat (M)"
+            aria-label="Start voice chat"
           >
-            <Code className="h-4 w-4" />
+            <Mic className="h-4 w-4" />
           </button>
         </div>
+
         {disabled && onStop ? (
           <button
             type="button"
             onClick={onStop}
-            className="rounded-full border border-border bg-surface-1 px-3 py-1 text-xs text-muted-foreground hover:text-foreground"
+            className={cn(
+              'inline-flex h-8 w-8 items-center justify-center rounded-full',
+              'border border-border bg-surface-2 text-foreground',
+              'transition-colors hover:bg-surface-3',
+            )}
+            title="Stop generating"
+            aria-label="Stop generating"
           >
-            Stop
+            <Square className="h-3.5 w-3.5" fill="currentColor" />
           </button>
         ) : (
-          <Container3DButton
-            id="send-chat"
+          <button
+            type="button"
             onClick={() => void submit()}
-            color={canSubmit ? '#c23b3a' : undefined}
+            disabled={!canSubmit}
             className={cn(
-              'ml-auto -mt-0.5 flex flex-shrink-0 items-center rounded-full border border-border bg-surface-1',
-              !canSubmit && 'opacity-50',
+              'inline-flex h-8 w-8 items-center justify-center rounded-full transition-all',
+              canSubmit
+                ? 'bg-accent text-accent-foreground shadow-elev-1 hover:brightness-110'
+                : 'cursor-not-allowed bg-surface-3 text-muted-foreground',
             )}
-            childClassName="p-1.5"
+            title="Send"
+            aria-label="Send message"
           >
-            <SendHorizonal className={cn('h-4 w-4', canSubmit && '-rotate-90')} />
-          </Container3DButton>
+            <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
+          </button>
         )}
       </div>
     </div>
