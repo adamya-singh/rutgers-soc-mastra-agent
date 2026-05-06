@@ -1,9 +1,8 @@
 import React, { useCallback } from 'react';
 import { FloatingContainer } from '@/cedar/components/structural/FloatingContainer';
-import { ChatInput } from '@/cedar/components/chatInput/ChatInput';
 import Container3D from '@/cedar/components/containers/Container3D';
-import CaptionMessages from '@/cedar/components/chatMessages/CaptionMessages';
 import { KeyboardShortcut } from '@/cedar/components/ui/KeyboardShortcut';
+import { SocVercelChat } from '@/cedar/components/vercelChat/SocVercelChat';
 import {
 	Bug,
 	CheckCircle,
@@ -29,8 +28,6 @@ interface CedarCaptionChatProps {
 export const CedarCaptionChat: React.FC<CedarCaptionChatProps> = ({
 	dimensions,
 	className = '',
-	showThinking = true,
-	stream = true,
 }) => {
 	// Always false since buttons do nothing
 	const hasDiffs = false;
@@ -151,11 +148,9 @@ export const CedarCaptionChat: React.FC<CedarCaptionChatProps> = ({
 				</div>
 
 				<Container3D className='p-2'>
-					<div className='w-full pb-3'>
-						<CaptionMessages showThinking={showThinking} />
+					<div className='h-[420px] min-h-0'>
+						<SocVercelChat />
 					</div>
-
-					<ChatInput className='bg-transparent p-0' stream={stream} />
 				</Container3D>
 			</div>
 		</FloatingContainer>

@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { ChatInput } from './ChatInput';
 import { cn } from 'cedar-os';
 import { motion, AnimatePresence } from 'motion/react';
 import { X } from 'lucide-react';
+import { SocChatInput } from '@/cedar/components/vercelChat/SocChatInput';
+import { useSocChat } from '@/cedar/components/vercelChat/useSocChat';
 
 interface FloatingChatInputProps {
 	/** Position to display the input */
@@ -24,13 +25,12 @@ interface FloatingChatInputProps {
 export const FloatingChatInput: React.FC<FloatingChatInputProps> = ({
 	position,
 	onClose,
-	stream = true,
 	width = 400,
 	className,
-	autoFocus = true,
 }) => {
 	const containerRef = useRef<HTMLDivElement>(null);
-	const [isFocused, setIsFocused] = React.useState(autoFocus);
+	const { messages, status, sendSocMessage, stop } = useSocChat();
+	const isBusy = status === 'submitted' || status === 'streaming';
 
 	// Handle click outside to close
 	useEffect(() => {
@@ -114,12 +114,14 @@ export const FloatingChatInput: React.FC<FloatingChatInputProps> = ({
 
 				{/* Chat input */}
 				<div className='p-2'>
-					<ChatInput
-						handleFocus={() => setIsFocused(true)}
-						handleBlur={() => setIsFocused(false)}
-						isInputFocused={isFocused}
-						stream={stream}
-						className='bg-gray-50 dark:bg-gray-800/50'
+					<SocChatInput
+						disabled={isBusy}
+						isEmptyThread={messages.length === 0}
+						onSubmit={async (input) => {
+							await sendSocMessage(input);
+							onClose();
+						}}
+						onStop={() => void stop()}
 					/>
 				</div>
 			</motion.div>

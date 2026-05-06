@@ -1,8 +1,15 @@
 import { registerApiRoute } from '@mastra/core/server';
-import { ChatInputSchema, chatWorkflow } from './workflows/chatWorkflow';
+import {
+  buildModelVisibleAdditionalContext,
+  ChatInputSchema,
+  chatWorkflow,
+} from './workflows/chatWorkflow';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { z, ZodError } from 'zod';
 import { createSSEStream } from '../utils/streamUtils';
+import { RuntimeContext } from '@mastra/core/di';
+import { createUIMessageStream, createUIMessageStreamResponse } from 'ai';
+import { socAgent } from './agents/soc-agent.js';
 import {
   CloseBrowserSessionBeaconRequestSchema,
   CloseBrowserSessionBeaconResponseSchema,
@@ -43,6 +50,25 @@ import { enrichDegreeNavigatorCourseTitles } from '../degree-navigator/courseTit
 const ClearDegreeNavigatorProfileResponseSchema = z.object({
   cleared: z.boolean(),
 });
+
+const ChatUIMessagePartSchema = z.object({ type: z.string() }).passthrough();
+const ChatUIMessageSchema = z
+  .object({
+    id: z.string().optional(),
+    role: z.enum(['system', 'user', 'assistant']),
+    metadata: z.unknown().optional(),
+    parts: z.array(ChatUIMessagePartSchema),
+  })
+  .passthrough();
+
+export const ChatUIRequestSchema = z.object({
+  messages: z.array(ChatUIMessageSchema),
+  temperature: z.number().optional(),
+  maxTokens: z.number().optional(),
+  additionalContext: z.any().optional(),
+});
+
+type ChatUIMessage = z.infer<typeof ChatUIMessageSchema>;
 
 // Helper function to convert Zod schema to OpenAPI schema
 function toOpenApiSchema(schema: unknown) {
@@ -130,6 +156,32 @@ function logUnexpectedRouteError(error: unknown): void {
   console.error(error);
 }
 
+export function normalizeChatUIMessages(messages: ChatUIMessage[]): ChatUIMessage[] {
+  return messages.map((message, index) => ({
+    ...message,
+    id: message.id ?? `message-${index}`,
+  }));
+}
+
+export function selectMessagesForAgent(messages: ChatUIMessage[]): ChatUIMessage[] {
+  const latestUserMessage = [...messages].reverse().find((message) => message.role === 'user');
+  return latestUserMessage ? [latestUserMessage] : messages;
+}
+
+export function createAdditionalContextModelMessage(additionalContext: unknown) {
+  const modelVisibleAdditionalContext = buildModelVisibleAdditionalContext(additionalContext);
+  if (Object.keys(modelVisibleAdditionalContext).length === 0) {
+    return undefined;
+  }
+
+  return {
+    role: 'system',
+    content:
+      'Additional context (for background knowledge): ' +
+      JSON.stringify(modelVisibleAdditionalContext),
+  };
+}
+
 /**
  * API routes for the Mastra backend
  *
@@ -140,6 +192,80 @@ function logUnexpectedRouteError(error: unknown): void {
  * - /chat/stream: Server-sent events (SSE) endpoint for streaming responses
  */
 export const apiRoutes = [
+  registerApiRoute('/chat/ui', {
+    method: 'POST',
+    openapi: {
+      requestBody: {
+        content: {
+          'application/json': {
+            schema: toOpenApiSchema(ChatUIRequestSchema),
+          },
+        },
+      },
+    },
+    handler: async (c) => {
+      try {
+        const authenticatedUser = await requireAuthenticatedUser(c);
+        const body = await c.req.json();
+        const { messages, temperature, maxTokens, additionalContext } =
+          ChatUIRequestSchema.parse(body);
+        const originalMessages = normalizeChatUIMessages(messages);
+        const agentMessages = selectMessagesForAgent(originalMessages);
+        const additionalContextMessage = createAdditionalContextModelMessage(additionalContext);
+
+        const stream = createUIMessageStream({
+          originalMessages: originalMessages as never,
+          execute: async ({ writer }) => {
+            const runtimeContext = new RuntimeContext();
+            runtimeContext.set('additionalContext', additionalContext);
+            runtimeContext.set('authenticatedUserId', authenticatedUser.userId);
+            runtimeContext.set('streamController', {
+              writeDataEvent: (eventType: string, eventData: unknown) => {
+                writer.write({
+                  type: `data-${eventType}`,
+                  id: `${eventType}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                  data: eventData,
+                  transient: true,
+                } as never);
+              },
+            });
+
+            const streamResult = await socAgent.stream(agentMessages as never, {
+              format: 'aisdk',
+              maxSteps: 50,
+              modelSettings: {
+                temperature,
+                maxOutputTokens: maxTokens,
+              },
+              runtimeContext,
+              ...(additionalContextMessage
+                ? {
+                    context: [additionalContextMessage],
+                  }
+                : {}),
+              memory: {
+                thread: authenticatedUser.userId,
+                resource: authenticatedUser.userId,
+              },
+            });
+
+            writer.merge(streamResult.toUIMessageStream({ originalMessages: originalMessages as never }));
+          },
+          onError: (error) => {
+            if (error instanceof Error) {
+              return error.message;
+            }
+            return 'Internal error';
+          },
+        });
+
+        return createUIMessageStreamResponse({ stream });
+      } catch (error) {
+        logUnexpectedRouteError(error);
+        return handleRouteError(c, error);
+      }
+    },
+  }),
   registerApiRoute('/chat/stream', {
     method: 'POST',
     openapi: {

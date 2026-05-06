@@ -1,8 +1,7 @@
-import { ChatInput } from '@/cedar/components/chatInput/ChatInput';
-import ChatBubbles from '@/cedar/components/chatMessages/ChatBubbles';
 import { CollapsedButton } from '@/cedar/components/chatMessages/structural/CollapsedChatButton';
 import Container3D from '@/cedar/components/containers/Container3D';
 import { FloatingContainer } from '@/cedar/components/structural/FloatingContainer';
+import { SocVercelChat } from '@/cedar/components/vercelChat/SocVercelChat';
 import { useCedarStore } from 'cedar-os';
 import { ChatThreadController } from '@/cedar/components/threads/ChatThreadController';
 import { X } from 'lucide-react';
@@ -37,7 +36,6 @@ export const FloatingCedarChat: React.FC<FloatingCedarChatProps> = ({
   },
   showThreadController = false,
   resizable = true,
-  stream = true,
 }) => {
   // Get showChat state and setShowChat from store
   const showChat = useCedarStore((state) => state.showChat);
@@ -84,20 +82,7 @@ export const FloatingCedarChat: React.FC<FloatingCedarChatProps> = ({
             </div>
           </div>
 
-          {/* Chat messages - takes up remaining space */}
-          <div className="flex-1 min-h-0 overflow-hidden">
-            <ChatBubbles />
-          </div>
-
-          {/* Chat input - fixed at bottom */}
-          <div className="flex-shrink-0 p-3">
-            <ChatInput
-              handleFocus={() => {}}
-              handleBlur={() => {}}
-              isInputFocused={false}
-              stream={stream}
-            />
-          </div>
+          <SocVercelChat />
         </Container3D>
       </FloatingContainer>
     </>

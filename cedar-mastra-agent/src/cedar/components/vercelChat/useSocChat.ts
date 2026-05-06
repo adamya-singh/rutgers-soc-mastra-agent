@@ -1,0 +1,130 @@
+import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport, type UIMessage } from 'ai';
+import { useCallback, useEffect, useMemo } from 'react';
+import { useCedarStore } from 'cedar-os';
+
+import { buildMastraApiUrl } from '@/lib/mastraConfig';
+import { supabaseClient } from '@/lib/supabaseClient';
+
+type CedarFrontendToolEvent = {
+  type: 'frontendTool';
+  toolName: string;
+  args?: unknown;
+};
+
+type CedarSetStateEvent = {
+  type: 'setState';
+  stateKey: string;
+  setterKey: string;
+  args?: unknown;
+};
+
+type SocChatDataParts = {
+  frontendTool: CedarFrontendToolEvent;
+  setState: CedarSetStateEvent;
+};
+
+export type SocChatMessage = UIMessage<unknown, SocChatDataParts>;
+
+function isFrontendToolEvent(data: unknown): data is CedarFrontendToolEvent {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    (data as CedarFrontendToolEvent).type === 'frontendTool' &&
+    typeof (data as CedarFrontendToolEvent).toolName === 'string'
+  );
+}
+
+function isSetStateEvent(data: unknown): data is CedarSetStateEvent {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    (data as CedarSetStateEvent).type === 'setState' &&
+    typeof (data as CedarSetStateEvent).stateKey === 'string' &&
+    typeof (data as CedarSetStateEvent).setterKey === 'string'
+  );
+}
+
+async function dispatchCedarDataEvent(part: { type: string; data: unknown }) {
+  const cedarStore = useCedarStore.getState();
+
+  if (part.type === 'data-frontendTool' && isFrontendToolEvent(part.data)) {
+    await cedarStore.executeTool(part.data.toolName, part.data.args);
+    return;
+  }
+
+  if (part.type === 'data-setState' && isSetStateEvent(part.data)) {
+    cedarStore.executeStateSetter({
+      key: part.data.stateKey,
+      setterKey: part.data.setterKey,
+      args: part.data.args,
+    });
+  }
+}
+
+export function useSocChat() {
+  const currentThreadId = useCedarStore((state) => state.mainThreadId);
+  const setIsProcessing = useCedarStore((state) => state.setIsProcessing);
+
+  const fetchWithAuth = useCallback(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const { data } = await supabaseClient.auth.getSession();
+    const headers = new Headers(init?.headers);
+
+    if (data.session?.access_token) {
+      headers.set('Authorization', `Bearer ${data.session.access_token}`);
+    }
+
+    return fetch(input, {
+      ...init,
+      headers,
+    });
+  }, []);
+
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport<SocChatMessage>({
+        api: buildMastraApiUrl('/chat/ui'),
+        fetch: fetchWithAuth,
+      }),
+    [fetchWithAuth],
+  );
+
+  const chat = useChat<SocChatMessage>({
+    id: currentThreadId,
+    transport,
+    onData: (part) => {
+      void dispatchCedarDataEvent(part);
+    },
+  });
+
+  useEffect(() => {
+    setIsProcessing(chat.status === 'submitted' || chat.status === 'streaming');
+  }, [chat.status, setIsProcessing]);
+
+  const sendSocMessage = useCallback(
+    async ({ text, files }: { text: string; files?: FileList }) => {
+      const additionalContext = useCedarStore.getState().additionalContext;
+      await chat.sendMessage(
+        files && files.length > 0
+          ? {
+              text,
+              files,
+            }
+          : {
+              text,
+            },
+        {
+          body: {
+            additionalContext,
+          },
+        },
+      );
+    },
+    [chat],
+  );
+
+  return {
+    ...chat,
+    sendSocMessage,
+  };
+}

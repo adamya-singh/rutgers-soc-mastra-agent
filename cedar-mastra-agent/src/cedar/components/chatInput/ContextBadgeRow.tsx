@@ -66,7 +66,7 @@ export const ContextBadgeRow: React.FC<ContextBadgeRowProps> = ({ editor }) => {
 							const { doc, tr } = state;
 							let found = false;
 
-							doc.descendants((node, pos) => {
+							doc.descendants((node: { type: { name: string }; attrs: { contextEntryId?: string }; nodeSize: number }, pos: number) => {
 								if (
 									node.type.name === 'mention' &&
 									node.attrs.contextEntryId === entry.id

@@ -1,6 +1,5 @@
-import { ChatInput } from '@/cedar/components/chatInput/ChatInput';
-import ChatBubbles from '@/cedar/components/chatMessages/ChatBubbles';
 import Container3D from '@/cedar/components/containers/Container3D';
+import { SocVercelChat } from '@/cedar/components/vercelChat/SocVercelChat';
 import { useCedarStore } from 'cedar-os';
 import { X } from 'lucide-react';
 import React from 'react';
@@ -21,7 +20,6 @@ export const EmbeddedCedarChat: React.FC<EmbeddedCedarChatProps> = ({
 	showHeader = true,
 	showCloseButton = false,
 	onClose,
-	stream = true,
 	className = '',
 }) => {
 	const setShowChat = useCedarStore((state) => state.setShowChat);
@@ -59,20 +57,7 @@ export const EmbeddedCedarChat: React.FC<EmbeddedCedarChatProps> = ({
 					</div>
 				)}
 
-				{/* Chat messages - takes up remaining space */}
-				<div className='flex-1 min-h-0 overflow-hidden'>
-					<ChatBubbles />
-				</div>
-
-				{/* Chat input - fixed at bottom */}
-				<div className='flex-shrink-0 p-3'>
-					<ChatInput
-						handleFocus={() => {}}
-						handleBlur={() => {}}
-						isInputFocused={false}
-						stream={stream}
-					/>
-				</div>
+				<SocVercelChat />
 			</Container3D>
 		</div>
 	);

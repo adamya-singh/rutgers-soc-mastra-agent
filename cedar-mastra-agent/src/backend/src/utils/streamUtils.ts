@@ -42,11 +42,28 @@ export function createSSEStream(
  * Emit any JSON object as a data event.
  * Used for actions, tool responses, custom events, etc.
  */
+type CedarEventStreamTarget =
+  | ReadableStreamDefaultController<Uint8Array>
+  | {
+      writeDataEvent: (eventType: string, eventData: unknown) => void;
+    };
+
+function isUIMessageEventTarget(
+  target: CedarEventStreamTarget,
+): target is { writeDataEvent: (eventType: string, eventData: unknown) => void } {
+  return 'writeDataEvent' in target && typeof target.writeDataEvent === 'function';
+}
+
 export function streamJSONEvent<T>(
-  controller: ReadableStreamDefaultController<Uint8Array>,
+  controller: CedarEventStreamTarget,
   eventType: string,
   eventData: T,
 ) {
+  if (isUIMessageEventTarget(controller)) {
+    controller.writeDataEvent(eventType, eventData);
+    return;
+  }
+
   const encoder = new TextEncoder();
   controller.enqueue(encoder.encode('data: '));
   controller.enqueue(encoder.encode(`${JSON.stringify(eventData)}\n\n`));
@@ -60,7 +77,6 @@ export function streamJSONEvent<T>(
  * @returns Promise<string> - The complete response text
  */
 export async function handleTextStream(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   chunk: string,
   streamController: ReadableStreamDefaultController<Uint8Array>,
 ): Promise<string> {

@@ -8,6 +8,12 @@ import {
 import { runNavigate } from '../browser/browserService.js';
 import { BrowserSessionError } from '../browser/types.js';
 import {
+  ChatUIRequestSchema,
+  createAdditionalContextModelMessage,
+  normalizeChatUIMessages,
+  selectMessagesForAgent,
+} from '../mastra/apiRegistry.js';
+import {
   buildModelVisibleAdditionalContext,
   ChatInputSchema,
 } from '../mastra/workflows/chatWorkflow.js';
@@ -20,6 +26,67 @@ describe('security hardening', () => {
     });
 
     assert.strictEqual('systemPrompt' in parsed, false);
+  });
+
+  it('accepts multimodal UI messages for the Vercel chat route', () => {
+    const parsed = ChatUIRequestSchema.parse({
+      messages: [
+        {
+          id: 'user-1',
+          role: 'user',
+          parts: [
+            { type: 'text', text: 'What course is shown here?' },
+            {
+              type: 'file',
+              mediaType: 'image/png',
+              url: 'data:image/png;base64,AAAA',
+              filename: 'schedule.png',
+            },
+          ],
+        },
+      ],
+      additionalContext: {
+        frontendTools: {
+          unsafe: { argsSchema: { definitions: { huge: true } } },
+        },
+      },
+    });
+
+    assert.strictEqual(parsed.messages[0]?.parts[1]?.type, 'file');
+    assert.ok(parsed.additionalContext);
+  });
+
+  it('sends only the latest user UI message to the agent', () => {
+    const messages = normalizeChatUIMessages([
+      { role: 'user', parts: [{ type: 'text', text: 'first' }] },
+      { role: 'assistant', parts: [{ type: 'text', text: 'response' }] },
+      { role: 'user', parts: [{ type: 'text', text: 'latest' }] },
+    ]);
+
+    const selected = selectMessagesForAgent(messages);
+
+    assert.strictEqual(selected.length, 1);
+    assert.strictEqual(selected[0]?.id, 'message-2');
+  });
+
+  it('keeps tool schemas out of Vercel route model-visible context', () => {
+    const contextMessage = createAdditionalContextModelMessage({
+      browserClientId: { data: 'browser_1' },
+      frontendTools: {
+        addSectionToSchedule: {
+          argsSchema: {
+            definitions: {
+              hugeSchema: { type: 'object' },
+            },
+          },
+        },
+      },
+    });
+
+    assert.ok(contextMessage);
+    assert.strictEqual(contextMessage.role, 'system');
+    assert.match(contextMessage.content, /browser_1/);
+    assert.doesNotMatch(contextMessage.content, /hugeSchema/);
   });
 
   it('keeps tool schemas out of model-visible additional context', () => {
