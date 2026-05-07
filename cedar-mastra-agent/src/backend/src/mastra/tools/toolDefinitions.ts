@@ -38,31 +38,45 @@ export const AddNewTextLineSchema = z.object({
 });
 
 const SectionMeetingTimeSchema = z.object({
-  day: z.string().optional(),
-  startTimeMilitary: z.string().optional(),
-  endTimeMilitary: z.string().optional(),
-  startTime: z.string().optional(),
-  endTime: z.string().optional(),
-  building: z.string().optional(),
-  room: z.string().optional(),
-  campus: z.string().optional(),
-  mode: z.string().optional(),
-  isOnline: z.boolean().optional(),
-});
+  day: z.string().nullable().optional(),
+  dayName: z.string().nullable().optional(),
+  startTimeMilitary: z.string().nullable().optional(),
+  endTimeMilitary: z.string().nullable().optional(),
+  startTime: z.string().nullable().optional(),
+  endTime: z.string().nullable().optional(),
+  building: z.string().nullable().optional(),
+  room: z.string().nullable().optional(),
+  campus: z.string().nullable().optional(),
+  location: z.string().nullable().optional(),
+  mode: z.string().nullable().optional(),
+  isOnline: z.boolean().nullable().optional(),
+}).passthrough();
+
+const SectionCourseSchema = z.object({
+  courseString: z.string().nullable().optional(),
+  title: z.string().nullable().optional(),
+  expandedTitle: z.string().nullable().optional(),
+  credits: z.number().nullable().optional(),
+  subjectCode: z.string().nullable().optional(),
+  subjectName: z.string().nullable().optional(),
+}).passthrough();
 
 const SectionSchema = z.object({
   indexNumber: z.string().min(1, 'Index number is required'),
-  sectionId: z.number().optional(),
-  courseString: z.string().optional(),
-  courseTitle: z.string().optional(),
-  credits: z.number().optional(),
-  sectionNumber: z.string().optional(),
+  sectionId: z.number().nullable().optional(),
+  courseString: z.string().nullable().optional(),
+  courseTitle: z.string().nullable().optional(),
+  title: z.string().nullable().optional(),
+  course: SectionCourseSchema.optional(),
+  credits: z.number().nullable().optional(),
+  sectionNumber: z.string().nullable().optional(),
   instructors: z.array(z.string()).optional(),
-  isOpen: z.boolean().optional(),
+  isOpen: z.boolean().nullable().optional(),
+  statusText: z.string().nullable().optional(),
   meetingTimes: z.array(SectionMeetingTimeSchema).optional(),
-  isOnline: z.boolean().optional(),
-  sessionDates: z.string().optional(),
-});
+  isOnline: z.boolean().nullable().optional(),
+  sessionDates: z.string().nullable().optional(),
+}).passthrough();
 
 // Schema for the addSectionToSchedule frontend tool
 export const AddSectionToScheduleSchema = z.object({

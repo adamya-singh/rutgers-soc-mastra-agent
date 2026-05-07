@@ -1186,7 +1186,7 @@ export const ScheduleGrid: React.FC = () => {
       const visibleCourseLabel = title || courseLabel;
       const sectionLabel = section.sectionNumber ? `Sec ${section.sectionNumber}` : '';
       const instructor = section.instructors && section.instructors.length > 0 ? section.instructors[0] : '';
-      const sectionOnline = Boolean(section.isOnline);
+      const sectionOnline = Boolean(section.isOnline && meetings.length === 0);
       const isClosed = section.isOpen === false;
 
       if (meetings.length === 0) {
@@ -1204,7 +1204,7 @@ export const ScheduleGrid: React.FC = () => {
 
       meetings.forEach((meeting, index) => {
         const day = meeting.day ? meeting.day.toUpperCase() : '';
-        const meetingOnline = Boolean(meeting.isOnline || sectionOnline);
+        const meetingOnline = Boolean(meeting.isOnline);
         const dayIndex = DAY_ORDER.indexOf(day as (typeof DAY_ORDER)[number]);
         const hasValidDay = dayIndex !== -1;
         const startMinutes = parseMilitaryTime(meeting.startTimeMilitary);

@@ -30,6 +30,25 @@ export type ScheduleSection = {
   sessionDates?: string | null;
 };
 
+type LooseCourseShape = {
+  courseString?: unknown;
+  title?: unknown;
+  expandedTitle?: unknown;
+  credits?: unknown;
+};
+
+type LooseMeetingTimeShape = Partial<MeetingTime> & {
+  dayName?: unknown;
+  location?: unknown;
+};
+
+type LooseScheduleSectionShape = Partial<ScheduleSection> & {
+  course?: LooseCourseShape;
+  title?: unknown;
+  statusText?: unknown;
+  meetingTimes?: LooseMeetingTimeShape[] | null;
+};
+
 export type ScheduleSnapshot = {
   version: number;
   termYear: number;
@@ -144,7 +163,190 @@ const createEmptyScheduleSnapshot = (overrides: Partial<ScheduleSnapshot> = {}):
     ...defaultSchedule,
     ...overrides,
     lastUpdated: new Date().toISOString(),
-    sections: overrides.sections ? [...overrides.sections] : [],
+    sections: overrides.sections ? overrides.sections.map(normalizeScheduleSection) : [],
+  };
+};
+
+const asString = (value: unknown): string | undefined => {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+};
+
+const asNullableString = (value: unknown): string | null | undefined => {
+  if (value === null) return null;
+  return asString(value);
+};
+
+const asNumber = (value: unknown): number | null | undefined => {
+  if (value === null) return null;
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+};
+
+const asBoolean = (value: unknown): boolean | null | undefined => {
+  if (value === null) return null;
+  return typeof value === 'boolean' ? value : undefined;
+};
+
+export const parseDisplayTimeToMilitary = (time?: string | null): string | undefined => {
+  const raw = time?.trim();
+  if (!raw || raw.toUpperCase() === 'TBA') return undefined;
+
+  if (/^\d{3,4}$/.test(raw)) {
+    return raw.padStart(4, '0');
+  }
+
+  const match = raw.match(/^(\d{1,2})(?::(\d{2}))?\s*([AP]M)$/i);
+  if (!match) return undefined;
+
+  let hours = Number(match[1]);
+  const minutes = Number(match[2] ?? '0');
+  const period = match[3].toUpperCase();
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return undefined;
+  if (hours < 1 || hours > 12 || minutes < 0 || minutes > 59) return undefined;
+
+  if (period === 'AM' && hours === 12) {
+    hours = 0;
+  } else if (period === 'PM' && hours !== 12) {
+    hours += 12;
+  }
+
+  return `${hours.toString().padStart(2, '0')}${minutes.toString().padStart(2, '0')}`;
+};
+
+export const normalizeMeetingDay = (day?: string | null): string | undefined => {
+  const normalized = day?.trim().toLowerCase();
+  if (!normalized) return undefined;
+
+  const dayMap: Record<string, string> = {
+    m: 'M',
+    mon: 'M',
+    monday: 'M',
+    t: 'T',
+    tue: 'T',
+    tues: 'T',
+    tuesday: 'T',
+    w: 'W',
+    wed: 'W',
+    wednesday: 'W',
+    h: 'H',
+    thu: 'H',
+    thur: 'H',
+    thurs: 'H',
+    thursday: 'H',
+    r: 'H',
+    f: 'F',
+    fri: 'F',
+    friday: 'F',
+    s: 'S',
+    sat: 'S',
+    saturday: 'S',
+    u: 'U',
+    sun: 'U',
+    sunday: 'U',
+  };
+
+  return dayMap[normalized] ?? dayMap[normalized[0]];
+};
+
+type ParsedLocation = {
+  building?: string;
+  room?: string;
+  campus?: string;
+};
+
+export const parseMeetingLocation = (location?: string | null): ParsedLocation => {
+  const raw = location?.trim();
+  if (!raw) return {};
+
+  const campusMatch = raw.match(/\(([^)]+)\)\s*$/);
+  const campus = campusMatch?.[1]?.trim();
+  const withoutCampus = campusMatch
+    ? raw.slice(0, campusMatch.index).trim()
+    : raw;
+
+  if (!withoutCampus || /^online$/i.test(withoutCampus)) {
+    return { campus };
+  }
+
+  const [building, ...roomParts] = withoutCampus.split(/\s+/);
+  return {
+    building,
+    room: roomParts.length > 0 ? roomParts.join(' ') : undefined,
+    campus,
+  };
+};
+
+const normalizeMeetingIsOnline = (
+  meeting: LooseMeetingTimeShape,
+  parsedLocation: ParsedLocation,
+): boolean | null | undefined => {
+  const explicit = asBoolean(meeting.isOnline);
+  if (explicit !== undefined) return explicit;
+
+  const mode = asString(meeting.mode)?.toLowerCase();
+  const location = asString(meeting.location)?.toLowerCase();
+  const campus = parsedLocation.campus?.toLowerCase();
+  if (
+    mode?.includes('online') ||
+    location?.includes('online') ||
+    campus?.includes('online')
+  ) {
+    return true;
+  }
+
+  return undefined;
+};
+
+export const normalizeScheduleMeetingTime = (
+  rawMeeting: LooseMeetingTimeShape,
+): MeetingTime => {
+  const parsedLocation = parseMeetingLocation(asString(rawMeeting.location));
+  const startTimeMilitary = asNullableString(rawMeeting.startTimeMilitary)
+    ?? parseDisplayTimeToMilitary(asString(rawMeeting.startTime));
+  const endTimeMilitary = asNullableString(rawMeeting.endTimeMilitary)
+    ?? parseDisplayTimeToMilitary(asString(rawMeeting.endTime));
+
+  return {
+    day: normalizeMeetingDay(asString(rawMeeting.day) ?? asString(rawMeeting.dayName)) ?? null,
+    startTimeMilitary,
+    endTimeMilitary,
+    startTime: asNullableString(rawMeeting.startTime),
+    endTime: asNullableString(rawMeeting.endTime),
+    building: asNullableString(rawMeeting.building) ?? parsedLocation.building,
+    room: asNullableString(rawMeeting.room) ?? parsedLocation.room,
+    campus: asNullableString(rawMeeting.campus) ?? parsedLocation.campus,
+    mode: asNullableString(rawMeeting.mode),
+    isOnline: normalizeMeetingIsOnline(rawMeeting, parsedLocation),
+  };
+};
+
+export const normalizeScheduleSection = (rawSection: unknown): ScheduleSection => {
+  const section = rawSection as LooseScheduleSectionShape;
+  const course = section.course ?? {};
+  const meetingTimes = Array.isArray(section.meetingTimes)
+    ? section.meetingTimes.map(normalizeScheduleMeetingTime)
+    : section.meetingTimes === null
+      ? null
+      : undefined;
+  const isOnline = asBoolean(section.isOnline)
+    ?? (meetingTimes && meetingTimes.length > 0
+      ? meetingTimes.every((meeting) => meeting.isOnline === true)
+      : undefined);
+
+  return {
+    indexNumber: asString(section.indexNumber) ?? '',
+    sectionId: asNumber(section.sectionId),
+    courseString: asNullableString(section.courseString) ?? asNullableString(course.courseString),
+    courseTitle: asNullableString(section.courseTitle)
+      ?? asNullableString(course.title)
+      ?? asNullableString(section.title)
+      ?? asNullableString(course.expandedTitle),
+    credits: asNumber(section.credits) ?? asNumber(course.credits),
+    sectionNumber: asNullableString(section.sectionNumber),
+    instructors: Array.isArray(section.instructors) ? section.instructors.filter((value): value is string => typeof value === 'string') : undefined,
+    isOpen: asBoolean(section.isOpen),
+    meetingTimes,
+    isOnline,
+    sessionDates: asNullableString(section.sessionDates),
   };
 };
 
@@ -159,7 +361,7 @@ const normalizeSchedule = (raw: unknown): ScheduleSnapshot => {
     termCode: typeof data.termCode === 'string' ? data.termCode : defaultSchedule.termCode,
     campus: typeof data.campus === 'string' ? data.campus : defaultSchedule.campus,
     lastUpdated: typeof data.lastUpdated === 'string' ? data.lastUpdated : now,
-    sections: Array.isArray(data.sections) ? (data.sections as ScheduleSection[]) : [],
+    sections: Array.isArray(data.sections) ? data.sections.map(normalizeScheduleSection) : [],
   };
 };
 
@@ -617,14 +819,15 @@ export const applyRemoteSchedules = (remoteSchedules: RemoteSchedulePayload[]) =
 
 export const addSectionToSchedule = (
   schedule: ScheduleSnapshot,
-  section: ScheduleSection,
+  section: unknown,
 ): { schedule: ScheduleSnapshot; added: boolean } => {
-  const exists = schedule.sections.some((entry) => entry.indexNumber === section.indexNumber);
+  const normalizedSection = normalizeScheduleSection(section);
+  const exists = schedule.sections.some((entry) => entry.indexNumber === normalizedSection.indexNumber);
   if (exists) return { schedule, added: false };
   const nextSchedule = {
     ...schedule,
     lastUpdated: new Date().toISOString(),
-    sections: [...schedule.sections, section],
+    sections: [...schedule.sections.map(normalizeScheduleSection), normalizedSection],
   };
   return { schedule: nextSchedule, added: true };
 };
@@ -721,14 +924,15 @@ export const createTemporarySchedule = (options: {
 
 export const addSectionToScheduleById = (
   scheduleId: string,
-  section: ScheduleSection,
+  section: unknown,
 ): boolean => {
   if (typeof window === 'undefined') return false;
   const workspace = loadScheduleWorkspace();
   const entry = workspace.schedules.find((item) => item.id === scheduleId);
   if (!entry) return false;
+  const normalizedSection = normalizeScheduleSection(section);
   const exists = entry.snapshot.sections.some(
-    (existing) => existing.indexNumber === section.indexNumber,
+    (existing) => existing.indexNumber === normalizedSection.indexNumber,
   );
   if (exists) return false;
   const lastUpdated = new Date().toISOString();
@@ -737,7 +941,7 @@ export const addSectionToScheduleById = (
     snapshot: {
       ...entry.snapshot,
       lastUpdated,
-      sections: [...entry.snapshot.sections, section],
+      sections: [...entry.snapshot.sections.map(normalizeScheduleSection), normalizedSection],
     },
     updatedAt: lastUpdated,
   };
