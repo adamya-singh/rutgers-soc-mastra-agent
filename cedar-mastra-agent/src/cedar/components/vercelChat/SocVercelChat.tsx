@@ -20,6 +20,8 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 
 import { SocChatInput } from './SocChatInput';
 import { SocChatMessages } from './SocChatMessages';
+import { SocChatSuggestions } from './SocChatSuggestions';
+import { useChatSuggestions } from './useChatSuggestions';
 import { useSocChat, type SocChatMessage } from './useSocChat';
 import { EXAMPLE_PROMPTS } from '@/cedar/config/examplePrompts';
 import { cn } from 'cedar-os';
@@ -208,6 +210,19 @@ export const SocVercelChat: React.FC<SocVercelChatProps> = ({
   const isEmptyThread = messages.length === 0;
   const isChatUnavailable =
     !isSignedIn || isHistoryLoading || isThreadLoading || !activeThreadId;
+
+  const { suggestions: chatSuggestions, isLoading: isLoadingSuggestions } =
+    useChatSuggestions({
+      threadId: activeThreadId,
+      messages,
+      status,
+    });
+  const showChatSuggestions =
+    !isEmptyThread &&
+    !isBusy &&
+    isSignedIn &&
+    Boolean(activeThreadId) &&
+    !isThreadLoading;
 
   // Once the active thread has any messages, it's no longer pristine.
   useEffect(() => {
@@ -656,6 +671,16 @@ export const SocVercelChat: React.FC<SocVercelChatProps> = ({
         </div>
         <div className="flex-shrink-0 px-4 pb-3 pt-2">
           <div className="mx-auto w-full max-w-3xl">
+            {showChatSuggestions && (
+              <SocChatSuggestions
+                suggestions={chatSuggestions}
+                isLoading={isLoadingSuggestions}
+                disabled={isBusy || isChatUnavailable}
+                onSelect={(prompt) => {
+                  void sendSocMessage({ text: prompt });
+                }}
+              />
+            )}
             <SocChatInput
               disabled={isBusy || isChatUnavailable}
               isEmptyThread={isEmptyThread}

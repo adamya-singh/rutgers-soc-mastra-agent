@@ -47,6 +47,8 @@ import {
 } from '../degree-navigator/repository.js';
 import { enrichDegreeNavigatorCourseTitles } from '../degree-navigator/courseTitleEnrichment.js';
 import {
+  ChatSuggestionsRequestSchema,
+  ChatSuggestionsResponseSchema,
   ChatUIRequestSchema,
   CreateChatThreadRequestSchema,
   DeleteChatThreadRequestSchema,
@@ -54,6 +56,7 @@ import {
   UpdateChatThreadRequestSchema,
   type ChatUIMessage,
 } from '../chat/schemas.js';
+import { generateChatSuggestions } from './suggestions.js';
 import {
   appendChatMessage,
   ChatThreadNotFoundError,
@@ -415,6 +418,51 @@ export const apiRoutes = [
       } catch (error) {
         logUnexpectedRouteError(error);
         return handleRouteError(c, error);
+      }
+    },
+  }),
+  registerApiRoute('/chat/suggestions', {
+    method: 'POST',
+    openapi: {
+      requestBody: {
+        content: {
+          'application/json': {
+            schema: toOpenApiSchema(ChatSuggestionsRequestSchema),
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: 'Two short follow-up prompt suggestions for the active chat thread',
+          content: {
+            'application/json': {
+              schema: toOpenApiSchema(ChatSuggestionsResponseSchema),
+            },
+          },
+        },
+      },
+    },
+    handler: async (c) => {
+      try {
+        const authenticatedUser = await requireAuthenticatedUser(c);
+        const body = await c.req.json();
+        const { threadId } = ChatSuggestionsRequestSchema.parse(body);
+        const { messages } = await getChatThreadWithMessages(
+          authenticatedUser.userId,
+          threadId,
+        );
+        const suggestions = await generateChatSuggestions(messages);
+        return c.json({ suggestions }, 200);
+      } catch (error) {
+        if (
+          error instanceof AuthError ||
+          error instanceof ZodError ||
+          error instanceof ChatThreadNotFoundError
+        ) {
+          return handleRouteError(c, error);
+        }
+        console.warn('[chat-suggestions] route failed', error);
+        return c.json({ suggestions: [] }, 200);
       }
     },
   }),

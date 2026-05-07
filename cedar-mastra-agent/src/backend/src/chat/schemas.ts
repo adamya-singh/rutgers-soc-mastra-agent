@@ -87,6 +87,14 @@ export const DeleteChatThreadResponseSchema = z.object({
   deleted: z.boolean(),
 });
 
+export const ChatSuggestionsRequestSchema = z.object({
+  threadId: z.string().uuid(),
+});
+
+export const ChatSuggestionsResponseSchema = z.object({
+  suggestions: z.array(z.string()),
+});
+
 export type ChatUIMessage = z.infer<typeof ChatUIMessageSchema>;
 export type ChatThread = z.infer<typeof ChatThreadSchema>;
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
