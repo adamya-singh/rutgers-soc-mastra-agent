@@ -68,6 +68,7 @@ export const SocVercelChat: React.FC<SocVercelChatProps> = ({
   onSignOut,
 }) => {
   const [threads, setThreads] = useState<ChatThread[]>([]);
+  const [chatSearchQuery, setChatSearchQuery] = useState('');
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [hydratedMessages, setHydratedMessages] = useState<SocChatMessage[]>([]);
   const [isSignedIn, setIsSignedIn] = useState(false);
@@ -79,6 +80,8 @@ export const SocVercelChat: React.FC<SocVercelChatProps> = ({
   // Tracks a freshly-created thread that the user has not yet sent any messages
   // in. If they navigate away from it, we delete it so empty chats don't pile up.
   const pristineThreadIdRef = useRef<string | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const shouldFocusSearchRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -114,6 +117,19 @@ export const SocVercelChat: React.FC<SocVercelChatProps> = ({
     setThreads(nextThreads);
     return nextThreads;
   }, []);
+
+  const normalizedChatSearchQuery = chatSearchQuery.trim().toLowerCase();
+  const filteredThreads = useMemo(() => {
+    if (!normalizedChatSearchQuery) {
+      return threads;
+    }
+
+    return threads.filter((thread) => {
+      const title = thread.title || 'New chat';
+      const preview = thread.lastMessagePreview ?? '';
+      return `${title}\n${preview}`.toLowerCase().includes(normalizedChatSearchQuery);
+    });
+  }, [normalizedChatSearchQuery, threads]);
 
   const openThread = useCallback(async (threadId: string) => {
     setHistoryError(null);
@@ -185,6 +201,7 @@ export const SocVercelChat: React.FC<SocVercelChatProps> = ({
     if (!isSignedIn) {
       pristineThreadIdRef.current = null;
       setThreads([]);
+      setChatSearchQuery('');
       setActiveThreadId(null);
       setHydratedMessages([]);
       setHistoryError(null);
@@ -293,6 +310,19 @@ export const SocVercelChat: React.FC<SocVercelChatProps> = ({
       setIsThreadLoading(false);
     }
   };
+
+  const handleOpenSearch = () => {
+    shouldFocusSearchRef.current = true;
+    setIsSidebarOpen(true);
+  };
+
+  useEffect(() => {
+    if (!isSidebarOpen || !shouldFocusSearchRef.current) {
+      return;
+    }
+    shouldFocusSearchRef.current = false;
+    searchInputRef.current?.focus();
+  }, [isSidebarOpen]);
 
   const handleSelectThread = async (threadId: string) => {
     if (!threadId || threadId === activeThreadId) {
@@ -413,17 +443,38 @@ export const SocVercelChat: React.FC<SocVercelChatProps> = ({
               </button>
             </>
           )}
-          <div
-            aria-disabled="true"
-            className={cn(
-              'flex h-9 cursor-default items-center gap-2.5 rounded-md text-sm font-medium text-muted-foreground/80',
-              isSidebarOpen ? 'px-2' : 'justify-center px-0',
-            )}
-            title="Search chats (coming soon)"
-          >
-            <Search className="h-4 w-4 flex-shrink-0" />
-            {isSidebarOpen && <span className="truncate">Search chats</span>}
-          </div>
+          {isSidebarOpen ? (
+            <label
+              className={cn(
+                'flex h-9 items-center gap-2.5 rounded-md px-2 text-sm font-medium text-muted-foreground/80 transition focus-within:bg-surface-1 focus-within:text-foreground',
+                (!isSignedIn || isHistoryLoading) && 'opacity-50',
+              )}
+              title="Search chats"
+            >
+              <Search className="h-4 w-4 flex-shrink-0" />
+              <input
+                ref={searchInputRef}
+                type="search"
+                value={chatSearchQuery}
+                onChange={(event) => setChatSearchQuery(event.target.value)}
+                disabled={!isSignedIn || isHistoryLoading}
+                className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
+                placeholder="Search chats"
+                aria-label="Search chats"
+              />
+            </label>
+          ) : (
+            <button
+              type="button"
+              onClick={handleOpenSearch}
+              disabled={!isSignedIn || isHistoryLoading}
+              className="inline-flex h-9 items-center justify-center rounded-md text-muted-foreground transition hover:bg-surface-1 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label="Search chats"
+              title="Search chats"
+            >
+              <Search className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         <div
@@ -449,66 +500,70 @@ export const SocVercelChat: React.FC<SocVercelChatProps> = ({
                 <p className="px-2 pb-1 text-[11px] font-semibold tracking-wide text-muted-foreground">
                   Recents
                 </p>
-                <ul className="space-y-0.5">
-                  {threads.map((thread) => {
-                    const isActive = thread.id === activeThreadId;
-                    const title = thread.title || 'New chat';
-                    return (
-                      <li key={thread.id}>
-                        <div
-                          className={cn(
-                            'group relative flex w-full items-center rounded-md text-sm transition',
-                            isActive
-                              ? 'bg-surface-1 text-foreground'
-                              : 'text-muted-foreground hover:bg-surface-1 hover:text-foreground',
-                          )}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => void handleSelectThread(thread.id)}
-                            className="min-w-0 flex-1 truncate px-2 py-1.5 text-left"
-                            title={title}
-                          >
-                            {title}
-                          </button>
+                {filteredThreads.length === 0 ? (
+                  <p className="px-2 py-1 text-xs text-muted-foreground">No matching chats.</p>
+                ) : (
+                  <ul className="space-y-0.5">
+                    {filteredThreads.map((thread) => {
+                      const isActive = thread.id === activeThreadId;
+                      const title = thread.title || 'New chat';
+                      return (
+                        <li key={thread.id}>
                           <div
                             className={cn(
-                              'absolute right-1 flex items-center gap-0.5 rounded-md bg-surface-1 pl-1.5 pr-1',
-                              isActive ? '' : 'opacity-0 group-hover:opacity-100',
+                              'group relative flex w-full items-center rounded-md text-sm transition',
+                              isActive
+                                ? 'bg-surface-1 text-foreground'
+                                : 'text-muted-foreground hover:bg-surface-1 hover:text-foreground',
                             )}
                           >
                             <button
                               type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void handleRenameThread(thread.id);
-                              }}
-                              disabled={isThreadLoading}
-                              className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                              aria-label="Rename chat"
-                              title="Rename chat"
+                              onClick={() => void handleSelectThread(thread.id)}
+                              className="min-w-0 flex-1 truncate px-2 py-1.5 text-left"
+                              title={title}
                             >
-                              <Pencil className="h-3.5 w-3.5" />
+                              {title}
                             </button>
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void handleDeleteThread(thread.id);
-                              }}
-                              disabled={isThreadLoading}
-                              className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition hover:text-destructive disabled:cursor-not-allowed disabled:opacity-50"
-                              aria-label="Delete chat"
-                              title="Delete chat"
+                            <div
+                              className={cn(
+                                'absolute right-1 flex items-center gap-0.5 rounded-md bg-surface-1 pl-1.5 pr-1',
+                                isActive ? '' : 'opacity-0 group-hover:opacity-100',
+                              )}
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void handleRenameThread(thread.id);
+                                }}
+                                disabled={isThreadLoading}
+                                className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                                aria-label="Rename chat"
+                                title="Rename chat"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void handleDeleteThread(thread.id);
+                                }}
+                                disabled={isThreadLoading}
+                                className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition hover:text-destructive disabled:cursor-not-allowed disabled:opacity-50"
+                                aria-label="Delete chat"
+                                title="Delete chat"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </>
             )
           ) : null}
