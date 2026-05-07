@@ -863,8 +863,8 @@ export const ScheduleGrid: React.FC = () => {
   }, []);
 
   return (
-    <section className="w-full">
-      <div className="overflow-hidden rounded-md border border-border bg-surface-1">
+    <section className="h-full w-full">
+      <div className="flex h-full flex-col overflow-hidden bg-surface-1">
         {/* -------- Toolbar -------- */}
         <div className="border-b border-border px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-3">

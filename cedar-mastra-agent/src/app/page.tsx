@@ -9,14 +9,8 @@ import {
   useSubscribeStateToAgentContext,
   useCedarStore,
 } from 'cedar-os';
+import { MoonStar, Sun } from 'lucide-react';
 import { supabaseClient } from '@/lib/supabaseClient';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/cedar/components/ui/dialog';
 
 import {
   SearchResults,
@@ -26,7 +20,6 @@ import {
 import { ScheduleGrid } from '@/components/schedule/ScheduleGrid';
 import { EmbeddedCedarChat } from '@/cedar/components/chatComponents/EmbeddedCedarChat';
 import { DebuggerPanel } from '@/cedar/components/debugger';
-import { MoonStar, Sun } from 'lucide-react';
 import { dispatchCedarPrompt } from '@/cedar/promptBridge';
 import {
   addSectionToSchedule,
@@ -216,8 +209,6 @@ export default function HomePage() {
   const [userEmail, setUserEmail] = React.useState<string | null>(null);
   const [userId, setUserId] = React.useState<string | null>(null);
   const [accessToken, setAccessToken] = React.useState<string | null>(null);
-  const [isProfileOpen, setIsProfileOpen] = React.useState(false);
-
   const [browserClientId, setBrowserClientId] = React.useState<string>(() => getClientIdentity().browserClientId);
   const [browserSession, setBrowserSession] = React.useState<BrowserSessionState | null>(null);
   const [browserPaneStatus, setBrowserPaneStatus] = React.useState<BrowserPaneStatus>('idle');
@@ -1364,48 +1355,32 @@ export default function HomePage() {
   const showDegreeNavigatorLoginNotice =
     Boolean(browserSession) && isDegreeNavigatorLoginPage(degreeNavigatorReadiness);
 
+  const handleToggleTheme = React.useCallback(() => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  }, []);
+
+  const handleSignOut = React.useCallback(async () => {
+    await closeBrowserSessionWithReason({
+      reason: 'manual_stop',
+      allowUntracked: false,
+      silent: true,
+    });
+    await supabaseClient.auth.signOut();
+    clearActiveBrowserSessionRecord();
+    clearLocalSchedules();
+    setBrowserSession(null);
+    setBrowserPaneStatus('idle');
+    setBrowserError(null);
+    degreeNavigatorSyncRunRef.current += 1;
+    setDegreeNavigatorSyncStatus('idle');
+    setDegreeNavigatorSyncMessage(null);
+  }, [
+    clearActiveBrowserSessionRecord,
+    closeBrowserSessionWithReason,
+  ]);
+
   const renderContent = () => (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-30 border-b border-border bg-background">
-        <div className="mx-auto flex h-14 w-full max-w-[1400px] items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="focus-ring -mx-1 inline-flex items-center gap-2 rounded px-1 py-1">
-            <span aria-hidden="true" className="h-2 w-2 rounded-sm bg-primary" />
-            <span className="text-sm font-semibold tracking-tight text-foreground">SOCAgent</span>
-          </Link>
-
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
-              aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
-              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
-              className="focus-ring inline-flex h-8 w-8 items-center justify-center rounded text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
-            >
-              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <MoonStar className="h-4 w-4" />}
-            </button>
-            {userEmail ? (
-              <button
-                type="button"
-                onClick={() => setIsProfileOpen(true)}
-                className="focus-ring inline-flex h-8 items-center gap-2 rounded px-2 text-xs font-medium text-foreground transition hover:bg-surface-2"
-              >
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold uppercase text-primary">
-                  {(userEmail[0] ?? '?').toUpperCase()}
-                </span>
-                <span className="max-w-[160px] truncate text-muted-foreground">{userEmail}</span>
-              </button>
-            ) : (
-              <Link
-                href="/login"
-                className="focus-ring inline-flex h-8 items-center rounded bg-primary px-3 text-xs font-medium text-primary-foreground transition hover:bg-primary/90"
-              >
-                Sign in
-              </Link>
-            )}
-          </div>
-        </div>
-      </header>
-
       <div className="fixed inset-0 z-50 pointer-events-none">
         <DebuggerPanel
           initialPosition={
@@ -1416,61 +1391,52 @@ export default function HomePage() {
         />
       </div>
 
-      <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
-        <DialogContent className="border border-border bg-surface-1 text-foreground sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle>Profile</DialogTitle>
-            <DialogDescription>Signed in account</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-foreground">
-              {userEmail ?? 'Unknown email'}
-            </div>
-            <Link
-              href="/profile"
-              onClick={() => setIsProfileOpen(false)}
-              className="focus-ring flex w-full items-center justify-center rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
-            >
-              View full profile
-            </Link>
-            <button
-              type="button"
-              onClick={async () => {
-                await closeBrowserSessionWithReason({
-                  reason: 'manual_stop',
-                  allowUntracked: false,
-                  silent: true,
-                });
-                await supabaseClient.auth.signOut();
-                clearActiveBrowserSessionRecord();
-                clearLocalSchedules();
-                setBrowserSession(null);
-                setBrowserPaneStatus('idle');
-                setBrowserError(null);
-                degreeNavigatorSyncRunRef.current += 1;
-                setDegreeNavigatorSyncStatus('idle');
-                setDegreeNavigatorSyncMessage(null);
-                setIsProfileOpen(false);
-              }}
-              className="focus-ring w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm font-medium text-foreground transition hover:bg-surface-2"
-            >
-              Sign out
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <main className="flex w-full flex-1 flex-col">
+        <section className="grid w-full grid-cols-1 items-stretch lg:h-[100dvh] lg:grid-cols-[minmax(420px,9fr)_minmax(0,11fr)]">
+          <div className="relative h-[min(640px,75vh)] min-w-0 lg:h-auto lg:min-h-0 lg:border-r lg:border-border">
+            <div className="flex h-full min-w-0 flex-col lg:absolute lg:inset-0">
+              <header className="flex h-12 flex-shrink-0 items-center justify-between border-b border-border bg-background px-3 sm:px-4">
+                <Link
+                  href="/"
+                  className="focus-ring -mx-1 inline-flex items-center gap-2 rounded px-1 py-1"
+                >
+                  <span aria-hidden="true" className="h-2 w-2 rounded-sm bg-primary" />
+                  <span className="text-sm font-semibold tracking-tight text-foreground">
+                    SOCAgent
+                  </span>
+                </Link>
 
-      <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 pt-4 pb-28 sm:px-6 sm:pt-6 sm:pb-32">
-        <section className="grid w-full grid-cols-1 items-stretch gap-4 sm:gap-6 lg:grid-cols-[minmax(320px,1fr)_minmax(0,1.8fr)] xl:grid-cols-[minmax(360px,1fr)_minmax(0,2fr)]">
-          <div className="relative h-[min(640px,75vh)] min-w-0 lg:h-auto lg:min-h-0">
-            <div className="flex h-full min-w-0 flex-col gap-4 lg:absolute lg:inset-0">
-              <SearchResults
-                results={searchResults}
-                className="min-h-[132px] max-h-[360px] flex-shrink-0 lg:max-h-[42%]"
-                onAddSection={handleAddSection}
-              />
+                <button
+                  type="button"
+                  onClick={handleToggleTheme}
+                  aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+                  title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+                  className="focus-ring inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
+                >
+                  {theme === 'dark' ? (
+                    <Sun className="h-4 w-4" />
+                  ) : (
+                    <MoonStar className="h-4 w-4" />
+                  )}
+                </button>
+              </header>
+
+              {false && (
+                <SearchResults
+                  results={searchResults}
+                  className="min-h-[132px] max-h-[360px] flex-shrink-0 lg:max-h-[42%]"
+                  onAddSection={handleAddSection}
+                />
+              )}
               <div className="min-h-0 flex-1 overflow-hidden">
-                <EmbeddedCedarChat title="SOCAgent" />
+                <EmbeddedCedarChat
+                  title="SOCAgent"
+                  showHeader={false}
+                  userEmail={userEmail}
+                  theme={theme}
+                  onToggleTheme={handleToggleTheme}
+                  onSignOut={handleSignOut}
+                />
               </div>
             </div>
           </div>
@@ -1480,6 +1446,7 @@ export default function HomePage() {
           </div>
         </section>
 
+        <div className="px-4 pb-28 sm:px-6 sm:pb-32">
         {textLines.length > 0 && (
           <div className="mt-6 rounded-md border border-border bg-surface-1 px-4 py-3">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -1662,6 +1629,7 @@ export default function HomePage() {
             )}
           </div>
         </section>
+        </div>
       </main>
     </div>
   );

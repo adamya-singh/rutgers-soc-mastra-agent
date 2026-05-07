@@ -11,15 +11,23 @@ interface EmbeddedCedarChatProps {
 	onClose?: () => void;
 	stream?: boolean;
 	className?: string;
+	userEmail?: string | null;
+	theme?: 'light' | 'dark';
+	onToggleTheme?: () => void;
+	onSignOut?: () => Promise<void> | void;
 }
 
 export const EmbeddedCedarChat: React.FC<EmbeddedCedarChatProps> = ({
 	title = 'Cedar Chat',
 	companyLogo,
-	showHeader = true,
+	showHeader = false,
 	showCloseButton = false,
 	onClose,
 	className = '',
+	userEmail = null,
+	theme,
+	onToggleTheme,
+	onSignOut,
 }) => {
 	const setShowChat = useCedarStore((state) => state.setShowChat);
 
@@ -33,7 +41,7 @@ export const EmbeddedCedarChat: React.FC<EmbeddedCedarChatProps> = ({
 
 	return (
 		<div className={`h-full min-h-0 w-full overflow-hidden ${className}`}>
-			<div className='flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl border border-border bg-surface-1 text-sm shadow-elev-1'>
+			<div className='flex h-full min-h-0 w-full flex-col overflow-hidden bg-background text-sm'>
 				{showHeader && (
 					<div className='z-20 flex min-w-0 flex-shrink-0 flex-row items-center justify-between border-b border-border-subtle px-4 py-2.5'>
 						<div className='flex min-w-0 flex-1 items-center'>
@@ -57,7 +65,12 @@ export const EmbeddedCedarChat: React.FC<EmbeddedCedarChatProps> = ({
 					</div>
 				)}
 
-				<SocVercelChat />
+				<SocVercelChat
+					userEmail={userEmail}
+					theme={theme}
+					onToggleTheme={onToggleTheme}
+					onSignOut={onSignOut}
+				/>
 			</div>
 		</div>
 	);

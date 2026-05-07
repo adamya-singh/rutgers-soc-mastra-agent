@@ -95,6 +95,95 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_messages: {
+        Row: {
+          created_at: string
+          id: string
+          metadata: Json
+          parts: Json
+          role: string
+          sequence_index: number
+          text_content: string | null
+          thread_id: string
+          ui_message_id: string
+          ui_message: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metadata?: Json
+          parts?: Json
+          role: string
+          sequence_index: number
+          text_content?: string | null
+          thread_id: string
+          ui_message_id: string
+          ui_message: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metadata?: Json
+          parts?: Json
+          role?: string
+          sequence_index?: number
+          text_content?: string | null
+          thread_id?: string
+          ui_message_id?: string
+          ui_message?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "chat_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_threads: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          deleted_at: string | null
+          id: string
+          last_message_at: string | null
+          last_message_preview: string | null
+          metadata: Json
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          metadata?: Json
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          metadata?: Json
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       degree_navigator_profiles: {
         Row: {
           audits: Json

@@ -29,7 +29,7 @@ export const FloatingChatInput: React.FC<FloatingChatInputProps> = ({
 	className,
 }) => {
 	const containerRef = useRef<HTMLDivElement>(null);
-	const { messages, status, sendSocMessage, stop } = useSocChat();
+	const { messages, status, sendSocMessage, stop, isThreadReady } = useSocChat();
 	const isBusy = status === 'submitted' || status === 'streaming';
 
 	// Handle click outside to close
@@ -115,7 +115,7 @@ export const FloatingChatInput: React.FC<FloatingChatInputProps> = ({
 				{/* Chat input */}
 				<div className='p-2'>
 					<SocChatInput
-						disabled={isBusy}
+						disabled={isBusy || !isThreadReady}
 						isEmptyThread={messages.length === 0}
 						onSubmit={async (input) => {
 							await sendSocMessage(input);

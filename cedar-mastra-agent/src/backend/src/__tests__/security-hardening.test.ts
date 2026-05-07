@@ -30,6 +30,7 @@ describe('security hardening', () => {
 
   it('accepts multimodal UI messages for the Vercel chat route', () => {
     const parsed = ChatUIRequestSchema.parse({
+      threadId: '11111111-1111-4111-8111-111111111111',
       messages: [
         {
           id: 'user-1',
@@ -53,7 +54,17 @@ describe('security hardening', () => {
     });
 
     assert.strictEqual(parsed.messages[0]?.parts[1]?.type, 'file');
+    assert.strictEqual(parsed.threadId, '11111111-1111-4111-8111-111111111111');
     assert.ok(parsed.additionalContext);
+  });
+
+  it('requires a valid persisted thread id for the Vercel chat route', () => {
+    assert.throws(() =>
+      ChatUIRequestSchema.parse({
+        threadId: 'not-a-thread-id',
+        messages: [{ role: 'user', parts: [{ type: 'text', text: 'hello' }] }],
+      }),
+    );
   });
 
   it('sends only the latest user UI message to the agent', () => {

@@ -1,6 +1,6 @@
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, type UIMessage } from 'ai';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useCedarStore } from 'cedar-os';
 
 import { buildMastraApiUrl } from '@/lib/mastraConfig';
@@ -25,6 +25,12 @@ type SocChatDataParts = {
 };
 
 export type SocChatMessage = UIMessage<unknown, SocChatDataParts>;
+
+interface UseSocChatOptions {
+  threadId: string | null;
+  initialMessages?: SocChatMessage[];
+  onThreadActivity?: () => void | Promise<void>;
+}
 
 function isFrontendToolEvent(data: unknown): data is CedarFrontendToolEvent {
   return (
@@ -62,8 +68,11 @@ async function dispatchCedarDataEvent(part: { type: string; data: unknown }) {
   }
 }
 
-export function useSocChat() {
-  const currentThreadId = useCedarStore((state) => state.mainThreadId);
+export function useSocChat({
+  threadId,
+  initialMessages = [],
+  onThreadActivity,
+}: UseSocChatOptions = { threadId: null }) {
   const setIsProcessing = useCedarStore((state) => state.setIsProcessing);
 
   const fetchWithAuth = useCallback(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -90,12 +99,24 @@ export function useSocChat() {
   );
 
   const chat = useChat<SocChatMessage>({
-    id: currentThreadId,
+    id: threadId ?? 'pending-chat-thread',
     transport,
     onData: (part) => {
       void dispatchCedarDataEvent(part);
     },
   });
+  const setChatMessages = (chat as typeof chat & {
+    setMessages?: (messages: SocChatMessage[]) => void;
+  }).setMessages;
+  const setChatMessagesRef = useRef(setChatMessages);
+
+  useEffect(() => {
+    setChatMessagesRef.current = setChatMessages;
+  }, [setChatMessages]);
+
+  useEffect(() => {
+    setChatMessagesRef.current?.(initialMessages);
+  }, [initialMessages, threadId]);
 
   useEffect(() => {
     setIsProcessing(chat.status === 'submitted' || chat.status === 'streaming');
@@ -103,6 +124,9 @@ export function useSocChat() {
 
   const sendSocMessage = useCallback(
     async ({ text, files }: { text: string; files?: FileList }) => {
+      if (!threadId) {
+        throw new Error('Create or select a chat before sending a message.');
+      }
       const additionalContext = useCedarStore.getState().additionalContext;
       await chat.sendMessage(
         files && files.length > 0
@@ -115,16 +139,19 @@ export function useSocChat() {
             },
         {
           body: {
+            threadId,
             additionalContext,
           },
         },
       );
+      await onThreadActivity?.();
     },
-    [chat],
+    [chat, onThreadActivity, threadId],
   );
 
   return {
     ...chat,
+    isThreadReady: Boolean(threadId),
     sendSocMessage,
   };
 }

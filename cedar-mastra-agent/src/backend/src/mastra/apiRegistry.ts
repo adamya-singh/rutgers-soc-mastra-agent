@@ -46,29 +46,30 @@ import {
   upsertDegreeNavigatorProfile,
 } from '../degree-navigator/repository.js';
 import { enrichDegreeNavigatorCourseTitles } from '../degree-navigator/courseTitleEnrichment.js';
+import {
+  ChatUIRequestSchema,
+  CreateChatThreadRequestSchema,
+  DeleteChatThreadRequestSchema,
+  GetChatThreadRequestSchema,
+  UpdateChatThreadRequestSchema,
+  type ChatUIMessage,
+} from '../chat/schemas.js';
+import {
+  appendChatMessage,
+  ChatThreadNotFoundError,
+  createChatThread,
+  deleteChatThread,
+  getChatThreadWithMessages,
+  listChatThreads,
+  renameChatThread,
+  requireChatThread,
+} from '../chat/repository.js';
+
+export { ChatUIRequestSchema } from '../chat/schemas.js';
 
 const ClearDegreeNavigatorProfileResponseSchema = z.object({
   cleared: z.boolean(),
 });
-
-const ChatUIMessagePartSchema = z.object({ type: z.string() }).passthrough();
-const ChatUIMessageSchema = z
-  .object({
-    id: z.string().optional(),
-    role: z.enum(['system', 'user', 'assistant']),
-    metadata: z.unknown().optional(),
-    parts: z.array(ChatUIMessagePartSchema),
-  })
-  .passthrough();
-
-export const ChatUIRequestSchema = z.object({
-  messages: z.array(ChatUIMessageSchema),
-  temperature: z.number().optional(),
-  maxTokens: z.number().optional(),
-  additionalContext: z.any().optional(),
-});
-
-type ChatUIMessage = z.infer<typeof ChatUIMessageSchema>;
 
 // Helper function to convert Zod schema to OpenAPI schema
 function toOpenApiSchema(schema: unknown) {
@@ -81,6 +82,10 @@ function handleBrowserError(
 ) {
   if (error instanceof AuthError) {
     return c.json({ error: error.message }, error.status);
+  }
+
+  if (error instanceof ChatThreadNotFoundError) {
+    return c.json({ error: error.message }, 404);
   }
 
   if (error instanceof ZodError) {
@@ -127,6 +132,10 @@ function handleRouteError(
     return c.json({ error: error.message }, error.status);
   }
 
+  if (error instanceof ChatThreadNotFoundError) {
+    return c.json({ error: error.message }, 404);
+  }
+
   if (error instanceof ZodError) {
     return c.json(
       {
@@ -148,6 +157,7 @@ function logUnexpectedRouteError(error: unknown): void {
   if (
     error instanceof AuthError ||
     error instanceof ZodError ||
+    error instanceof ChatThreadNotFoundError ||
     error instanceof BrowserSessionError
   ) {
     return;
@@ -192,6 +202,118 @@ export function createAdditionalContextModelMessage(additionalContext: unknown) 
  * - /chat/stream: Server-sent events (SSE) endpoint for streaming responses
  */
 export const apiRoutes = [
+  registerApiRoute('/chat/threads', {
+    method: 'GET',
+    handler: async (c) => {
+      try {
+        const authenticatedUser = await requireAuthenticatedUser(c);
+        const threads = await listChatThreads(authenticatedUser.userId);
+        return c.json({ threads }, 200);
+      } catch (error) {
+        logUnexpectedRouteError(error);
+        return handleRouteError(c, error);
+      }
+    },
+  }),
+  registerApiRoute('/chat/threads', {
+    method: 'POST',
+    openapi: {
+      requestBody: {
+        content: {
+          'application/json': {
+            schema: toOpenApiSchema(CreateChatThreadRequestSchema),
+          },
+        },
+      },
+    },
+    handler: async (c) => {
+      try {
+        const authenticatedUser = await requireAuthenticatedUser(c);
+        const body = await c.req.json();
+        const { title } = CreateChatThreadRequestSchema.parse(body);
+        const thread = await createChatThread(authenticatedUser.userId, title);
+        return c.json({ thread }, 200);
+      } catch (error) {
+        logUnexpectedRouteError(error);
+        return handleRouteError(c, error);
+      }
+    },
+  }),
+  registerApiRoute('/chat/thread', {
+    method: 'POST',
+    openapi: {
+      requestBody: {
+        content: {
+          'application/json': {
+            schema: toOpenApiSchema(GetChatThreadRequestSchema),
+          },
+        },
+      },
+    },
+    handler: async (c) => {
+      try {
+        const authenticatedUser = await requireAuthenticatedUser(c);
+        const body = await c.req.json();
+        const { threadId } = GetChatThreadRequestSchema.parse(body);
+        const { thread, messages } = await getChatThreadWithMessages(
+          authenticatedUser.userId,
+          threadId,
+        );
+        return c.json({ thread, messages: messages.map((message) => message.uiMessage) }, 200);
+      } catch (error) {
+        logUnexpectedRouteError(error);
+        return handleRouteError(c, error);
+      }
+    },
+  }),
+  registerApiRoute('/chat/thread', {
+    method: 'PATCH',
+    openapi: {
+      requestBody: {
+        content: {
+          'application/json': {
+            schema: toOpenApiSchema(UpdateChatThreadRequestSchema),
+          },
+        },
+      },
+    },
+    handler: async (c) => {
+      try {
+        const authenticatedUser = await requireAuthenticatedUser(c);
+        const body = await c.req.json();
+        const { threadId, title } = UpdateChatThreadRequestSchema.parse(body);
+        const thread = await renameChatThread(authenticatedUser.userId, threadId, title);
+        return c.json({ thread }, 200);
+      } catch (error) {
+        logUnexpectedRouteError(error);
+        return handleRouteError(c, error);
+      }
+    },
+  }),
+  registerApiRoute('/chat/thread', {
+    method: 'DELETE',
+    openapi: {
+      requestBody: {
+        content: {
+          'application/json': {
+            schema: toOpenApiSchema(DeleteChatThreadRequestSchema),
+          },
+        },
+      },
+    },
+    handler: async (c) => {
+      try {
+        const authenticatedUser = await requireAuthenticatedUser(c);
+        const body = await c.req.json();
+        const { threadId } = DeleteChatThreadRequestSchema.parse(body);
+        const deleted = await deleteChatThread(authenticatedUser.userId, threadId);
+        return c.json({ deleted }, 200);
+      } catch (error) {
+        logUnexpectedRouteError(error);
+        return handleRouteError(c, error);
+      }
+    },
+  }),
   registerApiRoute('/chat/ui', {
     method: 'POST',
     openapi: {
@@ -207,11 +329,34 @@ export const apiRoutes = [
       try {
         const authenticatedUser = await requireAuthenticatedUser(c);
         const body = await c.req.json();
-        const { messages, temperature, maxTokens, additionalContext } =
+        const { threadId, messages, temperature, maxTokens, additionalContext } =
           ChatUIRequestSchema.parse(body);
         const originalMessages = normalizeChatUIMessages(messages);
-        const agentMessages = selectMessagesForAgent(originalMessages);
+        const { messages: persistedMessages } = await getChatThreadWithMessages(
+          authenticatedUser.userId,
+          threadId,
+        );
+        const persistedUiMessages = persistedMessages.map((message) => message.uiMessage);
+        const persistedMessageIds = new Set(
+          persistedUiMessages.map((message) => message.id).filter(Boolean),
+        );
+        const latestUserMessage = [...originalMessages]
+          .reverse()
+          .find((message) => message.role === 'user');
+        const shouldAppendLatestUser =
+          latestUserMessage &&
+          (!latestUserMessage.id || !persistedMessageIds.has(latestUserMessage.id));
+        const agentMessages = shouldAppendLatestUser
+          ? [...persistedUiMessages, latestUserMessage]
+          : persistedUiMessages.length > 0
+            ? persistedUiMessages
+            : selectMessagesForAgent(originalMessages);
         const additionalContextMessage = createAdditionalContextModelMessage(additionalContext);
+
+        await requireChatThread(authenticatedUser.userId, threadId);
+        if (shouldAppendLatestUser) {
+          await appendChatMessage(authenticatedUser.userId, threadId, latestUserMessage);
+        }
 
         const stream = createUIMessageStream({
           originalMessages: originalMessages as never,
@@ -244,12 +389,19 @@ export const apiRoutes = [
                   }
                 : {}),
               memory: {
-                thread: authenticatedUser.userId,
+                thread: threadId,
                 resource: authenticatedUser.userId,
               },
             });
 
             writer.merge(streamResult.toUIMessageStream({ originalMessages: originalMessages as never }));
+          },
+          onFinish: async ({ responseMessage }) => {
+            await appendChatMessage(
+              authenticatedUser.userId,
+              threadId,
+              responseMessage as ChatUIMessage,
+            );
           },
           onError: (error) => {
             if (error instanceof Error) {
