@@ -68,15 +68,25 @@ export const SocChatInput: React.FC<SocChatInputProps> = ({
       const textToSend = textOverride ?? input;
       if (disabled || (!textToSend.trim() && !hasFiles)) return;
 
-      await onSubmit({
-        text: textToSend.trim() || 'Please analyze the attached image.',
-        files,
-      });
+      const filesToSend = files;
 
+      // Clear the input optimistically so the textarea empties as soon as the
+      // user hits enter, instead of waiting for the model's response to finish.
       setInput('');
       setFiles(undefined);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
+      }
+
+      try {
+        await onSubmit({
+          text: textToSend.trim() || 'Please analyze the attached image.',
+          files: filesToSend,
+        });
+      } catch (error) {
+        // Restore the text so the user can retry without re-typing.
+        setInput(textToSend);
+        throw error;
       }
     },
     [disabled, files, hasFiles, input, onSubmit],

@@ -268,14 +268,8 @@ export const TOOL_REGISTRY = {
     saveDegreeNavigatorProfile,
   },
   textManipulation: {
-    addNewTextLineTool,
     addSectionToScheduleTool,
     removeSectionFromScheduleTool,
-  },
-  searchResults: {
-    clearSearchResultsTool,
-    setSearchResultsTool,
-    appendSearchResultsTool,
   },
   browserState: {
     ensureDegreeNavigatorSessionTool,
@@ -309,13 +303,9 @@ export const SOC_TOOLS = [
 ];
 
 export const ALL_TOOLS = [
-  addNewTextLineTool,
   ensureDegreeNavigatorSessionTool,
   addSectionToScheduleTool,
   removeSectionFromScheduleTool,
-  clearSearchResultsTool,
-  setSearchResultsTool,
-  appendSearchResultsTool,
   setBrowserSessionTool,
   clearBrowserSessionTool,
   mastraDocsSearchTool,

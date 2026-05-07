@@ -12,11 +12,6 @@ import {
 import { MoonStar, Sun } from 'lucide-react';
 import { supabaseClient } from '@/lib/supabaseClient';
 
-import {
-  SearchResults,
-  type SearchResultItem,
-  type SearchResultSection,
-} from '@/components/search/SearchResults';
 import { ScheduleGrid } from '@/components/schedule/ScheduleGrid';
 import { EmbeddedCedarChat } from '@/cedar/components/chatComponents/EmbeddedCedarChat';
 import { DebuggerPanel } from '@/cedar/components/debugger';
@@ -204,8 +199,6 @@ function isDegreeNavigatorLoginPage(readiness: DegreeNavigatorReadinessResponse 
 export default function HomePage() {
   const [theme, setTheme] = React.useState<'light' | 'dark'>('dark');
 
-  const [textLines, setTextLines] = React.useState<string[]>([]);
-  const [searchResults, setSearchResults] = React.useState<SearchResultItem[]>([]);
   const [userEmail, setUserEmail] = React.useState<string | null>(null);
   const [userId, setUserId] = React.useState<string | null>(null);
   const [accessToken, setAccessToken] = React.useState<string | null>(null);
@@ -1051,70 +1044,35 @@ export default function HomePage() {
     },
   });
 
-  const SearchResultMeetingTimeSchema = z.object({
-    day: z.string().optional(),
-    startTimeMilitary: z.string().optional(),
-    endTimeMilitary: z.string().optional(),
-    startTime: z.string().optional(),
-    endTime: z.string().optional(),
-    building: z.string().optional(),
-    room: z.string().optional(),
-    campus: z.string().optional(),
-    mode: z.string().optional(),
-    isOnline: z.boolean().optional(),
-  });
+  type AddSectionMeetingTime = {
+    day?: string;
+    startTimeMilitary?: string;
+    endTimeMilitary?: string;
+    startTime?: string;
+    endTime?: string;
+    building?: string;
+    room?: string;
+    campus?: string;
+    mode?: string;
+    isOnline?: boolean;
+  };
 
-  const SearchResultSectionSchema = z.object({
-    indexNumber: z.string().min(1, 'Index number is required'),
-    sectionId: z.number().optional(),
-    courseString: z.string().optional(),
-    courseTitle: z.string().optional(),
-    credits: z.number().optional(),
-    sectionNumber: z.string().optional(),
-    instructors: z.array(z.string()).optional(),
-    isOpen: z.boolean().optional(),
-    meetingTimes: z.array(SearchResultMeetingTimeSchema).optional(),
-    isOnline: z.boolean().optional(),
-    sessionDates: z.string().optional(),
-  });
-
-  const SearchResultMiscSchema = z.object({
-    body: z.string().optional(),
-    fields: z
-      .array(
-        z.object({
-          label: z.string(),
-          value: z.string(),
-        }),
-      )
-      .optional(),
-    href: z.string().optional(),
-  });
-
-  const SearchResultItemSchema = z.object({
-    id: z.string().min(1, 'ID is required'),
-    type: z.enum(['section', 'course', 'misc']).optional(),
-    title: z.string().min(1, 'Title is required'),
-    subtitle: z.string().optional(),
-    summary: z.string().optional(),
-    badges: z.array(z.string()).optional(),
-    details: z
-      .array(
-        z.object({
-          label: z.string(),
-          value: z.string(),
-        }),
-      )
-      .optional(),
-    section: SearchResultSectionSchema.optional(),
-    misc: SearchResultMiscSchema.optional(),
-    termYear: z.number().optional(),
-    termCode: z.string().optional(),
-    campus: z.string().optional(),
-  });
+  type AddSectionInput = {
+    indexNumber: string;
+    sectionId?: number;
+    courseString?: string;
+    courseTitle?: string;
+    credits?: number;
+    sectionNumber?: string;
+    instructors?: string[];
+    isOpen?: boolean;
+    meetingTimes?: AddSectionMeetingTime[];
+    isOnline?: boolean;
+    sessionDates?: string;
+  };
 
   type AddSectionPayload = {
-    section: SearchResultSection;
+    section: AddSectionInput;
     termYear?: number;
     termCode?: string;
     campus?: string;
@@ -1146,65 +1104,6 @@ export default function HomePage() {
     dispatchScheduleUpdated();
   }, []);
 
-  const handleAddSection = React.useCallback(
-    async (payload: AddSectionPayload) => {
-      try {
-        applyAddSection(payload);
-      } catch (error) {
-        console.error('Failed to add section from search results', error);
-      }
-    },
-    [applyAddSection],
-  );
-
-  useRegisterState({
-    key: 'searchResults',
-    description: 'Search results panel controlled by the agent',
-    value: searchResults,
-    setValue: setSearchResults,
-    stateSetters: {
-      clearSearchResults: {
-        name: 'clearSearchResults',
-        description: 'Clear all search results from the panel',
-        argsSchema: z.object({}),
-        execute: (
-          _currentValue: SearchResultItem[],
-          setValue: (newValue: SearchResultItem[]) => void,
-        ) => {
-          setValue([]);
-        },
-      },
-      setSearchResults: {
-        name: 'setSearchResults',
-        description: 'Replace search results with a new list of result cards',
-        argsSchema: z.object({
-          results: z.array(SearchResultItemSchema),
-        }),
-        execute: (
-          _currentValue: SearchResultItem[],
-          setValue: (newValue: SearchResultItem[]) => void,
-          args: { results: SearchResultItem[] },
-        ) => {
-          setValue(args.results);
-        },
-      },
-      appendSearchResults: {
-        name: 'appendSearchResults',
-        description: 'Append one or more result cards to the search results panel',
-        argsSchema: z.object({
-          results: z.array(SearchResultItemSchema),
-        }),
-        execute: (
-          currentValue: SearchResultItem[],
-          setValue: (newValue: SearchResultItem[]) => void,
-          args: { results: SearchResultItem[] },
-        ) => {
-          setValue([...currentValue, ...args.results]);
-        },
-      },
-    },
-  });
-
   useSubscribeStateToAgentContext(
     'browserClientId',
     (browserClientId) => ({ browserClientId }),
@@ -1224,29 +1123,6 @@ export default function HomePage() {
       color: '#0284C7',
     },
   );
-
-  useRegisterFrontendTool({
-    name: 'addNewTextLine',
-    description: 'Add a new line of text to the screen via frontend tool',
-    argsSchema: z.object({
-      text: z.string().min(1, 'Text cannot be empty').describe('The text to add to the screen'),
-      style: z
-        .enum(['normal', 'bold', 'italic', 'highlight'])
-        .optional()
-        .describe('Text style to apply'),
-    }),
-    execute: async (args: { text: string; style?: 'normal' | 'bold' | 'italic' | 'highlight' }) => {
-      const styledText =
-        args.style === 'bold'
-          ? `**${args.text}**`
-          : args.style === 'italic'
-            ? `*${args.text}*`
-            : args.style === 'highlight'
-              ? `🌟 ${args.text} 🌟`
-              : args.text;
-      setTextLines((prev) => [...prev, styledText]);
-    },
-  });
 
   useRegisterFrontendTool({
     name: 'addSectionToSchedule',
@@ -1421,13 +1297,6 @@ export default function HomePage() {
                 </button>
               </header>
 
-              {false && (
-                <SearchResults
-                  results={searchResults}
-                  className="min-h-[132px] max-h-[360px] flex-shrink-0 lg:max-h-[42%]"
-                  onAddSection={handleAddSection}
-                />
-              )}
               <div className="min-h-0 flex-1 overflow-hidden">
                 <EmbeddedCedarChat
                   title="SOCAgent"
@@ -1447,19 +1316,6 @@ export default function HomePage() {
         </section>
 
         <div className="px-4 pb-28 sm:px-6 sm:pb-32">
-        {textLines.length > 0 && (
-          <div className="mt-6 rounded-md border border-border bg-surface-1 px-4 py-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Assistant Notes
-            </p>
-            <div className="mt-2 space-y-1 text-sm text-foreground/85">
-              {textLines.map((line, index) => (
-                <div key={`${line}-${index}`}>{line}</div>
-              ))}
-            </div>
-          </div>
-        )}
-
         <section
           id="degree-navigator"
           ref={browserSectionRef}
