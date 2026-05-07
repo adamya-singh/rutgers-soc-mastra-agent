@@ -18,6 +18,14 @@ export type ActiveScheduleSyncStatus =
   | 'signed_out'
   | 'loading';
 
+export type TemporaryScheduleSummary = {
+  scheduleId: string;
+  label?: string;
+  sectionCount: number;
+  totalCredits: number;
+  courseStrings: string[];
+};
+
 export type ActiveScheduleAgentContext = {
   activeScheduleId: string | null;
   name: string;
@@ -58,6 +66,8 @@ export type ActiveScheduleAgentContext = {
       reason: 'online' | 'sunday' | 'tba' | 'outside_grid';
     }>;
   };
+  temporarySchedules: TemporaryScheduleSummary[];
+  previewScheduleId: string | null;
 };
 
 type BuildActiveScheduleAgentContextArgs = {
@@ -67,6 +77,9 @@ type BuildActiveScheduleAgentContextArgs = {
   scheduleName: string;
   totalCredits: number;
   syncStatus: ActiveScheduleSyncStatus;
+  temporarySchedules?: ScheduleEntry[];
+  previewScheduleId?: string | null;
+  threadId?: string | null;
 };
 
 const parseMilitaryTime = (time?: string | null): number | null => {
@@ -102,6 +115,31 @@ const buildLocationLabel = (meeting: MeetingTime) => {
   return location || meeting.campus || 'TBA location';
 };
 
+const stripTemporaryIdPrefix = (id: string, threadId?: string | null): string => {
+  if (!threadId) return id;
+  const prefix = `temp:${threadId}:`;
+  return id.startsWith(prefix) ? id.slice(prefix.length) : id;
+};
+
+const summarizeTemporarySchedules = (
+  entries: ScheduleEntry[] | undefined,
+  threadId: string | null | undefined,
+): TemporaryScheduleSummary[] => {
+  if (!entries || entries.length === 0) return [];
+  return entries.map((entry) => ({
+    scheduleId: stripTemporaryIdPrefix(entry.id, threadId),
+    label: entry.temporary?.label,
+    sectionCount: entry.snapshot.sections.length,
+    totalCredits: entry.snapshot.sections.reduce(
+      (sum, section) => sum + (section.credits ?? 0),
+      0,
+    ),
+    courseStrings: entry.snapshot.sections
+      .map((section) => section.courseString || '')
+      .filter((value) => value.length > 0),
+  }));
+};
+
 export function buildActiveScheduleAgentContext({
   schedule,
   activeEntry,
@@ -109,6 +147,9 @@ export function buildActiveScheduleAgentContext({
   scheduleName,
   totalCredits,
   syncStatus,
+  temporarySchedules,
+  previewScheduleId,
+  threadId,
 }: BuildActiveScheduleAgentContextArgs): ActiveScheduleAgentContext {
   const visibleBlocks: ActiveScheduleAgentContext['weekView']['visibleBlocks'] = [];
   const overflowOrSidebarItems: ActiveScheduleAgentContext['weekView']['overflowOrSidebarItems'] = [];
@@ -214,5 +255,9 @@ export function buildActiveScheduleAgentContext({
       visibleBlocks,
       overflowOrSidebarItems,
     },
+    temporarySchedules: summarizeTemporarySchedules(temporarySchedules, threadId),
+    previewScheduleId: previewScheduleId
+      ? stripTemporaryIdPrefix(previewScheduleId, threadId)
+      : null,
   };
 }

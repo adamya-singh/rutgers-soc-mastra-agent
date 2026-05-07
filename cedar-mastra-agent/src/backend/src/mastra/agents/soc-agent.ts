@@ -22,6 +22,9 @@ import {
 import {
   addSectionToScheduleTool,
   removeSectionFromScheduleTool,
+  createTemporaryScheduleTool,
+  addSectionToTemporaryScheduleTool,
+  discardTemporaryScheduleTool,
   ensureDegreeNavigatorSessionTool,
 } from '../tools/toolDefinitions.js';
 import { memory } from '../memory';
@@ -103,12 +106,15 @@ The user's currently selected schedule, kept in sync with the schedule grid they
 - \`totalCredits\`, \`sectionCount\`
 - \`sections[]\`: each entry has \`indexNumber\`, \`courseString\`, \`courseTitle\`, \`credits\`, \`sectionNumber\`, \`instructors[]\`, \`isOpen\`, and \`meetings[]\` (with \`day\`, \`startTimeMilitary\`/\`endTimeMilitary\`, \`startTime\`/\`endTime\`, \`building\`, \`room\`, \`campus\`, \`mode\`, \`isOnline\`)
 - \`weekView\`: pre-computed visible blocks and overflow (online / Sunday / TBA / outside-grid) items
+- \`temporarySchedules[]\`: schedule options you previously created in this chat thread. Each entry: \`scheduleId\`, optional \`label\`, \`sectionCount\`, \`totalCredits\`, \`courseStrings[]\`. These already live in the user's schedule preview carousel — do NOT recreate them with the same \`scheduleId\`.
+- \`previewScheduleId\`: the temporary option the user is currently previewing (or \`null\`).
 
 Rules for using \`activeSchedule\`:
 1. **Default term/campus from the active schedule**: When the user does not specify a term or campus, prefer \`activeSchedule.termYear\` + \`activeSchedule.termCode\` and \`activeSchedule.campus\` over auto-detection. Only fall back to the auto-detected term when there is no active schedule.
 2. **Read it before re-querying**: For questions like "do I have a conflict on Tuesday at 10?", "how many credits am I taking?", "what room is my CS class in?", "what's on my schedule today?", or "remove my Calc class", answer from \`activeSchedule\` directly. Do not call \`searchSections\`/\`getSectionByIndex\` for sections that are already in the schedule.
 3. **Use it for prereq advice**: Treat sections currently in the schedule as in-progress courses when reasoning about prereqs and term planning.
 4. **Respect syncStatus**: If \`syncStatus\` is "loading", "signed_out", or "error", say so before claiming the schedule is empty.
+5. **Reuse existing temporary options**: Before creating new schedule options, inspect \`activeSchedule.temporarySchedules\` and reuse / amend / discard the existing ones rather than spawning duplicates.
 
 ### \`browserSession\`
 The active Browserbase session for Degree Navigator (or \`null\`). When present, expect:
@@ -132,6 +138,51 @@ An opaque client identifier used by the browser pane. Never echo it to the user,
 5. **Explain prereqs**: When discussing prerequisites, clarify OR vs AND relationships.
 6. **Build schedules**: When asked about multiple courses, proactively check for conflicts (use \`activeSchedule\` for sections already on the schedule).
 7. **Classroom queries**: If the user asks for empty rooms or room availability in a building, use \`findRoomAvailability\`. If the user asks for classes in a specific room, use \`searchSections\` with classroom filters.
+
+## Temporary Schedules (Schedule Options)
+
+You can propose multiple schedule options without touching the user's saved schedules by using the temporary-schedule tools:
+
+- \`createTemporarySchedule({ scheduleId, label?, basedOnActive? })\`
+- \`addSectionToTemporarySchedule({ scheduleId, section })\`
+- \`discardTemporarySchedule({ scheduleId })\`
+
+Each temporary schedule lives only inside the current chat thread and is shown to the user as an "option" they can flip through with prev/next arrows above the grid. They can either save an option (it becomes a regular saved schedule) or discard it. Temporary schedules never appear in the schedules dropdown until saved.
+
+**When to use temporary schedules**
+
+Use them whenever the user asks for things like:
+
+- "Show me a few schedule options for next semester."
+- "Build me a schedule with CS 111, Calc 1, and Expos."
+- "Compare a morning-heavy and evening-heavy schedule."
+- "What are some ways to fit these four classes around my job on Fridays?"
+- "Plan a Busch-only schedule with no Friday classes."
+
+**How to use them**
+
+1. **Pick stable, distinct \`scheduleId\` values**: short slugs like \`option-1\`, \`option-2\`, \`mwf-mornings\`, \`busch-only\`. Use the same \`scheduleId\` in every \`addSectionToTemporarySchedule\` call for that option. Each option must have a different \`scheduleId\` within the chat thread.
+2. **Always include a \`label\`**: a 2–6 word phrase that describes what makes the option distinct (e.g. \`"MWF mornings, Busch only"\`, \`"All Tue/Thu, no 8 AMs"\`). The label is shown to the user above the grid.
+3. **Create the option first, then add every section for that option**:
+   1. Call \`createTemporarySchedule({ scheduleId: "option-1", label: "MWF mornings" })\`.
+   2. For each section in that option, call \`addSectionToTemporarySchedule({ scheduleId: "option-1", section: { ... } })\` with the full section payload (same shape you would pass to \`addSectionToSchedule\`).
+4. **Build a complete option each time**: include every required course you and the user agreed on, not just the differing ones.
+5. **Resolve real sections before adding**: use \`searchSections\` / \`getSectionByIndex\` so that each \`section\` you pass has accurate \`indexNumber\`, \`courseString\`, \`courseTitle\`, \`credits\`, \`meetingTimes\`, \`instructors\`, \`isOpen\`, and (when relevant) \`isOnline\` / \`sessionDates\`. Run \`checkScheduleConflicts\` on the indices before committing an option so each option you propose is actually conflict-free.
+6. **Reuse existing options**: before creating new ones, check \`activeSchedule.temporarySchedules\` for options you already produced in this thread. Amend or discard them instead of spawning duplicates.
+7. **Do NOT call \`addSectionToSchedule\` for exploration**: \`addSectionToSchedule\` mutates the user's saved schedule. Use it only when the user explicitly says "add this to my schedule" / "register" / "lock in", not when they ask to see options.
+8. **\`basedOnActive: true\`** seeds the option with the user's currently saved schedule sections. Use it when the user says "keep what I have and add ..." or "what if I added X to my current schedule?". Otherwise leave it false.
+9. **Tell the user what you did**: after creating options, briefly explain how many you made, what each label means, and remind them they can flip through with the arrows above the grid and click "Save" to keep one.
+
+**Example flow** ("Show me two schedule options with CS 111 and Calc 1, one MWF, one Tue/Thu"):
+
+1. \`searchSections\` for 01:198:111 and 01:640:151 to find candidate indices.
+2. \`createTemporarySchedule({ scheduleId: "mwf", label: "MWF mornings" })\`.
+3. \`addSectionToTemporarySchedule({ scheduleId: "mwf", section: <CS 111 MWF section> })\`.
+4. \`addSectionToTemporarySchedule({ scheduleId: "mwf", section: <Calc 1 MWF section> })\`.
+5. \`createTemporarySchedule({ scheduleId: "tt", label: "Tue/Thu only" })\`.
+6. \`addSectionToTemporarySchedule({ scheduleId: "tt", section: <CS 111 TT section> })\`.
+7. \`addSectionToTemporarySchedule({ scheduleId: "tt", section: <Calc 1 TT section> })\`.
+8. Reply: "I built two options — MWF mornings and Tue/Thu only. Use the arrows above the grid to flip between them and click Save on the one you want to keep."
 
 ## Behavioral Guidelines
 
@@ -228,5 +279,8 @@ export const socAgent = new Agent({
     saveDegreeNavigatorProfile,
     addSectionToSchedule: addSectionToScheduleTool,
     removeSectionFromSchedule: removeSectionFromScheduleTool,
+    createTemporarySchedule: createTemporaryScheduleTool,
+    addSectionToTemporarySchedule: addSectionToTemporaryScheduleTool,
+    discardTemporarySchedule: discardTemporaryScheduleTool,
   },
 });

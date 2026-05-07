@@ -77,6 +77,49 @@ export const RemoveSectionFromScheduleSchema = z.object({
   indexNumber: z.string().min(1, 'Index number is required'),
 });
 
+// Schema for the createTemporarySchedule frontend tool
+export const CreateTemporaryScheduleSchema = z.object({
+  scheduleId: z
+    .string()
+    .min(1, 'scheduleId is required')
+    .max(64)
+    .regex(/^[a-zA-Z0-9_-]+$/, 'scheduleId must be alphanumeric with optional - or _')
+    .describe(
+      'A short stable id you choose for this option, e.g. "option-1" or "mwf-mornings". You will reference the same id in addSectionToTemporarySchedule and discardTemporarySchedule. Must be unique within this chat thread.',
+    ),
+  label: z
+    .string()
+    .min(1)
+    .max(80)
+    .optional()
+    .describe(
+      'Short human-readable label describing what makes this option distinct (e.g. "MWF mornings, Busch only").',
+    ),
+  basedOnActive: z
+    .boolean()
+    .optional()
+    .describe(
+      'When true, seed the temporary schedule with the sections from the user\'s active schedule. Defaults to false (empty).',
+    ),
+});
+
+// Schema for the addSectionToTemporarySchedule frontend tool
+export const AddSectionToTemporaryScheduleSchema = z.object({
+  scheduleId: z
+    .string()
+    .min(1, 'scheduleId is required')
+    .describe('The same scheduleId you passed to createTemporarySchedule.'),
+  section: SectionSchema,
+});
+
+// Schema for the discardTemporarySchedule frontend tool
+export const DiscardTemporaryScheduleSchema = z.object({
+  scheduleId: z
+    .string()
+    .min(1, 'scheduleId is required')
+    .describe('The id of the temporary schedule to discard.'),
+});
+
 const SearchResultDetailSchema = z.object({
   label: z.string(),
   value: z.string(),
@@ -177,6 +220,42 @@ export const removeSectionFromScheduleTool = createMastraToolForFrontendTool(
   },
 );
 
+export const createTemporaryScheduleTool = createMastraToolForFrontendTool(
+  'createTemporarySchedule',
+  CreateTemporaryScheduleSchema,
+  {
+    description:
+      "Create a new TEMPORARY schedule scoped to the current chat thread. Temporary schedules let you propose multiple schedule options without modifying the user's saved schedules — they appear above the grid as options the user can flip through and either save or discard. The tool returns the new schedule's id which MUST be passed to addSectionToTemporarySchedule for every section in this option. Use this when the user asks to compare options, build different schedules, or see schedule alternatives.",
+    toolId: 'createTemporarySchedule',
+    streamEventFn: streamJSONEvent,
+    errorSchema: ErrorResponseSchema,
+  },
+);
+
+export const addSectionToTemporaryScheduleTool = createMastraToolForFrontendTool(
+  'addSectionToTemporarySchedule',
+  AddSectionToTemporaryScheduleSchema,
+  {
+    description:
+      'Add a course section to a specific temporary schedule by its scheduleId (returned by createTemporarySchedule). Use this instead of addSectionToSchedule when building schedule options for the user.',
+    toolId: 'addSectionToTemporarySchedule',
+    streamEventFn: streamJSONEvent,
+    errorSchema: ErrorResponseSchema,
+  },
+);
+
+export const discardTemporaryScheduleTool = createMastraToolForFrontendTool(
+  'discardTemporarySchedule',
+  DiscardTemporaryScheduleSchema,
+  {
+    description:
+      'Discard a temporary schedule that the user no longer wants to consider. Removes it from the option carousel above the grid.',
+    toolId: 'discardTemporarySchedule',
+    streamEventFn: streamJSONEvent,
+    errorSchema: ErrorResponseSchema,
+  },
+);
+
 export const clearSearchResultsTool = createMastraToolForStateSetter(
   'searchResults',
   'clearSearchResults',
@@ -270,6 +349,9 @@ export const TOOL_REGISTRY = {
   textManipulation: {
     addSectionToScheduleTool,
     removeSectionFromScheduleTool,
+    createTemporaryScheduleTool,
+    addSectionToTemporaryScheduleTool,
+    discardTemporaryScheduleTool,
   },
   browserState: {
     ensureDegreeNavigatorSessionTool,
@@ -306,6 +388,9 @@ export const ALL_TOOLS = [
   ensureDegreeNavigatorSessionTool,
   addSectionToScheduleTool,
   removeSectionFromScheduleTool,
+  createTemporaryScheduleTool,
+  addSectionToTemporaryScheduleTool,
+  discardTemporaryScheduleTool,
   setBrowserSessionTool,
   clearBrowserSessionTool,
   mastraDocsSearchTool,

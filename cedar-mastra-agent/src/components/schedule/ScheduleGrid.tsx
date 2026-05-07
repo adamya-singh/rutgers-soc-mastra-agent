@@ -4,16 +4,21 @@ import React from 'react';
 import {
   useRegisterState,
   useSubscribeStateToAgentContext,
+  useThreadController,
 } from 'cedar-os';
 import {
   CalendarDays,
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Copy,
   Loader2,
   MoreHorizontal,
   Plus,
+  Save,
   Trash2,
+  X,
 } from 'lucide-react';
 import { supabaseClient } from '@/lib/supabaseClient';
 import { dispatchCedarPrompt } from '@/cedar/promptBridge';
@@ -22,13 +27,18 @@ import {
   SCHEDULE_UPDATED_EVENT,
   createSchedule,
   deleteSchedule,
+  discardTemporarySchedule,
   duplicateSchedule,
   getActiveScheduleEntry,
   getCurrentSemesterScheduleEntry,
+  getCurrentSemesterTerm,
   getScheduleSyncStatus,
   listSchedules,
+  listTemporarySchedules,
+  promoteTemporaryToSaved,
   renameSchedule,
   removeSectionFromSchedule,
+  removeSectionFromScheduleById,
   resolveTermLabel,
   saveSchedule,
   setActiveScheduleId,
@@ -56,6 +66,42 @@ const TOTAL_SLOTS = ((END_HOUR - START_HOUR) * 60) / SLOT_MINUTES;
 
 const DAY_ORDER = ['M', 'T', 'W', 'H', 'F', 'S'] as const;
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+const TERM_SEQUENCE = [
+  { termCode: '0', termLabel: 'Winter' },
+  { termCode: '1', termLabel: 'Spring' },
+  { termCode: '7', termLabel: 'Summer' },
+  { termCode: '9', termLabel: 'Fall' },
+] as const;
+
+type ScheduleTermOption = {
+  value: string;
+  termYear: number;
+  termCode: string;
+  label: string;
+};
+
+const buildUpcomingTermOptions = (count = 8): ScheduleTermOption[] => {
+  const currentTerm = getCurrentSemesterTerm();
+  const startIndex = TERM_SEQUENCE.findIndex(
+    (term) => term.termCode === currentTerm.termCode,
+  );
+  const normalizedStartIndex = startIndex >= 0 ? startIndex : 1;
+
+  return Array.from({ length: count }, (_, offset) => {
+    const sequencePosition = normalizedStartIndex + offset;
+    const term = TERM_SEQUENCE[sequencePosition % TERM_SEQUENCE.length];
+    const termYear = currentTerm.termYear + Math.floor(sequencePosition / TERM_SEQUENCE.length);
+    const label = `${term.termLabel} ${termYear}`;
+
+    return {
+      value: `${termYear}-${term.termCode}`,
+      termYear,
+      termCode: term.termCode,
+      label,
+    };
+  });
+};
 
 type GridBlock = {
   key: string;
@@ -262,6 +308,92 @@ function DeleteDialog({
 }
 
 /* ------------------------------------------------------------------ */
+/*  New Schedule Dialog                                                */
+/* ------------------------------------------------------------------ */
+
+function NewScheduleDialog({
+  open,
+  isCreating,
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean;
+  isCreating: boolean;
+  onConfirm: (term: ScheduleTermOption) => void;
+  onCancel: () => void;
+}) {
+  const termOptions = React.useMemo(() => buildUpcomingTermOptions(), []);
+  const [selectedTermValue, setSelectedTermValue] = React.useState(
+    termOptions[0]?.value ?? '',
+  );
+
+  React.useEffect(() => {
+    if (open) {
+      setSelectedTermValue(termOptions[0]?.value ?? '');
+    }
+  }, [open, termOptions]);
+
+  const selectedTerm = termOptions.find((term) => term.value === selectedTermValue);
+
+  return (
+    <Dialog.Root open={open} onOpenChange={(nextOpen) => !nextOpen && onCancel()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-surface-2 p-6 shadow-elev-2 animate-fade-up">
+          <Dialog.Title className="text-base font-semibold text-foreground">
+            New schedule
+          </Dialog.Title>
+          <Dialog.Description className="mt-2 text-sm text-muted-foreground">
+            Choose the semester this schedule is for before adding courses.
+          </Dialog.Description>
+          <form
+            className="mt-5 space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (selectedTerm) onConfirm(selectedTerm);
+            }}
+          >
+            <label className="block text-xs font-semibold text-foreground">
+              Semester
+              <select
+                value={selectedTermValue}
+                onChange={(event) => setSelectedTermValue(event.target.value)}
+                disabled={isCreating}
+                autoFocus
+                className="mt-2 h-10 w-full rounded-lg border border-border bg-surface-1 px-3 text-sm font-medium text-foreground outline-none transition focus:border-action focus:ring-2 focus:ring-action/30 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {termOptions.map((term) => (
+                  <option key={term.value} value={term.value}>
+                    {term.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={onCancel}
+                disabled={isCreating}
+                className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground transition hover:bg-surface-1 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isCreating || !selectedTerm}
+                className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
+              >
+                {isCreating ? 'Creating...' : 'Create schedule'}
+              </button>
+            </div>
+          </form>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Guest Schedule Import Dialog                                       */
 /* ------------------------------------------------------------------ */
 
@@ -318,6 +450,84 @@ function GuestImportDialog({
                 className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground transition hover:bg-surface-1 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Don&apos;t save
+              </button>
+              <button
+                type="submit"
+                disabled={isSaving || name.trim().length === 0}
+                className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
+              >
+                {isSaving ? 'Saving...' : 'Save schedule'}
+              </button>
+            </div>
+          </form>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Save Temporary Schedule Dialog                                     */
+/* ------------------------------------------------------------------ */
+
+function SaveTempScheduleDialog({
+  open,
+  defaultName,
+  sectionCount,
+  isSaving,
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean;
+  defaultName: string;
+  sectionCount: number;
+  isSaving: boolean;
+  onConfirm: (name: string) => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = React.useState(defaultName);
+  React.useEffect(() => {
+    if (open) setName(defaultName);
+  }, [open, defaultName]);
+
+  return (
+    <Dialog.Root open={open} onOpenChange={(nextOpen) => !nextOpen && onCancel()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-surface-2 p-6 shadow-elev-2 animate-fade-up">
+          <Dialog.Title className="text-base font-semibold text-foreground">
+            Save schedule option
+          </Dialog.Title>
+          <Dialog.Description className="mt-2 text-sm text-muted-foreground">
+            Save this option as a regular schedule with {sectionCount}{' '}
+            {sectionCount === 1 ? 'course' : 'courses'}. It will appear in your schedules
+            dropdown.
+          </Dialog.Description>
+          <form
+            className="mt-5 space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (name.trim().length > 0) onConfirm(name.trim());
+            }}
+          >
+            <label className="block text-xs font-semibold text-foreground">
+              Schedule name
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                disabled={isSaving}
+                autoFocus
+                className="mt-2 h-10 w-full rounded-lg border border-border bg-surface-1 px-3 text-sm font-medium text-foreground outline-none transition focus:border-action focus:ring-2 focus:ring-action/30 disabled:cursor-not-allowed disabled:opacity-60"
+              />
+            </label>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={onCancel}
+                disabled={isSaving}
+                className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground transition hover:bg-surface-1 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Cancel
               </button>
               <button
                 type="submit"
@@ -483,6 +693,8 @@ export const ScheduleGrid: React.FC = () => {
   const [syncError, setSyncError] = React.useState<string | null>(null);
   const [isHydrating, setIsHydrating] = React.useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [newScheduleDialogOpen, setNewScheduleDialogOpen] = React.useState(false);
+  const [isCreatingSchedule, setIsCreatingSchedule] = React.useState(false);
   const [selectedBlock, setSelectedBlock] = React.useState<{
     block: GridBlock;
     anchor: { x: number; y: number };
@@ -493,6 +705,12 @@ export const ScheduleGrid: React.FC = () => {
   const [isImportingGuestSchedule, setIsImportingGuestSchedule] = React.useState(false);
   const [blockedAutoSyncScheduleIds, setBlockedAutoSyncScheduleIds] = React.useState<Set<string>>(() => new Set());
   const guestScheduleBeforeLoginRef = React.useRef<ScheduleEntry | null>(null);
+
+  const { currentThreadId } = useThreadController();
+  const [temporarySchedules, setTemporarySchedules] = React.useState<ScheduleEntry[]>([]);
+  const [previewScheduleId, setPreviewScheduleId] = React.useState<string | null>(null);
+  const [saveTempDialogOpen, setSaveTempDialogOpen] = React.useState(false);
+  const [isSavingTemp, setIsSavingTemp] = React.useState(false);
 
   const refreshWorkspace = React.useCallback(() => {
     const activeEntry = getActiveScheduleEntry();
@@ -530,6 +748,53 @@ export const ScheduleGrid: React.FC = () => {
     window.addEventListener(SCHEDULE_UPDATED_EVENT, handleUpdate);
     return () => window.removeEventListener(SCHEDULE_UPDATED_EVENT, handleUpdate);
   }, [refreshWorkspace]);
+
+  const refreshTemporarySchedules = React.useCallback(() => {
+    if (!currentThreadId) {
+      setTemporarySchedules([]);
+      return;
+    }
+    setTemporarySchedules(listTemporarySchedules(currentThreadId));
+  }, [currentThreadId]);
+
+  React.useEffect(() => {
+    refreshTemporarySchedules();
+  }, [refreshTemporarySchedules]);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleUpdate = () => refreshTemporarySchedules();
+    window.addEventListener(SCHEDULE_UPDATED_EVENT, handleUpdate);
+    return () => window.removeEventListener(SCHEDULE_UPDATED_EVENT, handleUpdate);
+  }, [refreshTemporarySchedules]);
+
+  // Reset preview when the thread changes.
+  React.useEffect(() => {
+    setPreviewScheduleId(null);
+  }, [currentThreadId]);
+
+  // Auto-select the first temp schedule for this thread; clear preview if it disappears.
+  React.useEffect(() => {
+    if (temporarySchedules.length === 0) {
+      if (previewScheduleId !== null) setPreviewScheduleId(null);
+      return;
+    }
+    const stillExists = previewScheduleId
+      ? temporarySchedules.some((entry) => entry.id === previewScheduleId)
+      : false;
+    if (!stillExists) {
+      setPreviewScheduleId(temporarySchedules[0].id);
+    }
+  }, [temporarySchedules, previewScheduleId]);
+
+  const previewEntry = React.useMemo(
+    () => temporarySchedules.find((entry) => entry.id === previewScheduleId) ?? null,
+    [temporarySchedules, previewScheduleId],
+  );
+  const isPreviewMode = Boolean(previewEntry);
+  const previewIndex = previewEntry
+    ? temporarySchedules.findIndex((entry) => entry.id === previewEntry.id)
+    : -1;
 
   React.useEffect(() => {
     let isMounted = true;
@@ -671,8 +936,25 @@ export const ScheduleGrid: React.FC = () => {
     [],
   );
 
-  const handleCreateSchedule = React.useCallback(() => {
-    createSchedule({ setActive: true });
+  const handleOpenCreateScheduleDialog = React.useCallback(() => {
+    setNewScheduleDialogOpen(true);
+  }, []);
+
+  const handleCreateSchedule = React.useCallback((term: ScheduleTermOption) => {
+    setIsCreatingSchedule(true);
+    createSchedule({
+      setActive: true,
+      snapshot: {
+        version: 1,
+        termYear: term.termYear,
+        termCode: term.termCode,
+        campus: 'NB',
+        lastUpdated: new Date().toISOString(),
+        sections: [],
+      },
+    });
+    setNewScheduleDialogOpen(false);
+    setIsCreatingSchedule(false);
     setIsEditingName(false);
   }, []);
 
@@ -752,16 +1034,78 @@ export const ScheduleGrid: React.FC = () => {
 
   const handleRemoveSection = React.useCallback(
     (indexNumber: string) => {
+      if (previewEntry) {
+        removeSectionFromScheduleById(previewEntry.id, indexNumber);
+        setSelectedBlock(null);
+        return;
+      }
       const result = removeSectionFromSchedule(schedule, indexNumber);
       saveSchedule(result.schedule);
       setSchedule(result.schedule);
       setSelectedBlock(null);
-      // Dispatch event so other components refresh
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent(SCHEDULE_UPDATED_EVENT));
       }
     },
-    [schedule],
+    [schedule, previewEntry],
+  );
+
+  const handlePreviewPrev = React.useCallback(() => {
+    if (temporarySchedules.length === 0) return;
+    const currentIndex = previewEntry
+      ? temporarySchedules.findIndex((entry) => entry.id === previewEntry.id)
+      : -1;
+    const prevIndex =
+      currentIndex <= 0 ? temporarySchedules.length - 1 : currentIndex - 1;
+    setPreviewScheduleId(temporarySchedules[prevIndex].id);
+  }, [temporarySchedules, previewEntry]);
+
+  const handlePreviewNext = React.useCallback(() => {
+    if (temporarySchedules.length === 0) return;
+    const currentIndex = previewEntry
+      ? temporarySchedules.findIndex((entry) => entry.id === previewEntry.id)
+      : -1;
+    const nextIndex =
+      currentIndex < 0 || currentIndex >= temporarySchedules.length - 1
+        ? 0
+        : currentIndex + 1;
+    setPreviewScheduleId(temporarySchedules[nextIndex].id);
+  }, [temporarySchedules, previewEntry]);
+
+  const handleDiscardPreview = React.useCallback(() => {
+    if (!previewEntry) return;
+    discardTemporarySchedule(previewEntry.id);
+  }, [previewEntry]);
+
+  const handleConfirmSaveTemp = React.useCallback(
+    async (name: string) => {
+      if (!previewEntry) return;
+      try {
+        setIsSavingTemp(true);
+        const promoted = promoteTemporaryToSaved(previewEntry.id, name);
+        if (!promoted) {
+          throw new Error('Could not save schedule.');
+        }
+        setPreviewScheduleId(null);
+        setSaveTempDialogOpen(false);
+        setActiveScheduleId(promoted.id);
+        if (isLoggedIn && userId) {
+          try {
+            setSyncState('saving');
+            await upsertRemoteSchedule(promoted, userId);
+            setSyncState('idle');
+            setSyncError(null);
+          } catch (error) {
+            console.error('Failed to sync promoted schedule', error);
+            setSyncState('error');
+            setSyncError('Sync failed. Try again.');
+          }
+        }
+      } finally {
+        setIsSavingTemp(false);
+      }
+    },
+    [previewEntry, isLoggedIn, userId],
   );
 
   const commitScheduleName = React.useCallback(() => {
@@ -779,10 +1123,23 @@ export const ScheduleGrid: React.FC = () => {
     return [...schedules].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }, [schedules]);
 
+  const displaySchedule: ScheduleSnapshot = React.useMemo(
+    () => (previewEntry ? previewEntry.snapshot : schedule),
+    [previewEntry, schedule],
+  );
+
   // ----- Compute total credits -----
   const totalCredits = React.useMemo(() => {
     return schedule.sections.reduce((sum, s) => sum + (s.credits ?? 0), 0);
   }, [schedule]);
+
+  const previewTotalCredits = React.useMemo(() => {
+    if (!previewEntry) return 0;
+    return previewEntry.snapshot.sections.reduce(
+      (sum, section) => sum + (section.credits ?? 0),
+      0,
+    );
+  }, [previewEntry]);
 
   const activeScheduleSyncStatus: ActiveScheduleSyncStatus = !isLoaded || isHydrating
     ? 'loading'
@@ -799,7 +1156,7 @@ export const ScheduleGrid: React.FC = () => {
   // ----- Compute used campus colors (for legend) -----
   const usedCampusColors = React.useMemo(() => {
     const seen = new Set<string>();
-    schedule.sections.forEach((section) => {
+    displaySchedule.sections.forEach((section) => {
       (section.meetingTimes || []).forEach((mt) => {
         if (mt.isOnline || section.isOnline) {
           seen.add('online');
@@ -816,13 +1173,13 @@ export const ScheduleGrid: React.FC = () => {
       });
     });
     return Array.from(seen);
-  }, [schedule]);
+  }, [displaySchedule]);
 
   const { blocks, sidebarItems } = React.useMemo(() => {
     const nextBlocks: GridBlock[] = [];
     const nextSidebar: SidebarItem[] = [];
 
-    schedule.sections.forEach((section) => {
+    displaySchedule.sections.forEach((section) => {
       const meetings = section.meetingTimes || [];
       const courseLabel = section.courseString || 'Course';
       const title = section.courseTitle || '';
@@ -916,7 +1273,7 @@ export const ScheduleGrid: React.FC = () => {
     });
 
     return { blocks: nextBlocks, sidebarItems: nextSidebar };
-  }, [schedule]);
+  }, [displaySchedule]);
 
   const activeScheduleAgentContext = React.useMemo(
     () =>
@@ -927,13 +1284,19 @@ export const ScheduleGrid: React.FC = () => {
         scheduleName,
         totalCredits,
         syncStatus: activeScheduleSyncStatus,
+        temporarySchedules,
+        previewScheduleId,
+        threadId: currentThreadId,
       }),
     [
       activeEntry,
       activeScheduleId,
       activeScheduleSyncStatus,
+      currentThreadId,
+      previewScheduleId,
       schedule,
       scheduleName,
+      temporarySchedules,
       totalCredits,
     ],
   );
@@ -1058,7 +1421,7 @@ export const ScheduleGrid: React.FC = () => {
                       <DropdownMenu.Separator className="my-1 h-px bg-border" />
                       <DropdownMenu.Item
                         className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground outline-none transition hover:bg-surface-1"
-                        onSelect={handleCreateSchedule}
+                        onSelect={handleOpenCreateScheduleDialog}
                       >
                         <Plus className="h-3.5 w-3.5" strokeWidth={2} />
                         New schedule
@@ -1075,6 +1438,11 @@ export const ScheduleGrid: React.FC = () => {
               {totalCredits > 0 && (
                 <span className="rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                   {totalCredits} cr
+                </span>
+              )}
+              {isPreviewMode && (
+                <span className="rounded-full border border-action/40 bg-action/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-action">
+                  Preview · not saved
                 </span>
               )}
             </div>
@@ -1119,7 +1487,7 @@ export const ScheduleGrid: React.FC = () => {
                   >
                     <DropdownMenu.Item
                       className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground outline-none transition hover:bg-surface-1"
-                      onSelect={handleCreateSchedule}
+                      onSelect={handleOpenCreateScheduleDialog}
                     >
                       <Plus className="h-3.5 w-3.5" strokeWidth={2} />
                       New schedule
@@ -1169,12 +1537,83 @@ export const ScheduleGrid: React.FC = () => {
           )}
         </div>
 
+        {/* -------- Temporary schedule navigator -------- */}
+        {temporarySchedules.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-action/30 bg-action/5 px-4 py-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={handlePreviewPrev}
+                disabled={temporarySchedules.length <= 1}
+                className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border border-action/40 bg-surface-1 text-action transition hover:bg-action/10 disabled:cursor-not-allowed disabled:opacity-40"
+                title="Previous option"
+                aria-label="Previous schedule option"
+              >
+                <ChevronLeft className="h-4 w-4" strokeWidth={2.25} />
+              </button>
+              <div className="flex min-w-0 flex-col">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-action">
+                  {previewEntry
+                    ? `Option ${previewIndex + 1} of ${temporarySchedules.length}`
+                    : `${temporarySchedules.length} schedule options`}
+                </span>
+                <span className="truncate text-xs text-foreground/85">
+                  {previewEntry
+                    ? previewEntry.temporary?.label || previewEntry.name
+                    : 'Use the arrows to flip through schedule options'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handlePreviewNext}
+                disabled={temporarySchedules.length <= 1}
+                className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border border-action/40 bg-surface-1 text-action transition hover:bg-action/10 disabled:cursor-not-allowed disabled:opacity-40"
+                title="Next option"
+                aria-label="Next schedule option"
+              >
+                <ChevronRight className="h-4 w-4" strokeWidth={2.25} />
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              {previewEntry && (
+                <span className="hidden rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-muted-foreground sm:inline">
+                  {previewTotalCredits} cr
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={handleDiscardPreview}
+                disabled={!previewEntry}
+                className="focus-ring inline-flex h-7 items-center gap-1 rounded-md border border-border bg-surface-1 px-2.5 text-xs font-medium text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40"
+                title="Discard this option"
+              >
+                <X className="h-3.5 w-3.5" strokeWidth={2.25} />
+                Discard
+              </button>
+              <button
+                type="button"
+                onClick={() => setSaveTempDialogOpen(true)}
+                disabled={!previewEntry}
+                className="focus-ring inline-flex h-7 items-center gap-1 rounded-md bg-action px-2.5 text-xs font-semibold text-action-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
+                title="Save this option as a regular schedule"
+              >
+                <Save className="h-3.5 w-3.5" strokeWidth={2.25} />
+                Save
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* -------- Grid + Sidebar -------- */}
         <div className="flex min-h-0 flex-1 flex-col xl:flex-row">
           <div className="min-h-0 flex-1 overflow-auto">
             <div className="min-w-[560px] p-3 sm:p-4">
               <div
-                className="relative grid overflow-hidden rounded-xl border border-border bg-surface-0/40 shadow-elev-1"
+                className={`relative grid overflow-hidden rounded-xl border bg-surface-0/40 shadow-elev-1 transition ${
+                  isPreviewMode
+                    ? 'border-action/50 ring-1 ring-action/30 ring-offset-2 ring-offset-surface-1'
+                    : 'border-border'
+                }`}
                 style={{
                   gridTemplateColumns: '56px repeat(6, minmax(0, 1fr))',
                   gridTemplateRows: `36px repeat(${TOTAL_SLOTS}, 28px)`,
@@ -1238,7 +1677,9 @@ export const ScheduleGrid: React.FC = () => {
                         anchor: { x: rect.right + 8, y: rect.top },
                       });
                     }}
-                    className="relative z-10 mx-[3px] my-[2px] flex cursor-pointer flex-col gap-0.5 overflow-hidden rounded-md px-2 py-1 text-[11px] text-white shadow-elev-1 ring-1 ring-white/10 transition hover:scale-[1.02] hover:ring-2 hover:ring-white/30 active:scale-[0.98]"
+                    className={`relative z-10 mx-[3px] my-[2px] flex cursor-pointer flex-col gap-0.5 overflow-hidden rounded-md px-2 py-1 text-[11px] text-white shadow-elev-1 ring-1 ring-white/10 transition hover:scale-[1.02] hover:ring-2 hover:ring-white/30 active:scale-[0.98] ${
+                      isPreviewMode ? 'opacity-75 ring-dashed ring-white/40' : ''
+                    }`}
                     style={{
                       gridColumnStart: block.column,
                       gridRowStart: block.rowStart,
@@ -1386,6 +1827,28 @@ export const ScheduleGrid: React.FC = () => {
         name={activeEntry?.name ?? ''}
         onConfirm={() => void handleDeleteSchedule()}
         onCancel={() => setDeleteDialogOpen(false)}
+      />
+
+      {/* New schedule dialog */}
+      <NewScheduleDialog
+        open={newScheduleDialogOpen}
+        isCreating={isCreatingSchedule}
+        onConfirm={handleCreateSchedule}
+        onCancel={() => setNewScheduleDialogOpen(false)}
+      />
+
+      {/* Save temporary schedule dialog */}
+      <SaveTempScheduleDialog
+        open={saveTempDialogOpen && Boolean(previewEntry)}
+        defaultName={
+          previewEntry?.temporary?.label
+            ?? previewEntry?.name
+            ?? `Schedule - ${resolveTermLabel(displaySchedule.termCode)} ${displaySchedule.termYear}`
+        }
+        sectionCount={previewEntry?.snapshot.sections.length ?? 0}
+        isSaving={isSavingTemp}
+        onConfirm={(name) => void handleConfirmSaveTemp(name)}
+        onCancel={() => setSaveTempDialogOpen(false)}
       />
     </section>
   );

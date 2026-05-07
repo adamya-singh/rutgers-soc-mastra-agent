@@ -39,13 +39,23 @@ export type ScheduleSnapshot = {
   sections: ScheduleSection[];
 };
 
+export type TemporaryScheduleMeta = {
+  threadId: string;
+  label?: string;
+  createdAt: string;
+};
+
 export type ScheduleEntry = {
   id: string;
   name: string;
   snapshot: ScheduleSnapshot;
   updatedAt: string;
   lastSyncedAt?: string;
+  temporary?: TemporaryScheduleMeta;
 };
+
+export const isTemporarySchedule = (entry: ScheduleEntry): boolean =>
+  Boolean(entry.temporary);
 
 type ScheduleWorkspace = {
   version: number;
@@ -164,6 +174,17 @@ const createScheduleEntry = (snapshot: ScheduleSnapshot, name?: string, id?: str
   };
 };
 
+const normalizeTemporaryMeta = (raw: unknown): TemporaryScheduleMeta | undefined => {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const data = raw as Partial<TemporaryScheduleMeta>;
+  if (typeof data.threadId !== 'string' || data.threadId.trim().length === 0) return undefined;
+  return {
+    threadId: data.threadId,
+    label: typeof data.label === 'string' && data.label.trim().length > 0 ? data.label.trim() : undefined,
+    createdAt: typeof data.createdAt === 'string' ? data.createdAt : new Date().toISOString(),
+  };
+};
+
 const normalizeScheduleEntry = (raw: unknown): ScheduleEntry | null => {
   if (!raw || typeof raw !== 'object') return null;
   const data = raw as Partial<ScheduleEntry>;
@@ -173,12 +194,14 @@ const normalizeScheduleEntry = (raw: unknown): ScheduleEntry | null => {
   const name = typeof data.name === 'string' && data.name.trim().length > 0
     ? data.name.trim()
     : buildDefaultScheduleName(snapshot);
+  const temporary = normalizeTemporaryMeta((data as { temporary?: unknown }).temporary);
   return {
     id: data.id,
     name,
     snapshot,
     updatedAt,
     lastSyncedAt: typeof data.lastSyncedAt === 'string' ? data.lastSyncedAt : undefined,
+    ...(temporary ? { temporary } : {}),
   };
 };
 
@@ -277,15 +300,16 @@ const replaceScheduleEntry = (workspace: ScheduleWorkspace, entry: ScheduleEntry
 
 const ensureActiveEntry = (workspace: ScheduleWorkspace): ScheduleEntry => {
   const activeId = workspace.activeScheduleId;
-  let active = workspace.schedules.find((entry) => entry.id === activeId);
+  let active = workspace.schedules.find((entry) => entry.id === activeId && !isTemporarySchedule(entry));
   if (!active) {
-    if (workspace.schedules.length === 0) {
+    const persistent = workspace.schedules.filter((entry) => !isTemporarySchedule(entry));
+    if (persistent.length === 0) {
       const entry = createScheduleEntry(createEmptyScheduleSnapshot());
-      workspace.schedules = [entry];
+      workspace.schedules = [...workspace.schedules, entry];
       workspace.activeScheduleId = entry.id;
       return entry;
     }
-    active = workspace.schedules[0];
+    active = persistent[0];
     workspace.activeScheduleId = active.id;
   }
   return active;
@@ -293,7 +317,17 @@ const ensureActiveEntry = (workspace: ScheduleWorkspace): ScheduleEntry => {
 
 export const listSchedules = (): ScheduleEntry[] => {
   const workspace = loadScheduleWorkspace();
-  return workspace.schedules;
+  return workspace.schedules.filter((entry) => !isTemporarySchedule(entry));
+};
+
+export const listTemporarySchedules = (threadId: string): ScheduleEntry[] => {
+  const workspace = loadScheduleWorkspace();
+  return workspace.schedules.filter((entry) => entry.temporary?.threadId === threadId);
+};
+
+export const getScheduleById = (scheduleId: string): ScheduleEntry | null => {
+  const workspace = loadScheduleWorkspace();
+  return workspace.schedules.find((entry) => entry.id === scheduleId) ?? null;
 };
 
 export const getActiveScheduleId = (): string | null => {
@@ -321,9 +355,14 @@ export const getCurrentSemesterScheduleEntry = (
     && entry.snapshot.termCode === currentTerm.termCode
     && entry.snapshot.campus === campus
     && !excludedIds.has(entry.id)
+    && !isTemporarySchedule(entry)
   );
-  const availableEntries = workspace.schedules.filter((entry) => !excludedIds.has(entry.id));
-  const activeEntry = workspace.schedules.find((entry) => entry.id === workspace.activeScheduleId);
+  const availableEntries = workspace.schedules.filter(
+    (entry) => !excludedIds.has(entry.id) && !isTemporarySchedule(entry),
+  );
+  const activeEntry = workspace.schedules.find(
+    (entry) => entry.id === workspace.activeScheduleId && !isTemporarySchedule(entry),
+  );
 
   if (activeEntry && isCurrentSemesterEntry(activeEntry) && activeEntry.snapshot.sections.length > 0) {
     return activeEntry;
@@ -401,8 +440,9 @@ export const saveSchedule = (schedule: ScheduleSnapshot) => {
 export const setActiveScheduleId = (scheduleId: string): boolean => {
   if (typeof window === 'undefined') return false;
   const workspace = loadScheduleWorkspace();
-  const exists = workspace.schedules.some((entry) => entry.id === scheduleId);
-  if (!exists) return false;
+  const target = workspace.schedules.find((entry) => entry.id === scheduleId);
+  if (!target) return false;
+  if (isTemporarySchedule(target)) return false;
   workspace.activeScheduleId = scheduleId;
   saveScheduleWorkspace(workspace);
   dispatchScheduleUpdated();
@@ -465,14 +505,15 @@ export const deleteSchedule = (scheduleId: string): boolean => {
   const nextSchedules = workspace.schedules.filter((entry) => entry.id !== scheduleId);
   if (nextSchedules.length === workspace.schedules.length) return false;
 
-  if (nextSchedules.length === 0) {
+  const persistentRemaining = nextSchedules.filter((entry) => !isTemporarySchedule(entry));
+  if (persistentRemaining.length === 0) {
     const entry = createScheduleEntry(createEmptyScheduleSnapshot());
-    workspace.schedules = [entry];
+    workspace.schedules = [...nextSchedules, entry];
     workspace.activeScheduleId = entry.id;
   } else {
     workspace.schedules = nextSchedules;
     if (workspace.activeScheduleId === scheduleId) {
-      workspace.activeScheduleId = nextSchedules[0]?.id ?? null;
+      workspace.activeScheduleId = persistentRemaining[0]?.id ?? null;
     }
   }
 
@@ -533,6 +574,8 @@ export const applyRemoteSchedules = (remoteSchedules: RemoteSchedulePayload[]) =
     const existing = byId.get(remote.id);
     if (existing) {
       const current = existing.entry;
+      // Defense in depth: never let a remote payload overwrite a local temp entry.
+      if (isTemporarySchedule(current)) return;
       const isDirty = Boolean(current.lastSyncedAt && current.updatedAt > current.lastSyncedAt);
       if (!isDirty || updatedAt > current.updatedAt) {
         nextSchedules[existing.index] = {
@@ -560,13 +603,12 @@ export const applyRemoteSchedules = (remoteSchedules: RemoteSchedulePayload[]) =
   });
 
   workspace.schedules = nextSchedules;
-  if (workspace.activeScheduleId) {
-    const exists = nextSchedules.some((entry) => entry.id === workspace.activeScheduleId);
-    if (!exists) {
-      workspace.activeScheduleId = nextSchedules[0]?.id ?? null;
-    }
-  } else {
-    workspace.activeScheduleId = nextSchedules[0]?.id ?? null;
+  const persistentSchedules = nextSchedules.filter((entry) => !isTemporarySchedule(entry));
+  const activeStillExists = workspace.activeScheduleId
+    ? persistentSchedules.some((entry) => entry.id === workspace.activeScheduleId)
+    : false;
+  if (!activeStillExists) {
+    workspace.activeScheduleId = persistentSchedules[0]?.id ?? null;
   }
 
   saveScheduleWorkspace(workspace);
@@ -616,4 +658,172 @@ export const getScheduleSyncStatus = (scheduleId: string): 'saved' | 'dirty' => 
   if (!entry) return 'dirty';
   if (!entry.lastSyncedAt) return 'dirty';
   return entry.updatedAt > entry.lastSyncedAt ? 'dirty' : 'saved';
+};
+
+export const buildTemporaryScheduleId = (threadId: string, agentScheduleId: string): string =>
+  `temp:${threadId}:${agentScheduleId}`;
+
+export const createTemporarySchedule = (options: {
+  threadId: string;
+  id?: string;
+  label?: string;
+  snapshot?: ScheduleSnapshot;
+  basedOnActive?: boolean;
+}): ScheduleEntry | null => {
+  if (typeof window === 'undefined') return null;
+  const trimmedThreadId = options.threadId?.trim();
+  if (!trimmedThreadId) return null;
+
+  const workspace = loadScheduleWorkspace();
+  const trimmedId = options.id?.trim();
+  if (trimmedId) {
+    const existing = workspace.schedules.find((entry) => entry.id === trimmedId);
+    if (existing) {
+      return isTemporarySchedule(existing) ? existing : null;
+    }
+  }
+
+  let snapshot = options.snapshot;
+  if (!snapshot && options.basedOnActive) {
+    const activeEntry = workspace.schedules.find(
+      (entry) => entry.id === workspace.activeScheduleId && !isTemporarySchedule(entry),
+    );
+    if (activeEntry) {
+      snapshot = {
+        ...activeEntry.snapshot,
+        lastUpdated: new Date().toISOString(),
+        sections: [...activeEntry.snapshot.sections],
+      };
+    }
+  }
+
+  const finalSnapshot = snapshot ?? createEmptyScheduleSnapshot();
+  const trimmedLabel = options.label?.trim();
+  const labelOrDefault = trimmedLabel && trimmedLabel.length > 0 ? trimmedLabel : undefined;
+
+  const entry = createScheduleEntry(
+    finalSnapshot,
+    labelOrDefault ?? buildUniqueDefaultScheduleName(finalSnapshot, workspace.schedules),
+    trimmedId,
+  );
+
+  entry.temporary = {
+    threadId: trimmedThreadId,
+    label: labelOrDefault,
+    createdAt: new Date().toISOString(),
+  };
+
+  workspace.schedules = [...workspace.schedules, entry];
+  saveScheduleWorkspace(workspace);
+  dispatchScheduleUpdated();
+  return entry;
+};
+
+export const addSectionToScheduleById = (
+  scheduleId: string,
+  section: ScheduleSection,
+): boolean => {
+  if (typeof window === 'undefined') return false;
+  const workspace = loadScheduleWorkspace();
+  const entry = workspace.schedules.find((item) => item.id === scheduleId);
+  if (!entry) return false;
+  const exists = entry.snapshot.sections.some(
+    (existing) => existing.indexNumber === section.indexNumber,
+  );
+  if (exists) return false;
+  const lastUpdated = new Date().toISOString();
+  const updatedEntry: ScheduleEntry = {
+    ...entry,
+    snapshot: {
+      ...entry.snapshot,
+      lastUpdated,
+      sections: [...entry.snapshot.sections, section],
+    },
+    updatedAt: lastUpdated,
+  };
+  replaceScheduleEntry(workspace, updatedEntry);
+  saveScheduleWorkspace(workspace);
+  dispatchScheduleUpdated();
+  return true;
+};
+
+export const removeSectionFromScheduleById = (
+  scheduleId: string,
+  indexNumber: string,
+): boolean => {
+  if (typeof window === 'undefined') return false;
+  const workspace = loadScheduleWorkspace();
+  const entry = workspace.schedules.find((item) => item.id === scheduleId);
+  if (!entry) return false;
+  const nextSections = entry.snapshot.sections.filter(
+    (existing) => existing.indexNumber !== indexNumber,
+  );
+  if (nextSections.length === entry.snapshot.sections.length) return false;
+  const lastUpdated = new Date().toISOString();
+  const updatedEntry: ScheduleEntry = {
+    ...entry,
+    snapshot: {
+      ...entry.snapshot,
+      lastUpdated,
+      sections: nextSections,
+    },
+    updatedAt: lastUpdated,
+  };
+  replaceScheduleEntry(workspace, updatedEntry);
+  saveScheduleWorkspace(workspace);
+  dispatchScheduleUpdated();
+  return true;
+};
+
+export const promoteTemporaryToSaved = (
+  scheduleId: string,
+  name: string,
+): ScheduleEntry | null => {
+  if (typeof window === 'undefined') return null;
+  const trimmed = name.trim();
+  if (!trimmed) return null;
+  const workspace = loadScheduleWorkspace();
+  const entry = workspace.schedules.find((item) => item.id === scheduleId);
+  if (!entry || !isTemporarySchedule(entry)) return null;
+  const lastUpdated = new Date().toISOString();
+  const promotedEntry: ScheduleEntry = {
+    id: entry.id,
+    name: trimmed,
+    snapshot: {
+      ...entry.snapshot,
+      lastUpdated,
+      sections: [...entry.snapshot.sections],
+    },
+    updatedAt: lastUpdated,
+  };
+  replaceScheduleEntry(workspace, promotedEntry);
+  saveScheduleWorkspace(workspace);
+  dispatchScheduleUpdated();
+  return promotedEntry;
+};
+
+export const discardTemporarySchedule = (scheduleId: string): boolean => {
+  if (typeof window === 'undefined') return false;
+  const workspace = loadScheduleWorkspace();
+  const entry = workspace.schedules.find((item) => item.id === scheduleId);
+  if (!entry || !isTemporarySchedule(entry)) return false;
+  workspace.schedules = workspace.schedules.filter((item) => item.id !== scheduleId);
+  saveScheduleWorkspace(workspace);
+  dispatchScheduleUpdated();
+  return true;
+};
+
+export const discardTemporarySchedulesForThread = (threadId: string): number => {
+  if (typeof window === 'undefined') return 0;
+  const workspace = loadScheduleWorkspace();
+  const before = workspace.schedules.length;
+  workspace.schedules = workspace.schedules.filter(
+    (item) => item.temporary?.threadId !== threadId,
+  );
+  const removed = before - workspace.schedules.length;
+  if (removed > 0) {
+    saveScheduleWorkspace(workspace);
+    dispatchScheduleUpdated();
+  }
+  return removed;
 };

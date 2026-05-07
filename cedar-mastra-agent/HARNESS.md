@@ -108,9 +108,14 @@ These tools mutate browser-local UI state through Cedar bridge tools:
 - `addNewTextLine`: append a displayed assistant note line.
 - `addSectionToSchedule`: add a course section to the local in-browser schedule.
 - `removeSectionFromSchedule`: remove a course section from the local in-browser schedule by index number.
+- `createTemporarySchedule`: create a chat-thread-scoped temporary schedule that the user can preview without it appearing in the schedules dropdown. The agent supplies a stable `scheduleId` and an optional `label`/`basedOnActive` flag.
+- `addSectionToTemporarySchedule`: add a course section to a previously created temporary schedule by `scheduleId`.
+- `discardTemporarySchedule`: remove a temporary schedule from the chat-thread option carousel.
 - `clearSearchResults`: clear the search result cards.
 - `setSearchResults`: replace search result cards.
 - `appendSearchResults`: append result cards.
+
+Temporary schedules persist in the user's local browser storage tagged with the Cedar chat thread id, are hidden from the schedules dropdown and Supabase sync, and only become normal schedules when the user clicks Save in the option carousel above the grid (which prompts for a name and writes them through the regular `schedules` table).
 
 The frontend also registers direct Cedar frontend tools in [`src/app/page.tsx`](src/app/page.tsx):
 

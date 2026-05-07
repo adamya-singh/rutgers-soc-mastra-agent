@@ -8,6 +8,7 @@ import {
   useRegisterFrontendTool,
   useSubscribeStateToAgentContext,
   useCedarStore,
+  useThreadController,
 } from 'cedar-os';
 import { MoonStar, Sun } from 'lucide-react';
 import { supabaseClient } from '@/lib/supabaseClient';
@@ -18,7 +19,11 @@ import { DebuggerPanel } from '@/cedar/components/debugger';
 import { dispatchCedarPrompt } from '@/cedar/promptBridge';
 import {
   addSectionToSchedule,
+  addSectionToScheduleById,
+  buildTemporaryScheduleId,
   clearLocalSchedules,
+  createTemporarySchedule,
+  discardTemporarySchedule,
   dispatchScheduleUpdated,
   loadSchedule,
   removeSectionFromSchedule,
@@ -198,6 +203,11 @@ function isDegreeNavigatorLoginPage(readiness: DegreeNavigatorReadinessResponse 
 
 export default function HomePage() {
   const [theme, setTheme] = React.useState<'light' | 'dark'>('dark');
+  const { currentThreadId } = useThreadController();
+  const currentThreadIdRef = React.useRef<string>(currentThreadId);
+  React.useEffect(() => {
+    currentThreadIdRef.current = currentThreadId;
+  }, [currentThreadId]);
 
   const [userEmail, setUserEmail] = React.useState<string | null>(null);
   const [userId, setUserId] = React.useState<string | null>(null);
@@ -1179,6 +1189,102 @@ export default function HomePage() {
       );
       saveSchedule(updated);
       dispatchScheduleUpdated();
+    },
+  });
+
+  useRegisterFrontendTool({
+    name: 'createTemporarySchedule',
+    description:
+      'Create a chat-scoped temporary schedule that the user can preview alongside their saved schedules.',
+    argsSchema: z.object({
+      scheduleId: z
+        .string()
+        .min(1)
+        .max(64)
+        .regex(/^[a-zA-Z0-9_-]+$/),
+      label: z.string().min(1).max(80).optional(),
+      basedOnActive: z.boolean().optional(),
+    }),
+    execute: async (args) => {
+      const threadId = currentThreadIdRef.current;
+      if (!threadId) {
+        throw new Error('No active chat thread; cannot create a temporary schedule.');
+      }
+      const id = buildTemporaryScheduleId(threadId, args.scheduleId);
+      createTemporarySchedule({
+        threadId,
+        id,
+        label: args.label,
+        basedOnActive: args.basedOnActive,
+      });
+    },
+  });
+
+  useRegisterFrontendTool({
+    name: 'addSectionToTemporarySchedule',
+    description:
+      'Add a course section to a specific temporary schedule by the agent-supplied scheduleId.',
+    argsSchema: z.object({
+      scheduleId: z.string().min(1),
+      section: z.object({
+        indexNumber: z.string().min(1),
+        sectionId: z.number().optional(),
+        courseString: z.string().optional(),
+        courseTitle: z.string().optional(),
+        credits: z.number().optional(),
+        sectionNumber: z.string().optional(),
+        instructors: z.array(z.string()).optional(),
+        isOpen: z.boolean().optional(),
+        meetingTimes: z
+          .array(
+            z.object({
+              day: z.string().optional(),
+              startTimeMilitary: z.string().optional(),
+              endTimeMilitary: z.string().optional(),
+              startTime: z.string().optional(),
+              endTime: z.string().optional(),
+              building: z.string().optional(),
+              room: z.string().optional(),
+              campus: z.string().optional(),
+              mode: z.string().optional(),
+              isOnline: z.boolean().optional(),
+            }),
+          )
+          .optional(),
+        isOnline: z.boolean().optional(),
+        sessionDates: z.string().optional(),
+      }),
+    }),
+    execute: async (args) => {
+      const threadId = currentThreadIdRef.current;
+      if (!threadId) {
+        throw new Error('No active chat thread; cannot update a temporary schedule.');
+      }
+      const id = buildTemporaryScheduleId(threadId, args.scheduleId);
+      const created = createTemporarySchedule({
+        threadId,
+        id,
+      });
+      if (!created) {
+        throw new Error(
+          `Could not find temporary schedule "${args.scheduleId}" in this chat thread.`,
+        );
+      }
+      addSectionToScheduleById(id, args.section);
+    },
+  });
+
+  useRegisterFrontendTool({
+    name: 'discardTemporarySchedule',
+    description: 'Discard a temporary schedule that should no longer be shown.',
+    argsSchema: z.object({
+      scheduleId: z.string().min(1),
+    }),
+    execute: async (args) => {
+      const threadId = currentThreadIdRef.current;
+      if (!threadId) return;
+      const id = buildTemporaryScheduleId(threadId, args.scheduleId);
+      discardTemporarySchedule(id);
     },
   });
 
