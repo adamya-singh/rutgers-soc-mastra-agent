@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      anonymous_chat_clients: {
+        Row: {
+          created_at: string
+          id: string
+          last_seen_at: string
+          revoked_at: string | null
+          token_version: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_seen_at?: string
+          revoked_at?: string | null
+          token_version?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_seen_at?: string
+          revoked_at?: string | null
+          token_version?: number
+        }
+        Relationships: []
+      }
+      anonymous_chat_daily_usage: {
+        Row: {
+          client_id: string
+          created_at: string
+          message_count: number
+          updated_at: string
+          usage_date: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          message_count?: number
+          updated_at?: string
+          usage_date: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          message_count?: number
+          updated_at?: string
+          usage_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anonymous_chat_daily_usage_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "anonymous_chat_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       building_aliases: {
         Row: {
           alias_display: string | null
@@ -97,6 +153,7 @@ export type Database = {
       }
       chat_messages: {
         Row: {
+          anonymous_client_id: string | null
           created_at: string
           id: string
           metadata: Json
@@ -107,9 +164,10 @@ export type Database = {
           thread_id: string
           ui_message_id: string
           ui_message: Json
-          user_id: string
+          user_id: string | null
         }
         Insert: {
+          anonymous_client_id?: string | null
           created_at?: string
           id?: string
           metadata?: Json
@@ -120,9 +178,10 @@ export type Database = {
           thread_id: string
           ui_message_id: string
           ui_message: Json
-          user_id: string
+          user_id?: string | null
         }
         Update: {
+          anonymous_client_id?: string | null
           created_at?: string
           id?: string
           metadata?: Json
@@ -133,9 +192,16 @@ export type Database = {
           thread_id?: string
           ui_message_id?: string
           ui_message?: Json
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "chat_messages_anonymous_client_id_fkey"
+            columns: ["anonymous_client_id"]
+            isOneToOne: false
+            referencedRelation: "anonymous_chat_clients"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "chat_messages_thread_id_fkey"
             columns: ["thread_id"]
@@ -147,6 +213,7 @@ export type Database = {
       }
       chat_threads: {
         Row: {
+          anonymous_client_id: string | null
           archived_at: string | null
           created_at: string
           deleted_at: string | null
@@ -156,9 +223,10 @@ export type Database = {
           metadata: Json
           title: string
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
+          anonymous_client_id?: string | null
           archived_at?: string | null
           created_at?: string
           deleted_at?: string | null
@@ -168,9 +236,10 @@ export type Database = {
           metadata?: Json
           title?: string
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
+          anonymous_client_id?: string | null
           archived_at?: string | null
           created_at?: string
           deleted_at?: string | null
@@ -180,9 +249,17 @@ export type Database = {
           metadata?: Json
           title?: string
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "chat_threads_anonymous_client_id_fkey"
+            columns: ["anonymous_client_id"]
+            isOneToOne: false
+            referencedRelation: "anonymous_chat_clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       degree_navigator_profiles: {
         Row: {
@@ -1413,7 +1490,19 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      claim_anonymous_chat_message: {
+        Args: {
+          p_client_id: string
+          p_daily_limit: number
+        }
+        Returns: {
+          allowed: boolean
+          message_count: number
+          daily_limit: number
+          remaining: number
+          usage_date: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

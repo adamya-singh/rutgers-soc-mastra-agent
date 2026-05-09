@@ -10,6 +10,7 @@ import {
 
 interface SocChatInputProps {
   disabled?: boolean;
+  isBusy?: boolean;
   /** Retained for backwards compatibility; prompt suggestions now live in SocVercelChat. */
   isEmptyThread?: boolean;
   onSubmit: (input: { text: string; files?: FileList }) => Promise<void>;
@@ -21,6 +22,7 @@ const MAX_TEXTAREA_HEIGHT = 220;
 
 export const SocChatInput: React.FC<SocChatInputProps> = ({
   disabled = false,
+  isBusy = false,
   onSubmit,
   onStop,
   className,
@@ -262,7 +264,7 @@ export const SocChatInput: React.FC<SocChatInputProps> = ({
           </button>
         </div>
 
-        {disabled && onStop ? (
+        {isBusy && onStop ? (
           <button
             type="button"
             onClick={onStop}

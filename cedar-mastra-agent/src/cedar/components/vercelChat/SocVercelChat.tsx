@@ -34,6 +34,10 @@ import {
   type ChatThread,
 } from '@/lib/chatHistoryClient';
 import { supabaseClient } from '@/lib/supabaseClient';
+import {
+  ensureAnonymousChatSession,
+  type AnonymousChatQuota,
+} from '@/lib/anonymousChatClient';
 
 interface SocVercelChatProps {
   className?: string;
@@ -82,12 +86,14 @@ export const SocVercelChat: React.FC<SocVercelChatProps> = ({
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [isThreadLoading, setIsThreadLoading] = useState(false);
+  const [anonymousQuota, setAnonymousQuota] = useState<AnonymousChatQuota | null>(null);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpenState] = useState(false);
   // Tracks a freshly-created thread that the user has not yet sent any messages
   // in. If they navigate away from it, we delete it so empty chats don't pile up.
   const pristineThreadIdRef = useRef<string | null>(null);
   const hasInitializedHistoryRef = useRef(false);
+  const hasInitializedAnonymousRef = useRef(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const shouldFocusSearchRef = useRef(false);
 
@@ -124,6 +130,18 @@ export const SocVercelChat: React.FC<SocVercelChatProps> = ({
     const nextThreads = await listChatThreads();
     setThreads(nextThreads);
     return nextThreads;
+  }, []);
+
+  const refreshAnonymousSession = useCallback(async (options: { resetMessages?: boolean } = {}) => {
+    const session = await ensureAnonymousChatSession();
+    const resetMessages = options.resetMessages ?? true;
+    setAnonymousQuota(session.quota);
+    setThreads([]);
+    setActiveThreadId(session.thread.id);
+    if (resetMessages) {
+      setHydratedMessages([]);
+    }
+    return session;
   }, []);
 
   const normalizedChatSearchQuery = chatSearchQuery.trim().toLowerCase();
@@ -206,38 +224,70 @@ export const SocVercelChat: React.FC<SocVercelChatProps> = ({
     }
     if (!isSignedIn) {
       hasInitializedHistoryRef.current = false;
+      if (hasInitializedAnonymousRef.current) {
+        return;
+      }
+      hasInitializedAnonymousRef.current = true;
       pristineThreadIdRef.current = null;
       setThreads([]);
       setChatSearchQuery('');
-      setActiveThreadId(null);
-      setHydratedMessages([]);
       setHistoryError(null);
+      setIsHistoryLoading(true);
+      void refreshAnonymousSession()
+        .catch((error) => {
+          hasInitializedAnonymousRef.current = false;
+          setHistoryError(
+            error instanceof Error
+              ? error.message
+              : 'Failed to initialize anonymous chat.',
+          );
+          setActiveThreadId(null);
+          setHydratedMessages([]);
+          setAnonymousQuota(null);
+        })
+        .finally(() => {
+          setIsHistoryLoading(false);
+        });
       return;
     }
+    hasInitializedAnonymousRef.current = false;
+    setAnonymousQuota(null);
     if (hasInitializedHistoryRef.current) {
       return;
     }
     hasInitializedHistoryRef.current = true;
     void initializeHistory();
-  }, [initializeHistory, isAuthReady, isSignedIn]);
+  }, [initializeHistory, isAuthReady, isSignedIn, refreshAnonymousSession]);
 
   const handleThreadActivity = useCallback(async () => {
     try {
+      if (!isSignedIn) {
+        await refreshAnonymousSession({ resetMessages: false });
+        return;
+      }
       await refreshThreads();
     } catch (error) {
       console.error('Failed to refresh chat history', error);
     }
-  }, [refreshThreads]);
+  }, [isSignedIn, refreshAnonymousSession, refreshThreads]);
 
-  const { messages, status, sendSocMessage, stop, regenerate } = useSocChat({
+  const { messages, status, sendSocMessage, stop, regenerate, anonymousQuotaError } = useSocChat({
     threadId: activeThreadId,
     initialMessages: hydratedMessages,
     onThreadActivity: handleThreadActivity,
   });
   const isBusy = status === 'submitted' || status === 'streaming';
   const isEmptyThread = messages.length === 0;
+  const isAnonymousQuotaExhausted =
+    !isSignedIn && anonymousQuota !== null && anonymousQuota.remaining <= 0;
   const isChatUnavailable =
-    !isSignedIn || isHistoryLoading || isThreadLoading || !activeThreadId;
+    isHistoryLoading || isThreadLoading || !activeThreadId || isAnonymousQuotaExhausted;
+
+  useEffect(() => {
+    if (anonymousQuotaError) {
+      setAnonymousQuota(anonymousQuotaError);
+    }
+  }, [anonymousQuotaError]);
 
   const { suggestions: chatSuggestions, isLoading: isLoadingSuggestions } =
     useChatSuggestions({
@@ -687,14 +737,14 @@ export const SocVercelChat: React.FC<SocVercelChatProps> = ({
           {!isAuthReady || isHistoryLoading || isThreadLoading ? (
             <div className="absolute inset-0 flex items-center justify-center px-4 text-sm text-muted-foreground">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Loading saved chats...
+              {isSignedIn ? 'Loading saved chats...' : 'Preparing chat...'}
             </div>
-          ) : !isSignedIn ? (
+          ) : !isSignedIn && !activeThreadId ? (
             <div className="absolute inset-0 flex items-center justify-center px-4 text-center">
               <div>
-                <h2 className="text-xl font-semibold tracking-tight text-foreground">Sign in to save chats</h2>
+                <h2 className="text-xl font-semibold tracking-tight text-foreground">Chat is unavailable</h2>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Saved chat history is available for authenticated users.
+                  Sign in to use saved chats, or try again to start an anonymous chat.
                 </p>
               </div>
             </div>
@@ -713,12 +763,14 @@ export const SocVercelChat: React.FC<SocVercelChatProps> = ({
                     <button
                       key={prompt}
                       type="button"
+                      disabled={isChatUnavailable}
                       onClick={() => {
                         void sendSocMessage({ text: prompt });
                       }}
                       className={cn(
                         'rounded-xl border border-border-subtle bg-surface-1 px-3 py-2.5 text-left text-sm text-foreground/90 shadow-elev-1',
                         'transition-colors hover:border-border hover:bg-surface-2 hover:text-foreground',
+                        isChatUnavailable && 'cursor-not-allowed opacity-50',
                       )}
                     >
                       {prompt}
@@ -747,8 +799,21 @@ export const SocVercelChat: React.FC<SocVercelChatProps> = ({
                 }}
               />
             )}
+            {!isSignedIn && anonymousQuota && (
+              <div className={cn(
+                'mb-2 rounded-xl border px-3 py-2 text-xs',
+                anonymousQuota.remaining > 0
+                  ? 'border-border-subtle bg-surface-1 text-muted-foreground'
+                  : 'border-destructive/30 bg-destructive/5 text-destructive',
+              )}>
+                {anonymousQuota.remaining > 0
+                  ? `${anonymousQuota.remaining} of ${anonymousQuota.dailyLimit} anonymous messages left today. Sign in to save chats.`
+                  : 'Daily anonymous chat limit reached. Sign in to continue chatting.'}
+              </div>
+            )}
             <SocChatInput
               disabled={isBusy || isChatUnavailable}
+              isBusy={isBusy}
               isEmptyThread={isEmptyThread}
               onSubmit={sendSocMessage}
               onStop={() => void stop()}

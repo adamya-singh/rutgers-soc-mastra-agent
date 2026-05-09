@@ -116,6 +116,7 @@ export const FloatingChatInput: React.FC<FloatingChatInputProps> = ({
 				<div className='p-2'>
 					<SocChatInput
 						disabled={isBusy || !isThreadReady}
+						isBusy={isBusy}
 						isEmptyThread={messages.length === 0}
 						onSubmit={async (input) => {
 							await sendSocMessage(input);

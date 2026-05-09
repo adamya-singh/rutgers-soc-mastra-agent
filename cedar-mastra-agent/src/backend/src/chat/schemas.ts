@@ -23,7 +23,8 @@ export const ChatUIRequestSchema = z.object({
 
 export const ChatThreadSchema = z.object({
   id: z.string().uuid(),
-  userId: z.string().uuid(),
+  userId: z.string().uuid().nullable(),
+  anonymousClientId: z.string().uuid().nullable(),
   title: z.string(),
   lastMessagePreview: z.string().nullable(),
   lastMessageAt: z.string().nullable(),
@@ -37,7 +38,8 @@ export const ChatThreadSchema = z.object({
 export const ChatMessageSchema = z.object({
   id: z.string().uuid(),
   threadId: z.string().uuid(),
-  userId: z.string().uuid(),
+  userId: z.string().uuid().nullable(),
+  anonymousClientId: z.string().uuid().nullable(),
   uiMessageId: z.string().min(1),
   role: ChatMessageRoleSchema,
   parts: z.array(ChatUIMessagePartSchema),

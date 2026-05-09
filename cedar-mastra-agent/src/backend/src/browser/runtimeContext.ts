@@ -122,6 +122,13 @@ export function extractBrowserSessionIdFromAdditionalContext(additionalContext: 
 export function requireBrowserClientIdFromRuntime(runtimeContext: {
   get: (key: string) => unknown;
 }): string {
+  if (runtimeContext.get('chatPrincipalType') === 'anonymous') {
+    throw new BrowserSessionError(
+      'MISSING_BROWSER_CLIENT_ID',
+      'Sign in to use embedded browser tools.',
+    );
+  }
+
   const authenticatedUserId = runtimeContext.get('authenticatedUserId');
   if (typeof authenticatedUserId === 'string' && authenticatedUserId.trim().length > 0) {
     return authenticatedUserId;

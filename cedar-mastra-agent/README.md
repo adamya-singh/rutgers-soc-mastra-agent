@@ -94,6 +94,8 @@ This runs both the Next.js frontend and Mastra backend concurrently:
 
 Mastra backend routes are authenticated. Include the current Supabase access token as a bearer token.
 
+Anonymous users can use the Vercel chat route through the limited anonymous trial flow. The frontend stores a backend-signed anonymous chat token in browser storage and the backend enforces a daily message quota for that anonymous browser identity. Clearing browser cookies/cache/site data removes that local anonymous token, so the backend treats the browser as a new anonymous identity and the anonymous limit resets. This is a trial/abuse-deterrence limit, not a durable account-level quota; signing in is required for saved chat history and user-owned Degree Navigator data.
+
 ### Streaming Chat
 
 ```http

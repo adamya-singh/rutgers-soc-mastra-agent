@@ -1,10 +1,15 @@
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, type UIMessage } from 'ai';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useCedarStore } from 'cedar-os';
 
 import { buildMastraApiUrl } from '@/lib/mastraConfig';
 import { supabaseClient } from '@/lib/supabaseClient';
+import {
+  buildAnonymousChatAuthorization,
+  getAnonymousChatToken,
+  type AnonymousChatQuota,
+} from '@/lib/anonymousChatClient';
 
 type CedarFrontendToolEvent = {
   type: 'frontendTool';
@@ -74,6 +79,8 @@ export function useSocChat({
   onThreadActivity,
 }: UseSocChatOptions = { threadId: null }) {
   const setIsProcessing = useCedarStore((state) => state.setIsProcessing);
+  const [anonymousQuotaError, setAnonymousQuotaError] =
+    useState<AnonymousChatQuota | null>(null);
 
   const fetchWithAuth = useCallback(async (input: RequestInfo | URL, init?: RequestInit) => {
     const { data } = await supabaseClient.auth.getSession();
@@ -81,12 +88,28 @@ export function useSocChat({
 
     if (data.session?.access_token) {
       headers.set('Authorization', `Bearer ${data.session.access_token}`);
+    } else {
+      const anonymousToken = getAnonymousChatToken();
+      if (anonymousToken) {
+        headers.set('Authorization', buildAnonymousChatAuthorization(anonymousToken));
+      }
     }
 
-    return fetch(input, {
+    const response = await fetch(input, {
       ...init,
       headers,
     });
+
+    if (response.status === 429) {
+      try {
+        const body = (await response.clone().json()) as { quota?: AnonymousChatQuota };
+        setAnonymousQuotaError(body.quota ?? null);
+      } catch {
+        setAnonymousQuotaError(null);
+      }
+    }
+
+    return response;
   }, []);
 
   const transport = useMemo(
@@ -127,6 +150,7 @@ export function useSocChat({
       if (!threadId) {
         throw new Error('Create or select a chat before sending a message.');
       }
+      setAnonymousQuotaError(null);
       const additionalContext = useCedarStore.getState().additionalContext;
       await chat.sendMessage(
         files && files.length > 0
@@ -152,6 +176,7 @@ export function useSocChat({
   return {
     ...chat,
     isThreadReady: Boolean(threadId),
+    anonymousQuotaError,
     sendSocMessage,
   };
 }

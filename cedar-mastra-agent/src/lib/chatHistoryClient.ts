@@ -5,7 +5,8 @@ import { supabaseClient } from '@/lib/supabaseClient';
 
 export interface ChatThread {
   id: string;
-  userId: string;
+  userId: string | null;
+  anonymousClientId?: string | null;
   title: string;
   lastMessagePreview: string | null;
   lastMessageAt: string | null;

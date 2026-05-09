@@ -55,6 +55,7 @@ describe('chat history API routes', () => {
     assert.ok(apiRoutes.some((route) => route.path === '/chat/thread' && route.method === 'POST'));
     assert.ok(apiRoutes.some((route) => route.path === '/chat/thread' && route.method === 'PATCH'));
     assert.ok(apiRoutes.some((route) => route.path === '/chat/thread' && route.method === 'DELETE'));
+    assert.ok(apiRoutes.some((route) => route.path === '/chat/anonymous/session' && route.method === 'POST'));
   });
 
   it('rejects loading saved chats without a bearer token', async () => {

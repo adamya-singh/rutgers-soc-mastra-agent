@@ -32,9 +32,14 @@ import {
 } from '../browser/browserService.js';
 import { BrowserSessionError } from '../browser/types.js';
 import {
+  ANONYMOUS_CHAT_TOKEN_HEADER,
   AuthError,
+  createAnonymousChatToken,
   requireAuthenticatedUser,
   requireAuthenticatedUserWithFallbackToken,
+  resolveChatPrincipal,
+  verifyAnonymousChatToken,
+  type ChatPrincipal,
 } from '../auth/supabaseAuth.js';
 import {
   DegreeNavigatorProfileResponseSchema,
@@ -59,13 +64,21 @@ import {
 import { generateChatSuggestions } from './suggestions.js';
 import {
   appendChatMessage,
+  AnonymousChatQuotaExceededError,
+  anonymousChatOwner,
+  authenticatedChatOwner,
   ChatThreadNotFoundError,
+  claimAnonymousChatMessage,
   createChatThread,
   deleteChatThread,
+  ensureAnonymousChatClient,
+  getAnonymousChatQuota,
   getChatThreadWithMessages,
+  getOrCreateAnonymousChatThread,
   listChatThreads,
   renameChatThread,
   requireChatThread,
+  type ChatOwner,
 } from '../chat/repository.js';
 
 export { ChatUIRequestSchema } from '../chat/schemas.js';
@@ -131,6 +144,16 @@ function handleRouteError(
   c: { json: (payload: unknown, status: number) => Response },
   error: unknown,
 ) {
+  if (error instanceof AnonymousChatQuotaExceededError) {
+    return c.json(
+      {
+        error: error.message,
+        quota: error.quota,
+      },
+      error.status,
+    );
+  }
+
   if (error instanceof AuthError) {
     return c.json({ error: error.message }, error.status);
   }
@@ -159,6 +182,7 @@ function handleRouteError(
 function logUnexpectedRouteError(error: unknown): void {
   if (
     error instanceof AuthError ||
+    error instanceof AnonymousChatQuotaExceededError ||
     error instanceof ZodError ||
     error instanceof ChatThreadNotFoundError ||
     error instanceof BrowserSessionError
@@ -195,6 +219,24 @@ export function createAdditionalContextModelMessage(additionalContext: unknown) 
   };
 }
 
+function chatOwnerFromPrincipal(principal: ChatPrincipal): ChatOwner {
+  if (principal.type === 'authenticated') {
+    return authenticatedChatOwner(principal.userId);
+  }
+
+  return anonymousChatOwner(principal.anonymousClientId);
+}
+
+function getMemoryResourceFromPrincipal(principal: ChatPrincipal): string {
+  return principal.type === 'authenticated'
+    ? principal.userId
+    : `anon:${principal.anonymousClientId}`;
+}
+
+function getRuntimeUserIdFromPrincipal(principal: ChatPrincipal): string | undefined {
+  return principal.type === 'authenticated' ? principal.userId : undefined;
+}
+
 /**
  * API routes for the Mastra backend
  *
@@ -210,7 +252,7 @@ export const apiRoutes = [
     handler: async (c) => {
       try {
         const authenticatedUser = await requireAuthenticatedUser(c);
-        const threads = await listChatThreads(authenticatedUser.userId);
+        const threads = await listChatThreads(authenticatedChatOwner(authenticatedUser.userId));
         return c.json({ threads }, 200);
       } catch (error) {
         logUnexpectedRouteError(error);
@@ -234,7 +276,7 @@ export const apiRoutes = [
         const authenticatedUser = await requireAuthenticatedUser(c);
         const body = await c.req.json();
         const { title } = CreateChatThreadRequestSchema.parse(body);
-        const thread = await createChatThread(authenticatedUser.userId, title);
+        const thread = await createChatThread(authenticatedChatOwner(authenticatedUser.userId), title);
         return c.json({ thread }, 200);
       } catch (error) {
         logUnexpectedRouteError(error);
@@ -259,7 +301,7 @@ export const apiRoutes = [
         const body = await c.req.json();
         const { threadId } = GetChatThreadRequestSchema.parse(body);
         const { thread, messages } = await getChatThreadWithMessages(
-          authenticatedUser.userId,
+          authenticatedChatOwner(authenticatedUser.userId),
           threadId,
         );
         return c.json({ thread, messages: messages.map((message) => message.uiMessage) }, 200);
@@ -285,7 +327,11 @@ export const apiRoutes = [
         const authenticatedUser = await requireAuthenticatedUser(c);
         const body = await c.req.json();
         const { threadId, title } = UpdateChatThreadRequestSchema.parse(body);
-        const thread = await renameChatThread(authenticatedUser.userId, threadId, title);
+        const thread = await renameChatThread(
+          authenticatedChatOwner(authenticatedUser.userId),
+          threadId,
+          title,
+        );
         return c.json({ thread }, 200);
       } catch (error) {
         logUnexpectedRouteError(error);
@@ -309,8 +355,55 @@ export const apiRoutes = [
         const authenticatedUser = await requireAuthenticatedUser(c);
         const body = await c.req.json();
         const { threadId } = DeleteChatThreadRequestSchema.parse(body);
-        const deleted = await deleteChatThread(authenticatedUser.userId, threadId);
+        const deleted = await deleteChatThread(authenticatedChatOwner(authenticatedUser.userId), threadId);
         return c.json({ deleted }, 200);
+      } catch (error) {
+        logUnexpectedRouteError(error);
+        return handleRouteError(c, error);
+      }
+    },
+  }),
+  registerApiRoute('/chat/anonymous/session', {
+    method: 'POST',
+    handler: async (c) => {
+      try {
+        const existingToken =
+          (
+            c.req.header?.('Authorization') ??
+            c.req.header?.('authorization')
+          )?.match(/^Anonymous\s+(.+)$/i)?.[1]?.trim() ??
+          c.req.header?.(ANONYMOUS_CHAT_TOKEN_HEADER) ??
+          c.req.header?.(ANONYMOUS_CHAT_TOKEN_HEADER.toLowerCase());
+        let anonymousToken = existingToken?.trim();
+        let anonymousClientId: string;
+
+        if (anonymousToken) {
+          try {
+            anonymousClientId = verifyAnonymousChatToken(anonymousToken);
+          } catch {
+            const created = createAnonymousChatToken();
+            anonymousToken = created.token;
+            anonymousClientId = created.anonymousClientId;
+          }
+        } else {
+          const created = createAnonymousChatToken();
+          anonymousToken = created.token;
+          anonymousClientId = created.anonymousClientId;
+        }
+
+        await ensureAnonymousChatClient(anonymousClientId);
+        const thread = await getOrCreateAnonymousChatThread(anonymousClientId);
+        const quota = await getAnonymousChatQuota(anonymousClientId);
+
+        return c.json(
+          {
+            token: anonymousToken,
+            anonymousClientId,
+            thread,
+            quota,
+          },
+          200,
+        );
       } catch (error) {
         logUnexpectedRouteError(error);
         return handleRouteError(c, error);
@@ -330,13 +423,16 @@ export const apiRoutes = [
     },
     handler: async (c) => {
       try {
-        const authenticatedUser = await requireAuthenticatedUser(c);
+        const chatPrincipal = await resolveChatPrincipal(c);
+        const chatOwner = chatOwnerFromPrincipal(chatPrincipal);
+        const memoryResource = getMemoryResourceFromPrincipal(chatPrincipal);
+        const authenticatedUserId = getRuntimeUserIdFromPrincipal(chatPrincipal);
         const body = await c.req.json();
         const { threadId, messages, temperature, maxTokens, additionalContext } =
           ChatUIRequestSchema.parse(body);
         const originalMessages = normalizeChatUIMessages(messages);
         const { messages: persistedMessages } = await getChatThreadWithMessages(
-          authenticatedUser.userId,
+          chatOwner,
           threadId,
         );
         const persistedUiMessages = persistedMessages.map((message) => message.uiMessage);
@@ -356,9 +452,12 @@ export const apiRoutes = [
             : selectMessagesForAgent(originalMessages);
         const additionalContextMessage = createAdditionalContextModelMessage(additionalContext);
 
-        await requireChatThread(authenticatedUser.userId, threadId);
+        await requireChatThread(chatOwner, threadId);
+        if (chatPrincipal.type === 'anonymous') {
+          await claimAnonymousChatMessage(chatPrincipal.anonymousClientId);
+        }
         if (shouldAppendLatestUser) {
-          await appendChatMessage(authenticatedUser.userId, threadId, latestUserMessage);
+          await appendChatMessage(chatOwner, threadId, latestUserMessage);
         }
 
         const stream = createUIMessageStream({
@@ -366,7 +465,11 @@ export const apiRoutes = [
           execute: async ({ writer }) => {
             const runtimeContext = new RuntimeContext();
             runtimeContext.set('additionalContext', additionalContext);
-            runtimeContext.set('authenticatedUserId', authenticatedUser.userId);
+            runtimeContext.set('authenticatedUserId', authenticatedUserId);
+            runtimeContext.set('chatPrincipalType', chatPrincipal.type);
+            if (chatPrincipal.type === 'anonymous') {
+              runtimeContext.set('anonymousClientId', chatPrincipal.anonymousClientId);
+            }
             runtimeContext.set('streamController', {
               writeDataEvent: (eventType: string, eventData: unknown) => {
                 writer.write({
@@ -393,7 +496,7 @@ export const apiRoutes = [
                 : {}),
               memory: {
                 thread: threadId,
-                resource: authenticatedUser.userId,
+                resource: memoryResource,
               },
             });
 
@@ -401,7 +504,7 @@ export const apiRoutes = [
           },
           onFinish: async ({ responseMessage }) => {
             await appendChatMessage(
-              authenticatedUser.userId,
+              chatOwner,
               threadId,
               responseMessage as ChatUIMessage,
             );
@@ -448,7 +551,7 @@ export const apiRoutes = [
         const body = await c.req.json();
         const { threadId } = ChatSuggestionsRequestSchema.parse(body);
         const { messages } = await getChatThreadWithMessages(
-          authenticatedUser.userId,
+          authenticatedChatOwner(authenticatedUser.userId),
           threadId,
         );
         const suggestions = await generateChatSuggestions(messages);
