@@ -4,6 +4,8 @@ This repo currently deploys both services to Google Cloud Run from GitHub push-t
 
 The older Firebase App Hosting configuration (`apphosting.prod.yaml`) may still be useful context, and the frontend Cloud Run service carries Firebase App Hosting labels, but the active auto-deploy path is Cloud Build building Docker images and deploying Cloud Run services.
 
+Firebase App Hosting can still start buildpack-based frontend builds from `apphosting.prod.yaml`. Keep the frontend `pnpm-lock.yaml` synchronized with `package.json` so those frozen pnpm installs do not fail, even though the primary repo-managed path uses Docker and `package-lock.json`.
+
 ## Live Services
 
 Shared project and region:
@@ -21,6 +23,7 @@ Frontend:
 - Repo build config: `cedar-mastra-agent/cloudbuild.frontend.yaml`
 - Public access: deployed with `--no-invoker-iam-check`
 - Traffic: deploy step is followed by `gcloud run services update-traffic --to-latest`
+- Firebase App Hosting service agent: `service-496012954691@gcp-sa-firebaseapphosting.iam.gserviceaccount.com`
 
 Backend:
 
@@ -335,6 +338,12 @@ gcloud run services update-traffic rutgers-soc-agent \
   --project concise-foundry-465822-d7 \
   --to-latest
 ```
+
+Firebase App Hosting buildpack deploy fails:
+
+- Symptom: logs mention `google.nodejs.firebasenextjs`, `google.nodejs.pnpm`, or an image tag like `build-YYYY-MM-DD-NNN`.
+- If pnpm reports `ERR_PNPM_OUTDATED_LOCKFILE`, run `pnpm install` in `cedar-mastra-agent` and commit `cedar-mastra-agent/pnpm-lock.yaml`.
+- If Cloud Run reports `invoker_iam_disabled` or missing `run.services.setIamPolicy`, confirm the Firebase App Hosting service agent has `roles/run.admin`.
 
 Runtime errors after a successful deploy:
 
