@@ -7,7 +7,6 @@ import {
   useThreadController,
 } from 'cedar-os';
 import {
-  CalendarDays,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -754,28 +753,17 @@ function ScheduleEmptyState({
   onOpenBuilder: () => void;
 }) {
   return (
-    <div className="mx-auto flex w-full max-w-md flex-col items-center text-center">
-      <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-full bg-accent/10 text-accent">
-        <CalendarDays className="h-5 w-5" strokeWidth={1.75} />
-      </div>
-      <h2 className="text-lg font-semibold tracking-tight text-foreground">
-        Plan your week
-      </h2>
-      <p className="mt-1.5 max-w-xs text-sm text-muted-foreground">
-        Tell SOCAgent your preferences and it&apos;ll draft a full schedule —
-        or skip the form and let it pick smart defaults.
-      </p>
+    <div className="mx-auto flex w-full justify-center">
       <button
         type="button"
         onClick={onOpenBuilder}
-        className="focus-ring mt-5 inline-flex h-10 items-center gap-1.5 rounded-full bg-action px-5 text-sm font-semibold text-action-foreground shadow-elev-1 transition hover:opacity-95 active:scale-[0.98]"
+        className="focus-ring inline-flex h-11 items-center gap-2 rounded-full border border-action/25 bg-surface-2/95 px-5 text-sm font-semibold text-action shadow-elev-1 backdrop-blur transition hover:-translate-y-px hover:border-action/40 hover:bg-surface-2 hover:shadow-elev-2 active:translate-y-0 active:scale-[0.99]"
       >
-        <Sparkles className="h-3.5 w-3.5" strokeWidth={2.25} />
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-action/10">
+          <Sparkles className="h-3.5 w-3.5" strokeWidth={2.25} />
+        </span>
         Open Schedule Builder
       </button>
-      <p className="mt-3 text-xs text-muted-foreground">
-        Or ask SOCAgent directly to add a course or index number.
-      </p>
     </div>
   );
 }
