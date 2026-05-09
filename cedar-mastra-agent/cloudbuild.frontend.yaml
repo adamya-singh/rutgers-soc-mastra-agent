@@ -42,9 +42,18 @@ steps:
       - --service-account
       - ${_SERVICE_ACCOUNT}
       - --no-invoker-iam-check
-      - --to-latest
       - --set-env-vars
       - NEXT_PUBLIC_MASTRA_URL=${_NEXT_PUBLIC_MASTRA_URL},NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL},NEXT_PUBLIC_SUPABASE_ANON_KEY=${_NEXT_PUBLIC_SUPABASE_ANON_KEY}
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - services
+      - update-traffic
+      - ${_SERVICE_NAME}
+      - --region
+      - ${_REGION}
+      - --to-latest
 
 images:
   - ${_REGION}-docker.pkg.dev/$PROJECT_ID/firebaseapphosting-images/${_IMAGE_NAME}:$COMMIT_SHA
