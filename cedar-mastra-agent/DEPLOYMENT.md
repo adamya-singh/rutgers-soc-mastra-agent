@@ -2,7 +2,7 @@
 
 This repo currently deploys both services to Google Cloud Run from GitHub push-triggered Cloud Build jobs.
 
-The older Firebase App Hosting configuration (`apphosting.prod.yaml`) may still be useful context, and the frontend Cloud Run service carries Firebase App Hosting labels, but the live failing auto-deploy path observed on May 9, 2026 was Cloud Build building Docker images and deploying Cloud Run services.
+The older Firebase App Hosting configuration (`apphosting.prod.yaml`) may still be useful context, and the frontend Cloud Run service carries Firebase App Hosting labels, but the active auto-deploy path is Cloud Build building Docker images and deploying Cloud Run services.
 
 ## Live Services
 
@@ -82,7 +82,7 @@ gcloud builds triggers import \
   --source cedar-mastra-agent/cloudbuild.trigger.backend.yaml
 ```
 
-Known trigger IDs from the May 9, 2026 incident:
+Current trigger IDs:
 
 - Frontend: `8706fe1d-ae5a-4f4b-9abc-e1bec57ee266`
 - Backend: `d3de1a24-a7af-4485-8613-bf1caa612800`
@@ -138,6 +138,25 @@ gcloud secrets add-iam-policy-binding browserbase-api-key \
 
 Rotate the Supabase service role key and Browserbase API key any time they are pasted into logs, terminal output, or chat.
 
+## Secret Manager Checks
+
+Before changing backend deploy config, confirm the expected sensitive values exist in Secret Manager and that the Cloud Run runtime service account can read them:
+
+```bash
+gcloud secrets list \
+  --project concise-foundry-465822-d7
+
+gcloud secrets get-iam-policy supabase-service-role-key \
+  --project concise-foundry-465822-d7
+
+gcloud secrets get-iam-policy browserbase-api-key \
+  --project concise-foundry-465822-d7
+```
+
+The backend runtime service account must have `roles/secretmanager.secretAccessor` on each referenced secret, or the deploy can build and push the image but fail while creating the Cloud Run revision.
+
+Prefer `npm run deploy:rotate-secrets` with freshly rotated values. If recovering a secret value from a legacy Cloud Run revision is unavoidable, do not print the value; pipe it directly into `gcloud secrets create` or `gcloud secrets versions add`, then rotate it afterward.
+
 ## Local Pre-Push Checks
 
 From `cedar-mastra-agent`:
@@ -158,7 +177,7 @@ cd cedar-mastra-agent/src/backend
 pnpm install
 ```
 
-The backend Dockerfile pins pnpm to `10.32.1`. Do not switch it back to `pnpm@latest`; pnpm 11 changed build-script approval behavior and caused Cloud Build installs to fail on dependency postinstall scripts.
+The backend Dockerfile pins pnpm to `10.32.1`. Keep the local deploy check and Docker install behavior aligned; rerun the backend deploy check before changing this pin.
 
 ## Manual Builds
 
@@ -187,29 +206,64 @@ npm run deploy:verify
 
 ## Diagnose Failed Auto-Deploys
 
-List recent builds:
+Start with Cloud Build, then move to Cloud Run only after you know which build and deploy step ran.
+
+Confirm triggers still point at the committed YAML files:
+
+```bash
+gcloud builds triggers list \
+  --project concise-foundry-465822-d7 \
+  --format='table(id,name,filename,github.push.branch)'
+```
+
+List recent builds and compare frontend/backend trigger status:
 
 ```bash
 gcloud builds list \
   --project concise-foundry-465822-d7 \
-  --limit=30
+  --limit=30 \
+  --format='table(id,status,createTime,duration,substitutions.TRIGGER_NAME)'
 ```
 
-Read a failed build log:
+Inspect the newest relevant build before reading the full log:
+
+```bash
+gcloud builds describe BUILD_ID \
+  --project concise-foundry-465822-d7 \
+  --format='yaml(status,logUrl,finishTime,steps)'
+```
+
+Read the failed build log:
 
 ```bash
 gcloud builds log BUILD_ID \
   --project concise-foundry-465822-d7
 ```
 
-Inspect Cloud Build triggers:
+Classify the failing phase before changing anything:
+
+- Fetch/source failure: confirm GitHub trigger connection, branch, and source path.
+- Docker install/build failure: reproduce with `npm run check:deploy:frontend` or `npm run check:deploy:backend`.
+- Image push failure: check Artifact Registry repository name, region, and Cloud Build service account permissions.
+- Cloud Run deploy failure: inspect `gcloud run deploy` flags, service account, env vars, secrets, and public access.
+- Runtime readiness failure: inspect latest created vs. ready revisions and Cloud Run revision logs.
+- Smoke test failure: verify the deployed service URLs and run `npm run deploy:verify`.
+
+Check Cloud Run revision state:
 
 ```bash
-gcloud builds triggers list \
-  --project concise-foundry-465822-d7
+gcloud run services describe rutgers-soc-agent \
+  --region us-east4 \
+  --project concise-foundry-465822-d7 \
+  --format='yaml(status.latestCreatedRevisionName,status.latestReadyRevisionName,status.conditions,status.url)'
+
+gcloud run services describe rutgers-agent-mastra-backend \
+  --region us-east4 \
+  --project concise-foundry-465822-d7 \
+  --format='yaml(status.latestCreatedRevisionName,status.latestReadyRevisionName,status.conditions,status.url)'
 ```
 
-Inspect Cloud Run service config:
+Inspect full Cloud Run service config when env vars, secrets, service accounts, or public access look wrong:
 
 ```bash
 gcloud run services describe rutgers-soc-agent \
@@ -223,7 +277,43 @@ gcloud run services describe rutgers-agent-mastra-backend \
   --format=yaml
 ```
 
-If the frontend URL returns `403 Forbidden`, public Cloud Run invocation is blocked. Restore the same public access mode used by the frontend build config:
+After rollout, run:
+
+```bash
+cd cedar-mastra-agent
+npm run deploy:verify
+```
+
+## Common Deployment Failure Patterns
+
+Frontend missing build-time env vars:
+
+- Symptom: `next build` fails before a Cloud Run revision is created.
+- Check `NEXT_PUBLIC_*` substitutions and Docker `--build-arg` entries in `cedar-mastra-agent/cloudbuild.frontend.yaml`.
+- Reproduce locally with `npm run check:deploy:frontend`.
+
+Backend frozen lockfile failure:
+
+- Symptom: `pnpm install --frozen-lockfile` fails during the backend Docker build.
+- Check whether `cedar-mastra-agent/src/backend/package.json` changed without regenerating `cedar-mastra-agent/src/backend/pnpm-lock.yaml`.
+- Reproduce locally with `npm run check:deploy:backend`.
+
+Backend pnpm build-script approval failure:
+
+- Symptom: pnpm reports ignored dependency build scripts during the backend Docker build or Mastra output install.
+- Check `cedar-mastra-agent/src/backend/.npmrc` and the pinned pnpm version in `cedar-mastra-agent/src/backend/Dockerfile`.
+- Do not switch the Dockerfile back to `pnpm@latest` without rerunning the full backend deploy check.
+
+Cloud Run Secret Manager failure:
+
+- Symptom: Docker build and image push succeed, but `gcloud run deploy` fails while creating the revision.
+- Check that each secret referenced by `--set-secrets` exists and that the runtime service account has `roles/secretmanager.secretAccessor`.
+
+Public URL returns `403 Forbidden`:
+
+- Symptom: Cloud Run has a ready revision, but the service URL is not publicly reachable.
+- Confirm the repo build config includes `--no-invoker-iam-check`.
+- Restore the same public access mode used by the build config if needed:
 
 ```bash
 gcloud run services update rutgers-soc-agent \
@@ -232,7 +322,10 @@ gcloud run services update rutgers-soc-agent \
   --no-invoker-iam-check
 ```
 
-Read service logs:
+Runtime errors after a successful deploy:
+
+- Symptom: Cloud Build succeeds and a revision is ready, but requests fail.
+- Read Cloud Run logs for the affected service:
 
 ```bash
 gcloud logging read \
@@ -248,21 +341,6 @@ gcloud logging read \
   --limit=120
 ```
 
-## May 9, 2026 Incident Summary
+## Incident Records
 
-Frontend auto-deploy failed because Cloud Build did not pass the `NEXT_PUBLIC_*` Docker build args. `next build` failed while prerendering `/_not-found` with:
-
-```text
-Missing Supabase env vars: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
-```
-
-Backend auto-deploy failed because `src/backend/package.json` added `ai@5.0.44` without a matching `src/backend/pnpm-lock.yaml` update. The Docker build failed at:
-
-```text
-pnpm install --frozen-lockfile
-[ERR_PNPM_OUTDATED_LOCKFILE]
-```
-
-Both live Cloud Run services remained ready on older revisions, but push-triggered redeploys failed before new revisions were created.
-
-The frontend Cloud Run URL also returned `403 Forbidden` during smoke testing, which indicates public invocation was not enabled on that service URL. The repo frontend build config now includes `--no-invoker-iam-check` so future deploys preserve public access.
+Dated incident notes live outside the general runbook under the repo-root `DOCS` folder. See `DOCS/2026-05-09-gcp-deployment-incident.md` for the May 9, 2026 deployment incident.

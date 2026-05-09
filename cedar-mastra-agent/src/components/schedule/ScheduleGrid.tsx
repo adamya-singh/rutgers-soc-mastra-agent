@@ -22,7 +22,6 @@ import {
   X,
 } from 'lucide-react';
 import { supabaseClient } from '@/lib/supabaseClient';
-import { dispatchCedarPrompt } from '@/cedar/promptBridge';
 import {
   DEFAULT_SCHEDULE,
   SCHEDULE_UPDATED_EVENT,
@@ -646,15 +645,10 @@ function SaveStatusControl({
 /*  Empty state — shown when the grid has no scheduled blocks          */
 /* ------------------------------------------------------------------ */
 
-const EMPTY_PROMPTS = [
-  'Add 09214 to my schedule.',
-  'Find machine learning courses on Tue/Thu.',
-];
-
 function ScheduleEmptyState({
-  onPromptSuggestion,
+  onOpenBuilder,
 }: {
-  onPromptSuggestion: (prompt: string) => void;
+  onOpenBuilder: () => void;
 }) {
   return (
     <div className="mx-auto flex w-full max-w-md flex-col items-center text-center">
@@ -665,21 +659,20 @@ function ScheduleEmptyState({
         Plan your week
       </h2>
       <p className="mt-1.5 max-w-xs text-sm text-muted-foreground">
-        Ask SOCAgent on the left to find a course or paste an index — it will drop sections
-        right onto this grid.
+        Tell SOCAgent your preferences and it&apos;ll draft a full schedule —
+        or skip the form and let it pick smart defaults.
       </p>
-      <div className="mt-5 grid w-full grid-cols-1 gap-2">
-        {EMPTY_PROMPTS.map((prompt) => (
-          <button
-            key={prompt}
-            type="button"
-            onClick={() => onPromptSuggestion(prompt)}
-            className="focus-ring rounded-xl border border-border-subtle bg-surface-1 px-3 py-2.5 text-left text-sm text-foreground/90 shadow-elev-1 transition-colors hover:border-border hover:bg-surface-2 hover:text-foreground"
-          >
-            {prompt}
-          </button>
-        ))}
-      </div>
+      <button
+        type="button"
+        onClick={onOpenBuilder}
+        className="focus-ring mt-5 inline-flex h-10 items-center gap-1.5 rounded-full bg-action px-5 text-sm font-semibold text-action-foreground shadow-elev-1 transition hover:opacity-95 active:scale-[0.98]"
+      >
+        <Sparkles className="h-3.5 w-3.5" strokeWidth={2.25} />
+        Open Schedule Builder
+      </button>
+      <p className="mt-3 text-xs text-muted-foreground">
+        Or ask SOCAgent directly to add a course or index number.
+      </p>
     </div>
   );
 }
@@ -1723,7 +1716,7 @@ export const ScheduleGrid: React.FC = () => {
                 {blocks.length === 0 && (
                   <div className="pointer-events-auto col-start-2 col-end-[-1] row-start-2 row-end-[-1] flex items-center justify-center px-6 py-8">
                     <ScheduleEmptyState
-                      onPromptSuggestion={(prompt) => dispatchCedarPrompt(prompt)}
+                      onOpenBuilder={() => setIsBuilderOpen(true)}
                     />
                   </div>
                 )}
