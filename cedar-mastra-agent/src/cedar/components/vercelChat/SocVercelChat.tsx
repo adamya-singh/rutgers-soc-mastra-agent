@@ -57,9 +57,16 @@ function pickPrompts(prompts: readonly string[], count: number): string[] {
   return pool.slice(0, count);
 }
 
+function isUntouchedThread(thread: ChatThread): boolean {
+  return (
+    thread.lastMessageAt === null &&
+    thread.lastMessagePreview === null
+  );
+}
+
 export const SocVercelChat: React.FC<SocVercelChatProps> = ({
   className = '',
-  heroTitle = 'How can I help with Rutgers SOC?',
+  heroTitle = 'How can I help with your schedule?',
   heroSubtitle = 'Ask about courses, prereqs, schedules, or attach a transcript image.',
   showHero = true,
   userEmail = null,
@@ -80,6 +87,7 @@ export const SocVercelChat: React.FC<SocVercelChatProps> = ({
   // Tracks a freshly-created thread that the user has not yet sent any messages
   // in. If they navigate away from it, we delete it so empty chats don't pile up.
   const pristineThreadIdRef = useRef<string | null>(null);
+  const hasInitializedHistoryRef = useRef(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const shouldFocusSearchRef = useRef(false);
 
@@ -154,18 +162,16 @@ export const SocVercelChat: React.FC<SocVercelChatProps> = ({
     setIsHistoryLoading(true);
     try {
       const existingThreads = await listChatThreads();
-      if (existingThreads.length > 0) {
-        setThreads(existingThreads);
-        await openThread(existingThreads[0].id);
-        return;
-      }
-
+      const abandonedEmptyThreads = existingThreads.filter(isUntouchedThread);
+      await Promise.all(abandonedEmptyThreads.map((item) => deleteChatThread(item.id)));
+      const retainedThreads = existingThreads.filter((item) => !isUntouchedThread(item));
       const thread = await createChatThread();
       pristineThreadIdRef.current = thread.id;
-      setThreads([thread]);
+      setThreads([thread, ...retainedThreads.filter((item) => item.id !== thread.id)]);
       setActiveThreadId(thread.id);
       setHydratedMessages([]);
     } catch (error) {
+      hasInitializedHistoryRef.current = false;
       setHistoryError(error instanceof Error ? error.message : 'Failed to initialize saved chats.');
       setThreads([]);
       setActiveThreadId(null);
@@ -173,7 +179,7 @@ export const SocVercelChat: React.FC<SocVercelChatProps> = ({
     } finally {
       setIsHistoryLoading(false);
     }
-  }, [openThread]);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -199,6 +205,7 @@ export const SocVercelChat: React.FC<SocVercelChatProps> = ({
       return;
     }
     if (!isSignedIn) {
+      hasInitializedHistoryRef.current = false;
       pristineThreadIdRef.current = null;
       setThreads([]);
       setChatSearchQuery('');
@@ -207,6 +214,10 @@ export const SocVercelChat: React.FC<SocVercelChatProps> = ({
       setHistoryError(null);
       return;
     }
+    if (hasInitializedHistoryRef.current) {
+      return;
+    }
+    hasInitializedHistoryRef.current = true;
     void initializeHistory();
   }, [initializeHistory, isAuthReady, isSignedIn]);
 
