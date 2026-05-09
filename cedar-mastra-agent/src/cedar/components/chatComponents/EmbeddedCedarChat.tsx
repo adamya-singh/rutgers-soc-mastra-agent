@@ -2,6 +2,7 @@ import { SocVercelChat } from '@/cedar/components/vercelChat/SocVercelChat';
 import { useCedarStore } from 'cedar-os';
 import { X } from 'lucide-react';
 import React from 'react';
+import type { Theme } from '@/lib/useTheme';
 
 interface EmbeddedCedarChatProps {
 	title?: string;
@@ -12,7 +13,7 @@ interface EmbeddedCedarChatProps {
 	stream?: boolean;
 	className?: string;
 	userEmail?: string | null;
-	theme?: 'light' | 'dark';
+	theme?: Theme;
 	onToggleTheme?: () => void;
 	onSignOut?: () => Promise<void> | void;
 }

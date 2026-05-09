@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { supabaseClient } from '@/lib/supabaseClient';
 import { buildMastraApiUrl } from '@/lib/mastraConfig';
 import { clearLocalSchedules } from '@/lib/scheduleStorage';
+import { useApplyStoredTheme } from '@/lib/useTheme';
 
 type DegreeNavigatorCourseStatus =
   | 'completed'
@@ -164,14 +165,6 @@ interface ClearDegreeNavigatorProfileResponse {
   cleared: boolean;
 }
 
-function applyStoredTheme() {
-  if (typeof window === 'undefined') return;
-  const stored = window.localStorage.getItem('theme');
-  const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
-  const theme = stored === 'light' || stored === 'dark' ? stored : prefersDark ? 'dark' : 'light';
-  document.documentElement.classList.toggle('dark', theme === 'dark');
-}
-
 function formatDateTime(value?: string | null) {
   if (!value) return 'Not available';
   const date = new Date(value);
@@ -269,9 +262,7 @@ export default function ProfilePage() {
   const [error, setError] = React.useState<string | null>(null);
   const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    applyStoredTheme();
-  }, []);
+  useApplyStoredTheme();
 
   React.useEffect(() => {
     let isMounted = true;

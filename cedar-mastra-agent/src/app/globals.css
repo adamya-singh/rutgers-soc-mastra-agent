@@ -49,6 +49,8 @@
   --shadow-action-glow: var(--action-glow);
   --color-success: var(--success);
   --color-warning: var(--warning);
+  --color-foreground-strong: var(--foreground-strong);
+  --color-foreground-disabled: var(--foreground-disabled);
   --shadow-elev-1: var(--elev-1);
   --shadow-elev-2: var(--elev-2);
   --shadow-glow: var(--glow);
@@ -60,12 +62,14 @@
 
 :root {
   --radius: 0.5rem;
-  --background: #f2f4f8;
-  --foreground: #0b1220;
-  --surface-0: #ffffff;
+  --background: #f6f7f9;
+  --foreground: #111827;
+  --foreground-strong: #030712;
+  --foreground-disabled: rgba(17, 24, 39, 0.38);
+  --surface-0: #fbfcfd;
   --surface-1: #ffffff;
-  --surface-2: #f5f6f8;
-  --surface-3: #ebedf1;
+  --surface-2: #f1f3f7;
+  --surface-3: #e7eaf0;
   --card: var(--surface-1);
   --card-foreground: var(--foreground);
   --popover: var(--surface-0);
@@ -73,16 +77,16 @@
   --primary: #cc0033;
   --primary-foreground: #ffffff;
   --secondary: var(--surface-2);
-  --secondary-foreground: #0b1220;
+  --secondary-foreground: var(--foreground);
   --muted: #f1f3f6;
   --muted-foreground: #6b7280;
   --accent: #cc0033;
   --accent-foreground: #ffffff;
   --accent-glow: rgba(204, 0, 51, 0.12);
   --destructive: #dc2626;
-  --border: #e6e8ed;
-  --border-subtle: #eef0f4;
-  --input: #e6e8ed;
+  --border: #e2e5eb;
+  --border-subtle: #eaecf1;
+  --input: #e2e5eb;
   --ring: #cc0033;
   --chart-1: #cc0033;
   --chart-2: #4d7c8a;
@@ -109,12 +113,14 @@
 
 .dark {
   color-scheme: dark;
-  --background: #06080c;
-  --foreground: #ecf0f8;
-  --surface-0: #0c0e12;
-  --surface-1: #14171d;
-  --surface-2: #181c24;
-  --surface-3: #20252f;
+  --background: #0b0d12;
+  --foreground: rgba(236, 240, 248, 0.92);
+  --foreground-strong: rgba(255, 255, 255, 0.98);
+  --foreground-disabled: rgba(236, 240, 248, 0.38);
+  --surface-0: #111319;
+  --surface-1: #171a21;
+  --surface-2: #1d2129;
+  --surface-3: #262b35;
   --card: var(--surface-1);
   --card-foreground: var(--foreground);
   --popover: var(--surface-2);
@@ -123,8 +129,8 @@
   --primary-foreground: #ffffff;
   --secondary: var(--surface-2);
   --secondary-foreground: var(--foreground);
-  --muted: #181c24;
-  --muted-foreground: #8a93a3;
+  --muted: #1d2129;
+  --muted-foreground: rgba(236, 240, 248, 0.60);
   --accent: #ef4060;
   --accent-foreground: #ffffff;
   --accent-glow: rgba(239, 64, 96, 0.16);
@@ -154,6 +160,36 @@
   --elev-1: 0 0 0 1px rgba(255, 255, 255, 0.02) inset;
   --elev-2: 0 0 0 1px rgba(255, 255, 255, 0.03) inset, 0 8px 24px rgba(0, 0, 0, 0.3);
   --glow: 0 0 0 1px rgba(239, 64, 96, 0.22);
+}
+
+.dark.theme-dim {
+  color-scheme: dark;
+  --background: #15202b;
+  --foreground: rgba(247, 249, 249, 0.92);
+  --foreground-strong: rgba(247, 249, 249, 0.98);
+  --foreground-disabled: rgba(247, 249, 249, 0.38);
+  --surface-0: #15202b;
+  --surface-1: #192734;
+  --surface-2: #22303c;
+  --surface-3: #2c3e50;
+  --card: var(--surface-1);
+  --card-foreground: var(--foreground);
+  --popover: var(--surface-2);
+  --popover-foreground: var(--foreground);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--foreground);
+  --muted: #1c2732;
+  --muted-foreground: rgba(247, 249, 249, 0.55);
+  --border: rgba(247, 249, 249, 0.08);
+  --border-subtle: rgba(247, 249, 249, 0.05);
+  --input: rgba(247, 249, 249, 0.1);
+  --sidebar: #192734;
+  --sidebar-foreground: var(--foreground);
+  --sidebar-accent: #22303c;
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: rgba(247, 249, 249, 0.08);
+  --elev-1: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --elev-2: 0 1px 2px rgba(0, 0, 0, 0.25), 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
 @layer base {

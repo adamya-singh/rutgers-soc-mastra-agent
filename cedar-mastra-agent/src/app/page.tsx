@@ -10,8 +10,9 @@ import {
   useCedarStore,
   useThreadController,
 } from 'cedar-os';
-import { MoonStar, Sun } from 'lucide-react';
+import { Cloud, MoonStar, Sun } from 'lucide-react';
 import { supabaseClient } from '@/lib/supabaseClient';
+import { useTheme, type Theme } from '@/lib/useTheme';
 
 import { ScheduleGrid } from '@/components/schedule/ScheduleGrid';
 import { EmbeddedCedarChat } from '@/cedar/components/chatComponents/EmbeddedCedarChat';
@@ -202,7 +203,7 @@ function isDegreeNavigatorLoginPage(readiness: DegreeNavigatorReadinessResponse 
 }
 
 export default function HomePage() {
-  const [theme, setTheme] = React.useState<'light' | 'dark'>('dark');
+  const { theme, setTheme } = useTheme();
   const { currentThreadId } = useThreadController();
   const currentThreadIdRef = React.useRef<string>(currentThreadId);
   React.useEffect(() => {
@@ -245,25 +246,6 @@ export default function HomePage() {
     const identity = getClientIdentity();
     setBrowserClientId(identity.browserClientId);
   }, []);
-
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const storedTheme = window.localStorage.getItem('theme');
-    const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
-    const nextTheme =
-      storedTheme === 'light' || storedTheme === 'dark'
-        ? storedTheme
-        : prefersDark
-          ? 'dark'
-          : 'light';
-    setTheme(nextTheme);
-  }, []);
-
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return;
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-    window.localStorage.setItem('theme', theme);
-  }, [theme]);
 
   React.useEffect(() => {
     let isMounted = true;
@@ -1367,9 +1349,10 @@ export default function HomePage() {
   const showDegreeNavigatorLoginNotice =
     Boolean(browserSession) && isDegreeNavigatorLoginPage(degreeNavigatorReadiness);
 
-  const handleToggleTheme = React.useCallback(() => {
-    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
-  }, []);
+  const handleCycleTheme = React.useCallback(() => {
+    const order: Theme[] = ['light', 'dim', 'dark'];
+    setTheme(order[(order.indexOf(theme) + 1) % order.length]);
+  }, [theme, setTheme]);
 
   const handleSignOut = React.useCallback(async () => {
     await closeBrowserSessionWithReason({
@@ -1418,19 +1401,39 @@ export default function HomePage() {
                   </span>
                 </Link>
 
-                <button
-                  type="button"
-                  onClick={handleToggleTheme}
-                  aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
-                  title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
-                  className="focus-ring inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
+                <div
+                  role="radiogroup"
+                  aria-label="Theme"
+                  className="inline-flex h-8 items-center rounded-md border border-border bg-surface-2 p-0.5"
                 >
-                  {theme === 'dark' ? (
-                    <Sun className="h-4 w-4" />
-                  ) : (
-                    <MoonStar className="h-4 w-4" />
-                  )}
-                </button>
+                  {(
+                    [
+                      { id: 'light', icon: Sun, label: 'Light' },
+                      { id: 'dim', icon: Cloud, label: 'Dim' },
+                      { id: 'dark', icon: MoonStar, label: 'Dark' },
+                    ] as const
+                  ).map(({ id, icon: Icon, label }) => {
+                    const selected = theme === id;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        aria-label={label}
+                        title={label}
+                        onClick={() => setTheme(id)}
+                        className={`focus-ring inline-flex h-7 w-7 items-center justify-center rounded transition ${
+                          selected
+                            ? 'bg-surface-0 text-foreground shadow-elev-1'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        <Icon className="h-3.5 w-3.5" />
+                      </button>
+                    );
+                  })}
+                </div>
               </header>
 
               <div className="min-h-0 flex-1 overflow-hidden">
@@ -1439,7 +1442,7 @@ export default function HomePage() {
                   showHeader={false}
                   userEmail={userEmail}
                   theme={theme}
-                  onToggleTheme={handleToggleTheme}
+                  onToggleTheme={handleCycleTheme}
                   onSignOut={handleSignOut}
                 />
               </div>

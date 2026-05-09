@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link';
 import {
   ChevronUp,
+  Cloud,
   Loader2,
   LogOut,
   MessageSquarePlus,
@@ -25,6 +26,7 @@ import { useChatSuggestions } from './useChatSuggestions';
 import { useSocChat, type SocChatMessage } from './useSocChat';
 import { EXAMPLE_PROMPTS } from '@/cedar/config/examplePrompts';
 import { cn } from 'cedar-os';
+import type { Theme } from '@/lib/useTheme';
 import {
   createChatThread,
   deleteChatThread,
@@ -45,7 +47,7 @@ interface SocVercelChatProps {
   heroSubtitle?: string;
   showHero?: boolean;
   userEmail?: string | null;
-  theme?: 'light' | 'dark';
+  theme?: Theme;
   onToggleTheme?: () => void;
   onSignOut?: () => Promise<void> | void;
 }
@@ -683,12 +685,20 @@ export const SocVercelChat: React.FC<SocVercelChatProps> = ({
                       }}
                       className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground outline-none transition hover:bg-surface-1"
                     >
-                      {theme === 'dark' ? (
-                        <Sun className="h-4 w-4" />
-                      ) : (
-                        <MoonStar className="h-4 w-4" />
-                      )}
-                      {theme === 'dark' ? 'Light theme' : 'Dark theme'}
+                      {(() => {
+                        // Show the icon/label of the NEXT theme in the cycle.
+                        const next: Theme =
+                          theme === 'light' ? 'dim' : theme === 'dim' ? 'dark' : 'light';
+                        const label =
+                          next === 'light' ? 'Light theme' : next === 'dim' ? 'Dim theme' : 'Dark theme';
+                        const Icon = next === 'light' ? Sun : next === 'dim' ? Cloud : MoonStar;
+                        return (
+                          <>
+                            <Icon className="h-4 w-4" />
+                            {label}
+                          </>
+                        );
+                      })()}
                     </DropdownMenu.Item>
                   )}
                   {onSignOut && (
