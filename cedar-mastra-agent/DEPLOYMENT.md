@@ -20,6 +20,7 @@ Frontend:
 - Dockerfile: `cedar-mastra-agent/Dockerfile`
 - Repo build config: `cedar-mastra-agent/cloudbuild.frontend.yaml`
 - Public access: deployed with `--no-invoker-iam-check`
+- Traffic: deployed with `--to-latest`
 
 Backend:
 
@@ -320,6 +321,19 @@ gcloud run services update rutgers-soc-agent \
   --region us-east4 \
   --project concise-foundry-465822-d7 \
   --no-invoker-iam-check
+```
+
+Frontend build succeeds but traffic stays on an old revision:
+
+- Symptom: `gcloud builds` shows success, but `status.latestReadyRevisionName` or `status.traffic` still points at an older frontend revision.
+- Confirm the frontend build config includes `--to-latest`.
+- Restore latest-revision traffic if needed:
+
+```bash
+gcloud run services update-traffic rutgers-soc-agent \
+  --region us-east4 \
+  --project concise-foundry-465822-d7 \
+  --to-latest
 ```
 
 Runtime errors after a successful deploy:
