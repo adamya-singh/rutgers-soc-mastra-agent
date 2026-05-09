@@ -50,10 +50,12 @@ Next.js prerenders pages during `next build`. If the Docker build does not recei
 Backend runtime values:
 
 - `GOOGLE_VERTEX_PROJECT`
-- `GOOGLE_VERTEX_LOCATION`
+- `GOOGLE_VERTEX_LOCATION` (current Cloud Build substitution: `global`)
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `ANONYMOUS_CHAT_TOKEN_SECRET` optional but recommended; if omitted, anonymous chat token signing falls back to the Supabase service key
+- `ANONYMOUS_CHAT_DAILY_MESSAGE_LIMIT` optional anonymous trial quota override
 - `BROWSERBASE_API_KEY`
 - `BROWSERBASE_PROJECT_ID`
 - `BROWSERBASE_API_BASE` optional, defaults to `https://api.browserbase.com/v1`
@@ -64,6 +66,8 @@ Sensitive backend values must be Secret Manager bindings, not plaintext Cloud Ru
 
 - `SUPABASE_SERVICE_ROLE_KEY=supabase-service-role-key:latest`
 - `BROWSERBASE_API_KEY=browserbase-api-key:latest`
+
+If `ANONYMOUS_CHAT_TOKEN_SECRET` is configured separately from the Supabase service key, bind it through Secret Manager as well.
 
 ## Cloud Build Triggers
 

@@ -13,6 +13,7 @@ Current production status:
 
 - Supabase Auth is the source of user identity.
 - Backend routes must verify Supabase bearer tokens before performing user-scoped work.
+- Anonymous trial chat uses backend-signed anonymous tokens for quota enforcement only; it does not grant access to user-owned data.
 - User-owned data is protected by Supabase Row Level Security (RLS) or backend-only access.
 - Rutgers SOC catalog data is public read-only data for frontend roles.
 - Rutgers credentials are never collected, stored, logged, or echoed by this application.
@@ -46,6 +47,8 @@ The Mastra backend verifies requests with `Authorization: Bearer <supabase-acces
 The server derives the authenticated user ID from the Supabase token. It must not trust any client-provided user identifier, including `browserClientId`, `resourceId`, `threadId`, or values in `localStorage`.
 
 `browserClientId` may exist as non-authoritative client context for UI continuity, but it is not an ownership or authorization source.
+
+Anonymous chat tokens are signed by the backend with `ANONYMOUS_CHAT_TOKEN_SECRET` or, if unset, the backend Supabase service key. They are scoped to anonymous chat quota and thread continuity only. Degree Navigator profile data, saved schedules, and Browserbase session ownership require authenticated Supabase users.
 
 ## User Data Storage
 
@@ -96,6 +99,8 @@ Backend-only settings:
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_SERVICE_KEY`
+- `ANONYMOUS_CHAT_TOKEN_SECRET` recommended for stable anonymous chat tokens
+- `ANONYMOUS_CHAT_DAILY_MESSAGE_LIMIT` optional anonymous trial quota override
 - `BROWSERBASE_API_KEY`
 - `BROWSERBASE_PROJECT_ID`
 - `BROWSERBASE_API_BASE` optional, defaults to `https://api.browserbase.com/v1`

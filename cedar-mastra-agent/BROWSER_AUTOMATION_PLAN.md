@@ -1,5 +1,7 @@
 # Browser Automation Plan (Degree Navigator + WebReg)
 
+This is a historical design note. The current implemented harness is summarized in [`HARNESS.md`](HARNESS.md); use that file as the source of truth for active tools, routes, frontend state, and guardrails.
+
 ## Bottom line
 Use a **remote browser session** (not a direct Rutgers iframe) and embed the provider's **live view iframe** in your app. Let the student log in manually inside that live view, then let Mastra call browser-action tools against that same session.
 
@@ -34,16 +36,17 @@ This gives you the UX you want (browser pane in page + agent control) while avoi
 - Default automation to read-only where possible (plan checks, degree audits, schedule options).
 - Auto-expire and destroy remote sessions after inactivity.
 
-## Where to wire this in this codebase
+## Current implementation pointers
 - Agent/tool registry:
   - `src/backend/src/mastra/agents/soc-agent.ts`
   - `src/backend/src/mastra/tools/toolDefinitions.ts`
-  - add new files under `src/backend/src/mastra/tools/browser/`
+  - browser tools under `src/backend/src/mastra/tools/browser/`
+  - Degree Navigator tools under `src/backend/src/mastra/tools/degree-navigator/`
 - Frontend tool/state bridge:
   - `src/app/page.tsx`
-  - add Cedar state for `browserSession` and setter tools for iframe URL/status
+  - Cedar state for `browserSession`, browser session frontend tools, and Degree Navigator readiness/extraction orchestration
 - UI pane:
-  - add a browser pane component in the main grid beside schedule/search/chat
+  - embedded Browserbase Live View pane beside schedule/search/chat
 
 ## Data model
 
@@ -87,13 +90,18 @@ The canonical validation schema is `src/backend/src/degree-navigator/schemas.ts`
 
 ## Tool contract sketch
 ```ts
-createBrowserSession({ target })
+ensureDegreeNavigatorSession({})
 closeBrowserSession({ sessionId })
 browserNavigate({ sessionId, url })
 browserObserve({ sessionId })
 browserExtract({ sessionId, instruction })
 browserAct({ sessionId, action, requireConfirmationToken })
+readDegreeNavigatorProfile({})
+readDegreeNavigatorExtractionRun({ runId })
+saveDegreeNavigatorProfile({ capture })
 ```
+
+`createBrowserSession({ target })` still exists as a lower-level backend tool/route concept, but the active agent uses `ensureDegreeNavigatorSession` so the frontend can open or reuse the pane-backed session.
 
 ## Human-in-the-loop policy
 - `browserAct` checks whether action is sensitive (`submit`, `register`, `drop`, `confirm`).
@@ -101,16 +109,16 @@ browserAct({ sessionId, action, requireConfirmationToken })
 - Agent asks user for explicit confirmation and retries with the server-issued token.
 
 ## Delivery phases
-1. **Phase 1 (fast POC)**
+1. **Phase 1 (implemented)**
    - Session create/close + iframe live view in UI
    - Manual login + safe read-only extract
-2. **Phase 2 (guided automation)**
+2. **Phase 2 (implemented for Degree Navigator)**
    - Add structured `observe/extract/act` tools
-   - Add confirmation gate and audit logs
-3. **Phase 3 (production hardening)**
+   - Add confirmation gate for sensitive actions
+3. **Phase 3 (ongoing production hardening)**
    - Per-user session ownership checks using authenticated Supabase `user_id`
    - Redaction and minimal retention
-   - Rate limiting and failure recovery
+   - Rate limiting, audit logging, and failure recovery
 
 ## Non-negotiable security
 - Never ask/store Rutgers passwords in app DB.

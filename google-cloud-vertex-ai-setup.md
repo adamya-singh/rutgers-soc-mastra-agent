@@ -34,6 +34,8 @@ For Stagehand browser tools that should use Vertex/Gemini, also set:
 
 Stagehand can alternatively use `STAGEHAND_MODEL_API_KEY` or `OPENAI_API_KEY` for API-key-backed models.
 
+The Mastra agent model is configured separately in code as `gemini-3.1-pro-preview` through `createVertex`; only Stagehand Vertex model names use the `vertex/` prefix.
+
 ## 4. Code Paths
 
 Vertex configuration is initialized in:

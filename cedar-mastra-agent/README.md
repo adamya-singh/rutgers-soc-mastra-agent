@@ -2,7 +2,7 @@
 
 A Rutgers Schedule of Classes assistant that combines a Next.js/Cedar-OS frontend, a Mastra backend agent, Supabase Auth/Postgres, and Browserbase-powered Degree Navigator automation.
 
-Deployment and production operations are documented in [`DEPLOYMENT.md`](DEPLOYMENT.md). Dated deployment incidents live under the repo-root [`DOCS`](../DOCS) folder.
+The canonical harness map is [`HARNESS.md`](HARNESS.md). Deployment and production operations are documented in [`DEPLOYMENT.md`](DEPLOYMENT.md). Dated deployment incidents live under the repo-root [`DOCS`](../DOCS) folder.
 
 ## Features
 
@@ -47,7 +47,7 @@ npm install && npm --prefix src/backend install
 # Google Vertex AI
 GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json
 GOOGLE_VERTEX_PROJECT=your-gcp-project-id
-GOOGLE_VERTEX_LOCATION=us-central1
+GOOGLE_VERTEX_LOCATION=global
 
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
@@ -55,10 +55,16 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+ANONYMOUS_CHAT_TOKEN_SECRET=long-random-secret
+ANONYMOUS_CHAT_DAILY_MESSAGE_LIMIT=10
 
 # Browserbase
 BROWSERBASE_API_KEY=your-browserbase-key
 BROWSERBASE_PROJECT_ID=your-browserbase-project-id
+
+# Stagehand browser tools
+STAGEHAND_MODEL_PROVIDER=vertex
+STAGEHAND_MODEL_NAME=vertex/gemini-3.1-pro-preview
 
 # Frontend/backend connection
 NEXT_PUBLIC_MASTRA_URL=http://localhost:4112
@@ -92,22 +98,28 @@ This runs both the Next.js frontend and Mastra backend concurrently:
 
 ## API Endpoints (Mastra backend)
 
-Mastra backend routes are authenticated. Include the current Supabase access token as a bearer token.
+The full route map is maintained in [`HARNESS.md`](HARNESS.md). Most Mastra backend routes are authenticated with the current Supabase access token as a bearer token.
 
 Anonymous users can use the Vercel chat route through the limited anonymous trial flow. The frontend stores a backend-signed anonymous chat token in browser storage and the backend enforces a daily message quota for that anonymous browser identity. Clearing browser cookies/cache/site data removes that local anonymous token, so the backend treats the browser as a new anonymous identity and the anonymous limit resets. This is a trial/abuse-deterrence limit, not a durable account-level quota; signing in is required for saved chat history and user-owned Degree Navigator data.
 
-### Streaming Chat
+### Chat APIs
+
+The current frontend uses `POST /chat/ui` for AI SDK UI-message streaming, persisted chat threads, and anonymous trial chat. The older authenticated SSE workflow is still available at `POST /chat/stream`.
 
 ```http
-POST /chat/stream
+POST /chat/ui
 Content-Type: application/json
 Authorization: Bearer <supabase-access-token>
 
 {
-  "prompt": "Tell me a story",
-  "temperature": 0.7
+  "threadId": "<thread-id>",
+  "messages": [],
+  "temperature": 0.7,
+  "additionalContext": {}
 }
 ```
+
+Authenticated chat thread helpers are available at `GET /chat/threads`, `POST /chat/threads`, `POST /chat/thread`, `PATCH /chat/thread`, and `DELETE /chat/thread`. Anonymous trial setup is `POST /chat/anonymous/session`.
 
 ### Browser Session APIs
 
@@ -122,6 +134,8 @@ Authorization: Bearer <supabase-access-token>
 ```
 
 Browser session ownership is derived from the verified Supabase user. Do not send or trust browser-local IDs for authorization.
+
+The browser API family also includes session status, Degree Navigator readiness, Degree Navigator extraction, close, and close-beacon routes. See [`HARNESS.md`](HARNESS.md) for the exact list.
 
 ### Degree Navigator Profile APIs
 
@@ -150,9 +164,9 @@ Authorization: Bearer <supabase-access-token>
 }
 ```
 
-Degree Navigator data is saved as one latest user-owned row in `public.degree_navigator_profiles`. The backend derives `user_id` from the bearer token and validates the payload with `src/backend/src/degree-navigator/schemas.ts`.
+`DELETE /degree-navigator/profile` clears the authenticated user's saved profile. Degree Navigator data is saved as one latest user-owned row in `public.degree_navigator_profiles`. The backend derives `user_id` from the bearer token and validates the payload with `src/backend/src/degree-navigator/schemas.ts`.
 
-The chat stream returns Server-Sent Events with:
+The legacy `/chat/stream` endpoint returns Server-Sent Events with:
 
 - **JSON Objects**: `{ type: 'stage_update', status: 'update_begin', message: 'Generating response...'}`
 - **Text Chunks**: Streamed AI response text

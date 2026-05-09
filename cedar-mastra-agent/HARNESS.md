@@ -1,8 +1,8 @@
 # Agent Harness
 
-This document is the canonical map of the Rutgers SOC agent harness: the model, prompt, tools, frontend state, browser automation, APIs, external services, and guardrails that define what the agent can see and do.
+This is the canonical map of the Rutgers SOC agent harness: the model, prompt, active tools, frontend state bridge, browser automation, backend APIs, external services, and guardrails that define what the agent can see and do.
 
-For detailed Rutgers SOC tool schemas and query behavior, see [`TOOLS-SPEC.md`](TOOLS-SPEC.md). For the Browserbase design notes, see [`BROWSER_AUTOMATION_PLAN.md`](BROWSER_AUTOMATION_PLAN.md). For deployment variables, see [`DEPLOYMENT.md`](DEPLOYMENT.md).
+Keep detailed SOC tool schemas in [`TOOLS-SPEC.md`](TOOLS-SPEC.md), production runbooks in [`DEPLOYMENT.md`](DEPLOYMENT.md), security policy in [`../SECURITY.md`](../SECURITY.md), and historical browser design notes in [`BROWSER_AUTOMATION_PLAN.md`](BROWSER_AUTOMATION_PLAN.md).
 
 ## High-Level Architecture
 
@@ -10,162 +10,197 @@ For detailed Rutgers SOC tool schemas and query behavior, see [`TOOLS-SPEC.md`](
 flowchart TD
   user[User] --> frontend[Next App]
   frontend --> cedar[Cedar State And Tools]
-  frontend --> chatApi[Chat Stream API]
+  frontend --> chatApi[Chat APIs]
   chatApi --> workflow[Chat Workflow]
-  workflow --> agent[Rutgers SOC Agent]
+  chatApi --> agent[Rutgers SOC Agent]
+  workflow --> agent
   agent --> socTools[SOC Tools]
   agent --> browserTools[Browser Tools]
-  agent --> uiTools[UI Tools]
+  agent --> degreeNavigatorTools[Degree Navigator Tools]
+  agent --> uiTools[Frontend UI Tools]
   socTools --> supabase[Supabase SOC Data]
   browserTools --> browserbase[Browserbase Session]
   browserbase --> degreeNavigator[Degree Navigator]
-  browserTools --> degreeNavigatorProfiles[Degree Navigator Profiles]
+  degreeNavigatorTools --> degreeNavigatorProfiles[Degree Navigator Profiles]
 ```
 
-The primary implementation files are:
+Primary implementation files:
 
-- Agent definition and prompt: [`src/backend/src/mastra/agents/soc-agent.ts`](src/backend/src/mastra/agents/soc-agent.ts)
+- Agent definition, model, prompt, and active tool list: [`src/backend/src/mastra/agents/soc-agent.ts`](src/backend/src/mastra/agents/soc-agent.ts)
 - Tool registry and Cedar bridge tools: [`src/backend/src/mastra/tools/toolDefinitions.ts`](src/backend/src/mastra/tools/toolDefinitions.ts)
-- Chat workflow and context injection: [`src/backend/src/mastra/workflows/chatWorkflow.ts`](src/backend/src/mastra/workflows/chatWorkflow.ts)
+- Chat workflow and context filtering: [`src/backend/src/mastra/workflows/chatWorkflow.ts`](src/backend/src/mastra/workflows/chatWorkflow.ts)
 - Frontend state and frontend tools: [`src/app/page.tsx`](src/app/page.tsx)
-- Browserbase lifecycle: [`src/backend/src/browser/browserService.ts`](src/backend/src/browser/browserService.ts)
-- Chat and browser API routes: [`src/backend/src/mastra/apiRegistry.ts`](src/backend/src/mastra/apiRegistry.ts)
+- Browserbase lifecycle and Stagehand config: [`src/backend/src/browser/browserService.ts`](src/backend/src/browser/browserService.ts)
+- Chat, profile, and browser API routes: [`src/backend/src/mastra/apiRegistry.ts`](src/backend/src/mastra/apiRegistry.ts)
 - Degree Navigator storage schemas and repository: [`src/backend/src/degree-navigator/`](src/backend/src/degree-navigator/)
 - Memory configuration: [`src/backend/src/mastra/memory.ts`](src/backend/src/mastra/memory.ts)
 
-## Agent Identity And Model
+## Agent Runtime
 
-The Mastra agent is named `Rutgers SOC Agent`. It uses Google Vertex AI through `createVertex` and currently calls `gemini-3.1-pro-preview`.
+The active Mastra agent export is `socAgent`, with runtime name `SOCAgent`. It uses Google Vertex AI through `createVertex` and currently calls `gemini-3.1-pro-preview`.
 
-The system prompt gives the agent Rutgers-specific operating context:
+The prompt gives the agent Rutgers-specific operating context:
 
-- Rutgers campus, term, subject, school, core curriculum, and registration-index knowledge.
-- SOC search behavior, including term defaults, open/closed section handling, prerequisites, conflicts, classroom queries, and search result rendering.
-- Degree Navigator browser automation rules, including no credential handling, browser session ownership, confirmation for sensitive actions, and observe-before-act behavior.
+- Campus, term, subject, school, core curriculum, and registration-index conventions.
+- SOC search behavior, including term defaults, schedule context, open/closed section handling, prerequisites, conflicts, classroom queries, and search result rendering.
+- Temporary schedule option rules for building previewable schedule alternatives without mutating saved schedules.
+- Degree Navigator browser automation rules, including no credential handling, Browserbase session state, manual login, and observe-before-act behavior.
 
-Memory is configured in [`src/backend/src/mastra/memory.ts`](src/backend/src/mastra/memory.ts). It uses an in-memory LibSQL store and keeps the last 5 messages per thread/resource. Memory is ephemeral and clears when the backend process exits.
+Memory is configured in [`src/backend/src/mastra/memory.ts`](src/backend/src/mastra/memory.ts). It uses in-memory LibSQL storage with `lastMessages: 5`, so memory is process-local and clears when the backend process exits.
 
 ## What The Agent Can See
 
-The chat workflow sends the agent:
+There are two chat entry points:
 
-- The current user prompt.
-- Optional `temperature` and `maxTokens` controls from the chat request.
-- Server-derived `resourceId` and `threadId` based on the authenticated Supabase user.
-- Serialized `additionalContext` from Cedar as background knowledge.
+- `/chat/ui` streams AI SDK UI messages directly through `socAgent.stream`, persists messages, supports authenticated and anonymous principals, and passes filtered Cedar context as a system context message.
+- `/chat/stream` runs the older Mastra `chatWorkflow` SSE path for authenticated users.
 
-The frontend subscribes these state values into agent context:
+Both paths can pass:
 
-- `mainText`: visible in chat context.
-- `browserClientId`: hidden in chat UI, retained as non-authoritative client context.
-- `browserSession`: hidden in chat UI, contains current Browserbase session metadata.
+- The user message.
+- Optional `temperature` and `maxTokens`.
+- A `RuntimeContext` containing `additionalContext`, stream helpers, and the authenticated user id when present.
+- Memory identifiers derived on the server from the authenticated user or anonymous client, not from trusted client ownership claims.
 
-The frontend also registers `searchResults` as Cedar state, but it is used as a mutable UI target rather than subscribed into agent context.
+The workflow filters model-visible Cedar context to:
+
+- `activeSchedule`: current schedule, visible blocks, temporary schedule options, preview option, sync status, term, campus, sections, and credits.
+- `browserClientId`: hidden in chat UI and non-authoritative. It is client continuity state only.
+- `browserSession`: hidden in chat UI and contains the current Browserbase session metadata.
+
+The frontend registers additional mutable Cedar state such as `browserSession` setters and search result setters, but `searchResults` is a UI target rather than model-visible context.
 
 The app does not collect or store Rutgers credentials. Degree Navigator login happens inside the embedded Browserbase Live View, and credentials should remain inside that remote browser session.
 
-When Degree Navigator data is saved, the backend stores a validated latest capture in `public.degree_navigator_profiles`. The stored document includes profile fields, declared programs, audit summaries, transcript terms, and run notes. It does not include Rutgers passwords, raw HTML, screenshots, or Browserbase Live View URLs.
+When Degree Navigator data is saved, the backend stores a validated latest capture in `public.degree_navigator_profiles`. The stored document includes profile fields, declared programs, audits, transcript terms, and run notes. It does not include Rutgers passwords, raw HTML, screenshots, or Browserbase Live View URLs.
 
-## What The Agent Can Do
+## Active Agent Tools
 
-The active agent tool surface is registered in [`src/backend/src/mastra/agents/soc-agent.ts`](src/backend/src/mastra/agents/soc-agent.ts). The broader categorized registry is in [`src/backend/src/mastra/tools/toolDefinitions.ts`](src/backend/src/mastra/tools/toolDefinitions.ts).
-
-`TOOL_REGISTRY` also contains helper categories such as `browserState` and `docs`. Those are useful for internal organization and future registration, but the authoritative runtime list for this agent is `socAgent.tools`.
+The authoritative runtime surface is `socAgent.tools` in [`src/backend/src/mastra/agents/soc-agent.ts`](src/backend/src/mastra/agents/soc-agent.ts). [`src/backend/src/mastra/tools/toolDefinitions.ts`](src/backend/src/mastra/tools/toolDefinitions.ts) also keeps broader categorized registries for organization and shared bridge tools, but `socAgent.tools` decides what this agent can call.
 
 ### SOC Data Tools
 
 These tools read Rutgers SOC data from Supabase-backed tables/views:
 
-- `searchCourses`: find courses by course string, title, subject, school, campus, term, core code, or keyword-style criteria.
+- `searchCourses`: find courses by course string, title, subject, school, campus, term, core code, instructor, or keyword-style criteria.
 - `getCourseDetails`: fetch detailed course, section, availability, meeting, instructor, and restriction information.
 - `browseMetadata`: browse available terms, campuses, subjects, schools, and related metadata.
-- `searchSections`: search schedule-builder-oriented sections with meeting, instructor, location, campus, status, and time filters.
+- `searchSections`: search schedule-builder-oriented sections with meeting, instructor, location, campus, status, modality, and time filters.
 - `getSectionByIndex`: look up a specific section by its 5-digit registration index.
 - `checkScheduleConflicts`: compare sections for meeting-time conflicts.
 - `getPrerequisites`: retrieve prerequisite information for a course.
 - `findRoomAvailability`: find open classroom windows by building, day, time range, and duration.
 
-Detailed inputs and outputs belong in [`TOOLS-SPEC.md`](TOOLS-SPEC.md), not in this harness overview.
-
 ### Browserbase And Degree Navigator Tools
 
-These tools operate on a Browserbase-hosted browser session for Degree Navigator:
+These tools operate on the Browserbase-hosted Degree Navigator session owned by the authenticated user:
 
-- `createBrowserSession`: create a Browserbase session for Degree Navigator.
+- `ensureDegreeNavigatorSession`: open or reuse the Browserbase Degree Navigator session shown in the embedded browser pane.
 - `closeBrowserSession`: release an active Browserbase session.
-- `browserNavigate`: navigate the existing remote browser session to a URL.
+- `browserNavigate`: navigate the existing remote browser session to an allowed Rutgers URL.
 - `browserObserve`: inspect the current page before taking action.
 - `browserExtract`: extract structured information from the current page.
 - `browserAct`: perform a natural-language action in the active browser session.
+- `readDegreeNavigatorProfile`: read the latest saved Degree Navigator profile for the authenticated user.
+- `readDegreeNavigatorExtractionRun`: read a stored extraction run for the authenticated user.
+- `saveDegreeNavigatorProfile`: validate and save a Degree Navigator profile capture for the authenticated user.
 
 `browserAct` requires explicit confirmation for sensitive actions matching `submit`, `confirm`, `register`, or `drop`.
 
-### Frontend And UI Tools
+`createBrowserSession` exists in the broader tool registry, but the active agent uses `ensureDegreeNavigatorSession` so the frontend can open or reuse the pane-backed session.
 
-These tools mutate browser-local UI state through Cedar bridge tools:
+### Frontend Schedule Tools
 
-- `changeText`: replace the `mainText` state value.
-- `addNewTextLine`: append a displayed assistant note line.
-- `addSectionToSchedule`: add a course section to the local in-browser schedule.
-- `removeSectionFromSchedule`: remove a course section from the local in-browser schedule by index number.
-- `createTemporarySchedule`: create a chat-thread-scoped temporary schedule that the user can preview without it appearing in the schedules dropdown. The agent supplies a stable `scheduleId` and an optional `label`/`basedOnActive` flag.
-- `addSectionToTemporarySchedule`: add a course section to a previously created temporary schedule by `scheduleId`.
+These active tools mutate browser-local schedule UI state through Cedar bridge tools:
+
+- `addSectionToSchedule`: add a course section to the current in-browser schedule. Use only when the user explicitly wants to add or lock in a section.
+- `removeSectionFromSchedule`: remove a course section from the current schedule by index number.
+- `createTemporarySchedule`: create a chat-thread-scoped schedule option that the user can preview without writing to saved schedules.
+- `addSectionToTemporarySchedule`: add a course section to a temporary schedule by the agent-supplied `scheduleId`.
 - `discardTemporarySchedule`: remove a temporary schedule from the chat-thread option carousel.
-- `clearSearchResults`: clear the search result cards.
-- `setSearchResults`: replace search result cards.
-- `appendSearchResults`: append result cards.
 
-Temporary schedules persist in the user's local browser storage tagged with the Cedar chat thread id, are hidden from the schedules dropdown and Supabase sync, and only become normal schedules when the user clicks Save in the option carousel above the grid (which prompts for a name and writes them through the regular `schedules` table).
+Temporary schedules persist in the user's local browser storage tagged with the Cedar chat thread id. They are hidden from the saved schedule dropdown and Supabase sync until the user clicks Save in the option carousel above the grid.
 
-The frontend also registers direct Cedar frontend tools in [`src/app/page.tsx`](src/app/page.tsx):
+### Registered Frontend Tools And State Setters
 
-- `launchDegreeNavigatorSession`: launch Browserbase and load Degree Navigator in the embedded browser pane.
-- `closeDegreeNavigatorSession`: close the active Browserbase session.
-- `refreshSessionStatus`: refresh active Browserbase session status.
+The frontend registers direct Cedar frontend tools in [`src/app/page.tsx`](src/app/page.tsx):
+
+- `addSectionToSchedule`
+- `removeSectionFromSchedule`
+- `createTemporarySchedule`
+- `addSectionToTemporarySchedule`
+- `discardTemporarySchedule`
+- `ensureDegreeNavigatorSession`
+- `closeDegreeNavigatorSession`
+- `refreshSessionStatus`
+
+The shared Cedar registry also defines state setter tools for `searchResults` and `browserSession`, including `clearSearchResults`, `setSearchResults`, `appendSearchResults`, `setBrowserSession`, and `clearBrowserSession`. These are registry/bridge utilities, not currently part of `socAgent.tools` unless they are explicitly registered on the agent.
 
 ## Browserbase And Degree Navigator Harness
 
-Browserbase is used as a remote browser runtime so Rutgers pages do not need to be directly scripted inside a cross-origin iframe.
+Browserbase is used as a remote browser runtime so Rutgers pages do not need to be scripted inside a cross-origin iframe.
 
 The session flow is:
 
 1. The signed-in frontend calls `/browser/session/create` with a Supabase bearer token and target `degree_navigator`.
-2. The backend verifies the token, derives the Supabase `user_id`, creates a Browserbase session with `keepAlive: true`, a bounded timeout, and `userMetadata`.
+2. The backend verifies the token, derives the Supabase `user_id`, creates a Browserbase session with `keepAlive: true`, a bounded timeout, viewport settings, and user metadata.
 3. The backend opens `https://dn.rutgers.edu/` through the Browserbase connection.
 4. The backend resolves an embeddable Live View URL.
-5. The frontend stores `browserSession` and renders the Live View URL in an iframe.
+5. The frontend stores `browserSession`, persists cleanup metadata, and renders the Live View URL in an iframe.
 6. The user logs in manually inside the Browserbase iframe.
-7. The agent can use browser tools against the same session, scoped by the authenticated Supabase user.
-8. Stop Session, auto-stop, startup cleanup, close beacon, or the backend reaper release the Browserbase session with `REQUEST_RELEASE`.
+7. The frontend checks Degree Navigator readiness and can trigger extraction once the app appears ready.
+8. The agent can use browser tools against the same session, scoped by the authenticated Supabase user.
+9. Stop Session, auto-stop, startup cleanup, close beacon, or the backend reaper release the Browserbase session with `REQUEST_RELEASE`.
 
-Browserbase sessions are tracked in the backend session repository. Session ownership is enforced by server-derived Supabase `user_id`; `browserClientId` is retained only as non-authoritative client context. The frontend keeps an active-session record in local storage so stale sessions can be cleaned up on startup.
+Browserbase sessions are tracked in the backend session repository. Session ownership is enforced by server-derived Supabase `user_id`; `browserClientId` is retained only as non-authoritative client context. The frontend keeps active-session metadata in local storage so stale sessions can be cleaned up on startup.
 
-`browserObserve`, `browserExtract`, and `browserAct` use Stagehand and require model credentials. Initial Degree Navigator navigation uses a non-LLM browser connection so a model key is not required just to launch the Live View.
+`browserObserve`, `browserExtract`, and `browserAct` use Stagehand and require model credentials. Initial Degree Navigator navigation uses a non-LLM browser connection, so a model key is not required just to launch the Live View.
 
 Structured Degree Navigator captures are validated by [`src/backend/src/degree-navigator/schemas.ts`](src/backend/src/degree-navigator/schemas.ts) and read/written through [`src/backend/src/degree-navigator/repository.ts`](src/backend/src/degree-navigator/repository.ts). The repository uses the backend Supabase service-role client, while route handlers derive ownership from the authenticated Supabase user.
 
 ## API Surface
 
-The backend registers these HTTP routes in [`src/backend/src/mastra/apiRegistry.ts`](src/backend/src/mastra/apiRegistry.ts):
+The backend registers routes in [`src/backend/src/mastra/apiRegistry.ts`](src/backend/src/mastra/apiRegistry.ts).
 
-- `POST /chat/stream`: stream chat responses and tool call events from the Mastra workflow.
-- `GET /degree-navigator/profile`: read the latest Degree Navigator profile for the authenticated user.
-- `POST /degree-navigator/profile`: validate and save the latest Degree Navigator capture for the authenticated user.
+Chat routes:
+
+- `GET /chat/threads`: list authenticated chat threads.
+- `POST /chat/threads`: create an authenticated chat thread.
+- `POST /chat/thread`: read one authenticated chat thread and its messages.
+- `PATCH /chat/thread`: rename an authenticated chat thread.
+- `DELETE /chat/thread`: delete an authenticated chat thread.
+- `POST /chat/anonymous/session`: create or refresh a limited anonymous chat session.
+- `POST /chat/ui`: stream AI SDK UI messages for authenticated or anonymous chat.
+- `POST /chat/suggestions`: generate short follow-up suggestions for an authenticated thread.
+- `POST /chat/stream`: stream the legacy authenticated SSE workflow response.
+
+Degree Navigator profile routes:
+
+- `GET /degree-navigator/profile`: read the latest profile for the authenticated user.
+- `POST /degree-navigator/profile`: validate, enrich, and save the latest profile capture for the authenticated user.
+- `DELETE /degree-navigator/profile`: delete the authenticated user's saved profile.
+
+Browser session routes:
+
 - `POST /browser/session/create`: create a Browserbase Degree Navigator session.
 - `POST /browser/session/status`: fetch and update local status for an owned Browserbase session.
+- `POST /browser/session/degree-navigator-readiness`: classify whether the current session appears logged in and ready for extraction.
+- `POST /browser/session/degree-navigator-extract`: store raw extraction evidence from the active Degree Navigator session.
 - `POST /browser/session/close`: close/release an owned Browserbase session and return termination metadata.
 - `POST /browser/session/close-beacon`: best-effort close endpoint for pagehide/beforeunload cleanup.
 
 ## Guardrails And Limits
 
-- The agent should not ask for, store, or echo Rutgers passwords.
+- The agent must not ask for, store, log, or echo Rutgers passwords.
 - Rutgers login occurs manually inside Browserbase Live View.
-- Browser actions are scoped to the authenticated Supabase user.
+- Browser sessions and Degree Navigator data are scoped to the authenticated Supabase user.
+- Browser-local IDs and local storage values are not authorization sources.
+- Browser navigation is restricted to approved Rutgers HTTPS hosts.
 - Sensitive browser actions require explicit user confirmation and a server-issued confirmation token before `browserAct` executes.
 - The agent should observe or extract before complex browser actions.
 - Saved Degree Navigator captures must be schema-validated and user-owned by server-derived Supabase `user_id`.
 - Memory is process-local, ephemeral, and limited to the last 5 messages.
-- Search result and schedule tools can mutate frontend-local UI state.
+- Schedule tools can mutate frontend-local UI state; use temporary schedules for exploratory schedule options.
 - Closed sections can be added to the local schedule if the user asks; the agent should warn, not block.
 - Technical errors should be surfaced with exact messages.
 
@@ -175,17 +210,19 @@ Backend environment variables:
 
 - `GOOGLE_VERTEX_PROJECT`
 - `GOOGLE_VERTEX_LOCATION`
-- `GOOGLE_APPLICATION_CREDENTIALS`
+- `GOOGLE_APPLICATION_CREDENTIALS` for local key-file auth, or workload credentials in Cloud Run
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_SERVICE_KEY`
+- `ANONYMOUS_CHAT_TOKEN_SECRET` recommended for stable anonymous chat tokens; falls back to the Supabase service key if omitted
+- `ANONYMOUS_CHAT_DAILY_MESSAGE_LIMIT` optional anonymous trial quota override
 - `BROWSERBASE_API_KEY`
 - `BROWSERBASE_PROJECT_ID`
 - `BROWSERBASE_API_BASE` optional, defaults to `https://api.browserbase.com/v1`
 - `STAGEHAND_MODEL_PROVIDER=vertex` for Stagehand-backed browser observe/extract/act tools through Vertex/Gemini, or `STAGEHAND_MODEL_API_KEY` / `OPENAI_API_KEY` for API-key-backed models
 - `STAGEHAND_MODEL_NAME=vertex/gemini-3.1-pro-preview` recommended for Vertex-backed Degree Navigator extraction; if omitted, Vertex mode falls back to `vertex/gemini-3-flash-preview`, and API-key mode falls back to `gpt-4o-mini`
 
-When using Vertex mode, keep the `vertex/` prefix in `STAGEHAND_MODEL_NAME`; the backend removes the prefix before calling the Vertex AI SDK.
+When using Stagehand Vertex mode, keep the `vertex/` prefix in `STAGEHAND_MODEL_NAME`; the backend removes the prefix before calling the Vertex AI SDK. The agent model itself uses the unprefixed `gemini-3.1-pro-preview` name.
 
 Frontend environment variables:
 
@@ -209,13 +246,13 @@ npx dotenv -e .env -- npm --prefix src/backend run dev
 
 Update this file whenever any of these change:
 
-- The agent model, system prompt, or memory behavior.
+- The agent model, system prompt, runtime name, or memory behavior.
 - Tools registered on `socAgent.tools`.
-- `TOOL_REGISTRY`, `SOC_TOOLS`, or Cedar bridge tools.
+- `TOOL_REGISTRY`, `SOC_TOOLS`, `ALL_TOOLS`, or Cedar bridge tools.
 - `useRegisterState`, `useSubscribeStateToAgentContext`, or `useRegisterFrontendTool` usage in the frontend.
-- Browserbase session creation, termination, ownership, or Stagehand behavior.
-- Chat or browser API routes.
-- Degree Navigator profile storage, validation, or API routes.
+- Browserbase session creation, readiness, extraction, termination, ownership, or Stagehand behavior.
+- Chat, profile, or browser API routes.
+- Degree Navigator profile or extraction storage, validation, or route behavior.
 - Required environment variables or deployment assumptions.
 
 Prefer short capability descriptions and source links here. Keep detailed request/response schemas in source files or specialized docs such as [`TOOLS-SPEC.md`](TOOLS-SPEC.md).

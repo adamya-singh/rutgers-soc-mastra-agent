@@ -1,6 +1,8 @@
 # Rutgers SOC Agent - Tools Specification
 
 > Comprehensive specification for the Rutgers Schedule of Classes (SOC) Mastra agent tools.
+>
+> [`HARNESS.md`](HARNESS.md) is the canonical map of the active agent harness, active tool registration, API routes, frontend bridge, and operational guardrails. This file owns detailed SOC query behavior and example schemas; verify long schema excerpts against source before relying on them for implementation.
 
 ---
 
@@ -17,8 +19,9 @@
    - [checkScheduleConflicts](#5-checkscheduleconflicts)
    - [getPrerequisites](#6-getprerequisites)
    - [browseMetadata](#7-browsemetadata)
+   - [findRoomAvailability](#room-availability-workflow-built-in-mastra)
 5. [Agent Behavior Rules](#agent-behavior-rules)
-6. [Schedule Building (Future)](#schedule-building-future-enhancement)
+6. [Schedule Building](#schedule-building-current-frontend-tools)
 7. [Shared Utilities](#shared-utilities)
 8. [Agent System Prompt](#agent-system-prompt)
 9. [Environment Configuration](#environment-configuration)
@@ -1544,22 +1547,19 @@ For summer (term 7) and winter (term 0) courses:
 
 ---
 
-## Schedule Building (Future Enhancement)
+## Schedule Building (Current Frontend Tools)
 
-The agent will support a "working schedule" that persists across conversation turns:
+The active harness supports saved-schedule mutations and chat-scoped temporary schedule options through Cedar frontend tools. The canonical active list is in [`HARNESS.md`](HARNESS.md) and `socAgent.tools`.
 
-- User can add/remove sections to a working schedule
-- Agent tracks schedule state in conversation context
-- Conflict detection runs automatically when sections are added
-- Export schedule as list of index numbers for WebReg
+Current tools:
 
-**Tools to be implemented:**
-- `addToSchedule` - Add section by index
-- `removeFromSchedule` - Remove section by index
-- `viewSchedule` - Show current working schedule with conflicts
-- `clearSchedule` - Reset working schedule
+- `addSectionToSchedule` - Add a resolved section payload to the user's current in-browser schedule.
+- `removeSectionFromSchedule` - Remove a section by registration index.
+- `createTemporarySchedule` - Create a previewable, chat-thread-scoped schedule option.
+- `addSectionToTemporarySchedule` - Add a resolved section payload to a temporary option.
+- `discardTemporarySchedule` - Remove a temporary option from the preview carousel.
 
-**Implementation deferred to Phase 2.**
+Temporary schedule options are for exploration and comparison; they do not appear in the saved schedule dropdown or sync to Supabase until the user explicitly saves one. Use `checkScheduleConflicts` before committing schedule options so every proposed option is actually conflict-free.
 
 ### Linked Section Grouping (Phase 2)
 
@@ -1767,6 +1767,22 @@ SUPABASE_ANON_KEY=eyJ...your-anon-key
 # and degree_navigator_profiles
 SUPABASE_SERVICE_ROLE_KEY=eyJ...your-service-role-key
 # SUPABASE_SERVICE_KEY is also accepted as a backwards-compatible alias.
+
+# Anonymous trial chat
+ANONYMOUS_CHAT_TOKEN_SECRET=long-random-secret
+ANONYMOUS_CHAT_DAILY_MESSAGE_LIMIT=10
+
+# Vertex-backed agent and optional Stagehand browser tools
+GOOGLE_VERTEX_PROJECT=your-gcp-project-id
+GOOGLE_VERTEX_LOCATION=global
+GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json
+STAGEHAND_MODEL_PROVIDER=vertex
+STAGEHAND_MODEL_NAME=vertex/gemini-3.1-pro-preview
+
+# Browserbase Degree Navigator sessions
+BROWSERBASE_API_KEY=your-browserbase-key
+BROWSERBASE_PROJECT_ID=your-browserbase-project-id
+BROWSERBASE_API_BASE=https://api.browserbase.com/v1
 ```
 
 ### User-Owned Degree Navigator Data
@@ -1777,12 +1793,13 @@ The backend APIs are:
 
 - `GET /degree-navigator/profile`
 - `POST /degree-navigator/profile`
+- `DELETE /degree-navigator/profile`
 
-Both routes require `Authorization: Bearer <supabase-access-token>`. The backend derives ownership from the verified Supabase user and validates payloads with `src/backend/src/degree-navigator/schemas.ts`.
+All profile routes require `Authorization: Bearer <supabase-access-token>`. The backend derives ownership from the verified Supabase user and validates payloads with `src/backend/src/degree-navigator/schemas.ts`.
 
 ### Package Dependencies
 
-Add to `package.json`:
+Supabase client dependencies are already declared in the app and backend package manifests. Check [`package.json`](package.json) and [`src/backend/package.json`](src/backend/package.json) before changing versions:
 
 ```json
 {
@@ -1822,6 +1839,8 @@ export const supabase = createClient(
 
 ## Implementation Checklist
 
+This checklist is retained as historical implementation context for the original SOC tool buildout. Use [`HARNESS.md`](HARNESS.md) and the source files it links for current release readiness.
+
 ### Phase 1: Core Tools
 
 - [ ] Set up Supabase client with environment variables
@@ -1840,11 +1859,11 @@ export const supabase = createClient(
 
 ### Phase 2: Future Enhancements
 
-- [ ] Schedule building tools (`addToSchedule`, `removeFromSchedule`, `viewSchedule`, `clearSchedule`)
+- [x] Schedule building bridge tools (`addSectionToSchedule`, `removeSectionFromSchedule`, temporary schedule option tools)
 - [ ] Completed courses tracking in conversation context
 - [ ] Rate limiting (if abuse becomes an issue)
 - [ ] Linked section grouping (LEC + REC as unit)
 
 ---
 
-*Last Updated: January 2026*
+*Last Updated: May 2026*
