@@ -4,8 +4,9 @@ This document describes the security model and required settings for the Rutgers
 
 Current production status:
 
+- The Cloud Run frontend is `rutgers-soc-agent` in `us-east4` and is publicly reachable by design.
 - The Cloud Run backend is `rutgers-agent-mastra-backend` in `us-east4`.
-- The backend is configured to read `SUPABASE_SERVICE_ROLE_KEY` from Secret Manager.
+- The backend is configured to read `SUPABASE_SERVICE_ROLE_KEY` and `BROWSERBASE_API_KEY` from Secret Manager.
 - The Supabase security migrations `harden_browser_sessions`, `lock_down_soc_catalog`, and `create_degree_navigator_profiles` have been applied.
 
 ## Security Overview
@@ -113,6 +114,8 @@ Frontend settings:
 
 Never commit `.env` files, service account JSON files, provider keys, Supabase service-role keys, Browserbase keys, or model provider keys.
 
+In production, sensitive backend values should be configured through Secret Manager bindings on the backend Cloud Run service. The current deployment runbook and rotation commands live in [`cedar-mastra-agent/DEPLOYMENT.md`](cedar-mastra-agent/DEPLOYMENT.md).
+
 ## Browser Automation Guardrails
 
 Degree Navigator access runs inside Browserbase Live View. The user signs in manually inside the embedded Browserbase browser. The app and agent must not ask for, store, log, or echo Rutgers credentials.
@@ -174,6 +177,8 @@ Before release or after rotating secrets, verify:
 - `public.degree_navigator_profiles` exists, has RLS enabled, and has a unique latest row per `user_id`.
 - SOC catalog writes are revoked from `anon` and `authenticated`.
 - Backend service has `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_SERVICE_KEY` configured as a secret.
+- Backend service has `BROWSERBASE_API_KEY` configured as a secret.
+- Backend Cloud Run runtime service account has Secret Manager access only to the backend secrets it needs.
 - Backend routes reject missing or invalid bearer tokens.
 - Browser navigation rejects non-Rutgers hosts.
 - Sensitive browser actions require a server-issued confirmation token.

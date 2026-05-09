@@ -2,6 +2,8 @@
 
 A Rutgers Schedule of Classes assistant that combines a Next.js/Cedar-OS frontend, a Mastra backend agent, Supabase Auth/Postgres, and Browserbase-powered Degree Navigator automation.
 
+Deployment and production operations are documented in [`DEPLOYMENT.md`](DEPLOYMENT.md). Dated deployment incidents live under the repo-root [`DOCS`](../DOCS) folder.
+
 ## Features
 
 - **Rutgers SOC search and planning**: Course, section, prerequisite, conflict, and room-availability tools backed by Supabase SOC catalog tables.
@@ -48,6 +50,8 @@ GOOGLE_VERTEX_PROJECT=your-gcp-project-id
 GOOGLE_VERTEX_LOCATION=us-central1
 
 # Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
@@ -55,6 +59,9 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 # Browserbase
 BROWSERBASE_API_KEY=your-browserbase-key
 BROWSERBASE_PROJECT_ID=your-browserbase-project-id
+
+# Frontend/backend connection
+NEXT_PUBLIC_MASTRA_URL=http://localhost:4112
 ```
 
 3. **Start the development servers:**
@@ -164,12 +171,24 @@ npm run dev:next
 npm run dev:mastra
 ```
 
+### Deployment Checks
+
+Before pushing deployment-related changes, run the same checks used by the Cloud Build paths:
+
+```bash
+npm run check:deploy:frontend
+npm run check:deploy:backend
+```
+
+The repo currently has two frontend deploy consumers. The Cloud Build Docker path uses `package-lock.json`; the Firebase App Hosting/buildpacks path can still use `pnpm-lock.yaml`. When frontend dependencies change, keep both lockfiles synchronized.
+
 ## Learn More
 
 - [Cedar-OS Documentation](https://docs.cedarcopilot.com/)
 - [Mastra Documentation](https://mastra.ai/docs)
 - [Next.js Documentation](https://nextjs.org/docs)
 - [Rutgers SOC Tools Spec](./TOOLS-SPEC.md)
+- [Deployment Runbook](./DEPLOYMENT.md)
 
 ## License
 

@@ -58,6 +58,8 @@ The root `dev` script loads `cedar-mastra-agent/.env` and starts both the Next.j
 
 On Cloud Run, attach the service account to the backend service and set `GOOGLE_VERTEX_PROJECT` and `GOOGLE_VERTEX_LOCATION` as runtime environment variables. With workload credentials attached, `GOOGLE_APPLICATION_CREDENTIALS` is not required.
 
+For this repo's current Cloud Run deployment details, service names, Secret Manager bindings, and verification commands, see [`cedar-mastra-agent/DEPLOYMENT.md`](cedar-mastra-agent/DEPLOYMENT.md).
+
 ## 7. Quick Verification Checklist
 
 - Vertex AI API is enabled in the target project.

@@ -21,6 +21,8 @@ Frontend:
 - Source root: `cedar-mastra-agent`
 - Dockerfile: `cedar-mastra-agent/Dockerfile`
 - Repo build config: `cedar-mastra-agent/cloudbuild.frontend.yaml`
+- Firebase App Hosting config: `cedar-mastra-agent/apphosting.prod.yaml`
+- Package managers in use: Docker path uses `package-lock.json`; Firebase App Hosting/buildpacks path uses `pnpm-lock.yaml`
 - Public access: deployed with `--no-invoker-iam-check`
 - Traffic: deploy step is followed by `gcloud run services update-traffic --to-latest`
 - Firebase App Hosting service agent: `service-496012954691@gcp-sa-firebaseapphosting.iam.gserviceaccount.com`
@@ -172,6 +174,19 @@ npm run check:deploy:backend
 
 The frontend check loads `.env`, verifies the three `NEXT_PUBLIC_*` values, and runs `next build`.
 
+The frontend still has both npm and pnpm lockfiles because different deploy paths consume different files:
+
+- `package-lock.json` is used by the repo-managed Docker build.
+- `pnpm-lock.yaml` is used by Firebase App Hosting/buildpacks.
+
+If frontend `package.json` dependencies change, update and commit both relevant lockfiles:
+
+```bash
+cd cedar-mastra-agent
+npm install
+pnpm install
+```
+
 The backend check runs `pnpm install --frozen-lockfile` and `pnpm run build` in `src/backend`. Keep the frozen install; it catches stale lockfiles before Cloud Build does.
 
 If `src/backend/package.json` changes, regenerate and commit `src/backend/pnpm-lock.yaml`:
@@ -281,6 +296,18 @@ gcloud run services describe rutgers-agent-mastra-backend \
   --format=yaml
 ```
 
+Check whether Firebase App Hosting/buildpacks also started a frontend deploy:
+
+```bash
+gcloud builds list \
+  --project concise-foundry-465822-d7 \
+  --region us-east4 \
+  --limit=20 \
+  --format='table(id,status,createTime,source.storageSource.bucket,images)'
+```
+
+Firebase App Hosting builds commonly produce buildpack logs with `google.nodejs.firebasenextjs` and image tags like `build-YYYY-MM-DD-NNN`. Treat them as a separate frontend deployment path that can still affect the same Cloud Run service, public access setting, and traffic.
+
 After rollout, run:
 
 ```bash
@@ -344,6 +371,7 @@ Firebase App Hosting buildpack deploy fails:
 - Symptom: logs mention `google.nodejs.firebasenextjs`, `google.nodejs.pnpm`, or an image tag like `build-YYYY-MM-DD-NNN`.
 - If pnpm reports `ERR_PNPM_OUTDATED_LOCKFILE`, run `pnpm install` in `cedar-mastra-agent` and commit `cedar-mastra-agent/pnpm-lock.yaml`.
 - If Cloud Run reports `invoker_iam_disabled` or missing `run.services.setIamPolicy`, confirm the Firebase App Hosting service agent has `roles/run.admin`.
+- After a successful Firebase App Hosting deploy, re-check the frontend service URL and public access because this path can overwrite Cloud Run invocation settings.
 
 Runtime errors after a successful deploy:
 
