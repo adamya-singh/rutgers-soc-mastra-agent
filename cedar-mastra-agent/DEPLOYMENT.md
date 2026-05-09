@@ -158,6 +158,8 @@ cd cedar-mastra-agent/src/backend
 pnpm install
 ```
 
+The backend Dockerfile pins pnpm to `10.32.1`. Do not switch it back to `pnpm@latest`; pnpm 11 changed build-script approval behavior and caused Cloud Build installs to fail on dependency postinstall scripts.
+
 ## Manual Builds
 
 Frontend:
