@@ -17,6 +17,7 @@ import {
   MoreHorizontal,
   Plus,
   Save,
+  Sparkles,
   Trash2,
   X,
 } from 'lucide-react';
@@ -48,7 +49,6 @@ import {
 } from '@/lib/scheduleStorage';
 import {
   buildActiveScheduleAgentContext,
-  type ActiveScheduleAgentContext,
   type ActiveScheduleSyncStatus,
 } from '@/lib/scheduleAgentContext';
 import {
@@ -58,6 +58,7 @@ import {
 } from '@/lib/scheduleSync';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import * as Dialog from '@radix-ui/react-dialog';
+import { ScheduleBuilderDialog } from './ScheduleBuilderDialog';
 
 const START_HOUR = 8;
 const END_HOUR = 22;
@@ -697,6 +698,7 @@ export const ScheduleGrid: React.FC = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [newScheduleDialogOpen, setNewScheduleDialogOpen] = React.useState(false);
   const [isCreatingSchedule, setIsCreatingSchedule] = React.useState(false);
+  const [isBuilderOpen, setIsBuilderOpen] = React.useState(false);
   const [selectedBlock, setSelectedBlock] = React.useState<{
     block: GridBlock;
     anchor: { x: number; y: number };
@@ -1304,10 +1306,7 @@ export const ScheduleGrid: React.FC = () => {
     ],
   );
 
-  const ignoreActiveScheduleAgentContextUpdate = React.useCallback(
-    (_nextValue: ActiveScheduleAgentContext) => {},
-    [],
-  );
+  const ignoreActiveScheduleAgentContextUpdate = React.useCallback(() => {}, []);
 
   useRegisterState({
     key: 'activeSchedule',
@@ -1350,9 +1349,9 @@ export const ScheduleGrid: React.FC = () => {
       <div className="flex h-full flex-col overflow-hidden bg-surface-1">
         {/* -------- Toolbar -------- */}
         <div className="border-b border-border px-4 py-3 sm:px-5 sm:py-3.5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3">
             {/* Left: Schedule name (inline-editable) + schedule picker + credit pill */}
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
               {/* Combined title + schedule picker */}
               <div className="flex min-w-0 items-center gap-1 rounded-lg px-1 transition hover:bg-surface-2/60">
                 {isEditingName ? (
@@ -1443,15 +1442,22 @@ export const ScheduleGrid: React.FC = () => {
                   {totalCredits} cr
                 </span>
               )}
-              {isPreviewMode && (
-                <span className="rounded-full border border-action/40 bg-action/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-action">
-                  Preview · not saved
-                </span>
-              )}
             </div>
 
-            {/* Right: Save / sync status + overflow menu */}
-            <div className="flex items-center gap-2">
+            {/* Right: Schedule Builder + Save / sync status + overflow menu */}
+            <div className="flex flex-shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsBuilderOpen(true)}
+                className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-full border border-action/40 bg-action/10 px-3 text-xs font-semibold text-action transition hover:bg-action/20"
+                title="Open Schedule Builder"
+                aria-label="Open Schedule Builder"
+              >
+                <Sparkles className="h-3.5 w-3.5" strokeWidth={2.25} />
+                <span className="hidden sm:inline">Schedule Builder</span>
+                <span className="sm:hidden">Builder</span>
+              </button>
+
               <SaveStatusControl
                 status={
                   !isLoggedIn
@@ -1576,6 +1582,11 @@ export const ScheduleGrid: React.FC = () => {
               >
                 <ChevronRight className="h-4 w-4" strokeWidth={2.25} />
               </button>
+              {isPreviewMode && (
+                <span className="flex-shrink-0 rounded-full border border-action/40 bg-action/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-action">
+                  Preview · not saved
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2">
               {previewEntry && (
@@ -1838,6 +1849,12 @@ export const ScheduleGrid: React.FC = () => {
         isCreating={isCreatingSchedule}
         onConfirm={handleCreateSchedule}
         onCancel={() => setNewScheduleDialogOpen(false)}
+      />
+
+      {/* Schedule Builder dialog */}
+      <ScheduleBuilderDialog
+        open={isBuilderOpen}
+        onClose={() => setIsBuilderOpen(false)}
       />
 
       {/* Save temporary schedule dialog */}
