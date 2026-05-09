@@ -1545,37 +1545,8 @@ export const ScheduleGrid: React.FC = () => {
               )}
             </div>
 
-            {/* Right: Schedule Builder + Save / sync status + overflow menu */}
+            {/* Right: Save / sync status + overflow menu */}
             <div className="flex flex-shrink-0 items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setWebRegDialogOpen(true)}
-                disabled={webRegTarget.indexNumbers.length === 0}
-                className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 text-xs font-semibold text-foreground transition hover:bg-surface-0 disabled:cursor-not-allowed disabled:opacity-45"
-                title={
-                  webRegTarget.indexNumbers.length === 0
-                    ? 'Add sections before registering with WebReg'
-                    : 'Register this schedule using WebReg'
-                }
-                aria-label="Register using WebReg"
-              >
-                <ExternalLink className="h-3.5 w-3.5" strokeWidth={2.25} />
-                <span className="hidden sm:inline">Register using WebReg</span>
-                <span className="sm:hidden">WebReg</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsBuilderOpen(true)}
-                className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-full border border-action/40 bg-action/10 px-3 text-xs font-semibold text-action transition hover:bg-action/20"
-                title="Open Schedule Builder"
-                aria-label="Open Schedule Builder"
-              >
-                <Sparkles className="h-3.5 w-3.5" strokeWidth={2.25} />
-                <span className="hidden sm:inline">Schedule Builder</span>
-                <span className="sm:hidden">Builder</span>
-              </button>
-
               <SaveStatusControl
                 status={
                   !isLoggedIn
@@ -1845,6 +1816,34 @@ export const ScheduleGrid: React.FC = () => {
                     />
                   </div>
                 )}
+              </div>
+              <div className="mt-10 flex min-w-[560px] items-center justify-center gap-10">
+                <button
+                  type="button"
+                  onClick={() => setIsBuilderOpen(true)}
+                  className="focus-ring inline-flex h-12 min-w-[210px] items-center justify-center gap-2.5 rounded-xl border border-action/40 bg-action/10 px-6 text-base font-semibold text-action shadow-sm transition hover:-translate-y-px hover:bg-action/20 hover:shadow-elev-1 active:translate-y-0"
+                  title="Open Schedule Builder"
+                  aria-label="Open Schedule Builder"
+                >
+                  <Sparkles className="h-4.5 w-4.5" strokeWidth={2.25} />
+                  <span>Schedule Builder</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setWebRegDialogOpen(true)}
+                  disabled={webRegTarget.indexNumbers.length === 0}
+                  className="focus-ring inline-flex h-12 min-w-[240px] items-center justify-center gap-2.5 rounded-xl border border-border bg-surface-2 px-6 text-base font-semibold text-foreground shadow-sm transition hover:-translate-y-px hover:bg-surface-0 hover:shadow-elev-1 active:translate-y-0 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-45 disabled:shadow-none"
+                  title={
+                    webRegTarget.indexNumbers.length === 0
+                      ? 'Add sections before registering with WebReg'
+                      : 'Register this schedule using WebReg'
+                  }
+                  aria-label="Register using WebReg"
+                >
+                  <span>Register using WebReg</span>
+                  <ExternalLink className="h-4.5 w-4.5" strokeWidth={2.25} />
+                </button>
               </div>
             </div>
           </div>
