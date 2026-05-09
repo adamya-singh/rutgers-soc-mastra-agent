@@ -1,0 +1,14 @@
+name: rmgpgab-rutgers-soc-agent-us-east4-adamya-singh-rutgers-soc-glg
+description: Build and deploy to Cloud Run service rutgers-soc-agent on push to "^master$"
+github:
+  owner: adamya-singh
+  name: rutgers-soc-mastra-agent
+  push:
+    branch: ^master$
+filename: cedar-mastra-agent/cloudbuild.frontend.yaml
+includeBuildLogs: INCLUDE_BUILD_LOGS_WITH_STATUS
+serviceAccount: projects/concise-foundry-465822-d7/serviceAccounts/496012954691-compute@developer.gserviceaccount.com
+tags:
+  - gcp-cloud-build-deploy-cloud-run
+  - gcp-cloud-build-deploy-cloud-run-managed
+  - rutgers-soc-agent

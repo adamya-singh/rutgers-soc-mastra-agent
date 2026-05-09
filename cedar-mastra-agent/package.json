@@ -7,6 +7,11 @@
     "dev:next": "next dev --turbopack",
     "dev:mastra": "npm --prefix src/backend run dev",
     "build": "next build",
+    "check:deploy:frontend": "dotenv -e .env -- node scripts/require-frontend-env.mjs && dotenv -e .env -- npm run build",
+    "check:deploy:backend": "npm --prefix src/backend run check:deploy",
+    "deploy:update-triggers": "bash scripts/update-cloud-build-triggers.sh",
+    "deploy:rotate-secrets": "bash scripts/rotate-backend-secrets.sh",
+    "deploy:verify": "bash scripts/verify-deployment.sh",
     "start": "next start",
     "lint": "next lint",
     "pretty": "npx prettier --write ."

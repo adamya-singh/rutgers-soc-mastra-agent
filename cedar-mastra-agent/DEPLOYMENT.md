@@ -1,314 +1,266 @@
-# Deployment Plan: GCP Frontend + GCP Cloud Run Backend
+# Deployment Runbook
 
-This is a step-by-step deployment plan tailored to this repo structure.
+This repo currently deploys both services to Google Cloud Run from GitHub push-triggered Cloud Build jobs.
 
-Architecture:
-- Frontend: Firebase App Hosting (Next.js app in `cedar-mastra-agent`)
-- Backend: Google Cloud Run (Mastra service in `cedar-mastra-agent/src/backend`)
-- Data/Auth: Supabase
+The older Firebase App Hosting configuration (`apphosting.prod.yaml`) may still be useful context, and the frontend Cloud Run service carries Firebase App Hosting labels, but the live failing auto-deploy path observed on May 9, 2026 was Cloud Build building Docker images and deploying Cloud Run services.
 
----
+## Live Services
 
-## 0) Assumptions and naming
+Shared project and region:
 
-Pick names and reuse them throughout:
+- Project: `concise-foundry-465822-d7`
+- Region: `us-east4`
+- Branch trigger: `master`
 
-- `PROJECT_ID`: `concise-foundry-465822-d7`.
-- `VERTEX_LOCATION`: `global` (Vertex model location for Gemini 3 models).
-- `CLOUD_RUN_REGION`: `us-east4` (must not be `global`).
-- `AR_LOCATION`: `us-east4`.
-- `SERVICE_NAME`: `rutgers-agent-mastra-backend`.
-- `SERVICE_ACCOUNT_NAME`: `rutgers-agent-mastra-backend`.
-- `AR_REPO`: `rutgers-agent-backend-ar`.
-- `IMAGE_NAME`: `rutgers-agent-mastra-backend-img`.
-- `FIREBASE_PROJECT_ID`: `concise-foundry-465822-d7` (or a Firebase-linked project you choose).
+Frontend:
 
----
+- Cloud Run service: `rutgers-soc-agent`
+- Public URL: `https://rutgers-soc-agent-496012954691.us-east4.run.app`
+- Source root: `cedar-mastra-agent`
+- Dockerfile: `cedar-mastra-agent/Dockerfile`
+- Repo build config: `cedar-mastra-agent/cloudbuild.frontend.yaml`
+- Public access: deployed with `--no-invoker-iam-check`
 
-## 1) Confirm env vars used by the app
+Backend:
 
-Backend env vars (Mastra service):
+- Cloud Run service: `rutgers-agent-mastra-backend`
+- Public URL: `https://rutgers-agent-mastra-backend-496012954691.us-east4.run.app`
+- Source root: `cedar-mastra-agent/src/backend`
+- Dockerfile: `cedar-mastra-agent/src/backend/Dockerfile`
+- Repo build config: `cedar-mastra-agent/cloudbuild.backend.yaml`
+- Runtime service account: `rutgers-agent-mastra-backend@concise-foundry-465822-d7.iam.gserviceaccount.com`
+- Public access: deployed with `--no-invoker-iam-check`
+
+## Required Environment
+
+Frontend values are public client configuration, but they are still required at both build time and runtime:
+
+- `NEXT_PUBLIC_MASTRA_URL`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+Next.js prerenders pages during `next build`. If the Docker build does not receive these values as `--build-arg`, the build can fail before a Cloud Run revision is created.
+
+Backend runtime values:
 
 - `GOOGLE_VERTEX_PROJECT`
 - `GOOGLE_VERTEX_LOCATION`
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_SERVICE_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
 - `BROWSERBASE_API_KEY`
 - `BROWSERBASE_PROJECT_ID`
-- `BROWSERBASE_API_BASE` (optional override, defaults to `https://api.browserbase.com/v1`)
-- `STAGEHAND_MODEL_PROVIDER=vertex` to run browser observe/extract/act tools through Vertex/Gemini, or `STAGEHAND_MODEL_API_KEY` / `OPENAI_API_KEY` for API-key-backed Stagehand models
-- `STAGEHAND_MODEL_NAME=vertex/gemini-3.1-pro-preview` recommended for Vertex-backed Degree Navigator extraction; if omitted, Vertex mode falls back to `vertex/gemini-3-flash-preview`, and API-key mode falls back to `gpt-4o-mini`
+- `BROWSERBASE_API_BASE` optional, defaults to `https://api.browserbase.com/v1`
+- `STAGEHAND_MODEL_PROVIDER=vertex`
+- `STAGEHAND_MODEL_NAME=vertex/gemini-3.1-pro-preview`
 
-For Vertex-backed Stagehand browser automation, use the `vertex/` prefix in `STAGEHAND_MODEL_NAME`. The backend strips that prefix before passing the model to `@ai-sdk/google-vertex`, so `vertex/gemini-3.1-pro-preview` maps to the Vertex model `gemini-3.1-pro-preview`.
+Sensitive backend values must be Secret Manager bindings, not plaintext Cloud Run environment variables:
 
-Browserbase sessions are created with `keepAlive: true` so the embedded Live View remains available while the student signs in manually. The app releases those sessions with Browserbase's `REQUEST_RELEASE` API when the user clicks Stop Session, when auto-stop runs, or when the backend reaper closes stale sessions.
+- `SUPABASE_SERVICE_ROLE_KEY=supabase-service-role-key:latest`
+- `BROWSERBASE_API_KEY=browserbase-api-key:latest`
 
-Current backend deployment:
+## Cloud Build Triggers
 
-- Cloud Run service: `rutgers-agent-mastra-backend`
-- Region: `us-east4`
-- URL: `https://rutgers-agent-mastra-backend-496012954691.us-east4.run.app`
-- Runtime service account: `rutgers-agent-mastra-backend@concise-foundry-465822-d7.iam.gserviceaccount.com`
-- Required secret binding: `SUPABASE_SERVICE_ROLE_KEY=supabase-service-role-key:latest`
-
-Frontend env vars (Next.js app):
-
-- `NEXT_PUBLIC_MASTRA_URL` (points to Cloud Run backend base URL)
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-
-Notes:
-- Frontend Supabase env vars are required by `src/lib/supabaseClient.ts`.
-- For Vertex auth on Cloud Run, use a service account (recommended), not a JSON key file.
-
----
-
-## 2) Create GCP service account + permissions
-
-1. In GCP Console -> IAM & Admin -> Service Accounts -> Create.
-2. Name it `rutgers-agent-mastra-backend`.
-3. Grant roles:
-   - `Vertex AI User`
-   - `Service Account Token Creator` (needed for some Vertex auth flows)
-4. Note the service account email.
-
-Attach this service account to the Cloud Run backend service.
-
----
-
-## 3) Enable required GCP APIs
+Use committed build config files instead of console-only inline trigger definitions:
 
 ```bash
-gcloud services enable \
-  artifactregistry.googleapis.com \
-  run.googleapis.com \
-  cloudbuild.googleapis.com \
-  firebase.googleapis.com
+cd cedar-mastra-agent
+npm run deploy:update-triggers
 ```
 
----
-
-## 4) Create Artifact Registry repo
+Equivalent direct commands:
 
 ```bash
-gcloud artifacts repositories create rutgers-agent-backend-ar \
-  --repository-format=docker \
-  --location=us-east4 \
-  --description="Mastra backend images"
+gcloud builds triggers import \
+  --project concise-foundry-465822-d7 \
+  --region global \
+  --source cedar-mastra-agent/cloudbuild.trigger.frontend.yaml
+
+gcloud builds triggers import \
+  --project concise-foundry-465822-d7 \
+  --region global \
+  --source cedar-mastra-agent/cloudbuild.trigger.backend.yaml
 ```
 
----
+Known trigger IDs from the May 9, 2026 incident:
 
-## 5) Confirm the backend Dockerfile
+- Frontend: `8706fe1d-ae5a-4f4b-9abc-e1bec57ee266`
+- Backend: `d3de1a24-a7af-4485-8613-bf1caa612800`
 
-`cedar-mastra-agent/src/backend/Dockerfile` contains:
+If the trigger update command rejects `--build-config`, update the trigger in the Cloud Build console and select the matching repository YAML file.
 
-```Dockerfile
-FROM node:22-slim
+## Secret Setup
 
-WORKDIR /app
+Create or update secrets before deploying the backend config:
 
-# Install dependencies
-COPY package.json pnpm-lock.yaml ./
-RUN corepack enable && corepack prepare pnpm@latest --activate
-RUN pnpm install --frozen-lockfile
-
-# Copy source
-COPY . .
-
-# Build Mastra
-RUN pnpm run build
-
-ENV NODE_ENV=production
-ENV PORT=8080
-
-EXPOSE 8080
-CMD ["pnpm", "run", "start"]
+```bash
+cd cedar-mastra-agent
+SUPABASE_SERVICE_ROLE_KEY='<new-service-role-key>' \
+BROWSERBASE_API_KEY='<new-browserbase-api-key>' \
+npm run deploy:rotate-secrets
 ```
 
-`cedar-mastra-agent/src/backend/.dockerignore` contains:
+Equivalent direct commands:
 
-```text
-node_modules
-dist
-.env
-.mastra
-*.log
+```bash
+printf '%s' "$SUPABASE_SERVICE_ROLE_KEY" | \
+  gcloud secrets create supabase-service-role-key \
+    --project concise-foundry-465822-d7 \
+    --data-file=- \
+  || printf '%s' "$SUPABASE_SERVICE_ROLE_KEY" | \
+    gcloud secrets versions add supabase-service-role-key \
+      --project concise-foundry-465822-d7 \
+      --data-file=-
+
+printf '%s' "$BROWSERBASE_API_KEY" | \
+  gcloud secrets create browserbase-api-key \
+    --project concise-foundry-465822-d7 \
+    --data-file=- \
+  || printf '%s' "$BROWSERBASE_API_KEY" | \
+    gcloud secrets versions add browserbase-api-key \
+      --project concise-foundry-465822-d7 \
+      --data-file=-
 ```
 
-Notes:
-- Backend requires Node 22 (see `src/backend/package.json`).
-- If Mastra does not honor `PORT`, adjust `CMD` after checking `mastra --help`.
+Grant the Cloud Run runtime service account secret access if needed:
 
----
+```bash
+gcloud secrets add-iam-policy-binding supabase-service-role-key \
+  --project concise-foundry-465822-d7 \
+  --member serviceAccount:rutgers-agent-mastra-backend@concise-foundry-465822-d7.iam.gserviceaccount.com \
+  --role roles/secretmanager.secretAccessor
 
-## 6) Build and push backend image
+gcloud secrets add-iam-policy-binding browserbase-api-key \
+  --project concise-foundry-465822-d7 \
+  --member serviceAccount:rutgers-agent-mastra-backend@concise-foundry-465822-d7.iam.gserviceaccount.com \
+  --role roles/secretmanager.secretAccessor
+```
 
-From repo root:
+Rotate the Supabase service role key and Browserbase API key any time they are pasted into logs, terminal output, or chat.
+
+## Local Pre-Push Checks
+
+From `cedar-mastra-agent`:
+
+```bash
+npm run check:deploy:frontend
+npm run check:deploy:backend
+```
+
+The frontend check loads `.env`, verifies the three `NEXT_PUBLIC_*` values, and runs `next build`.
+
+The backend check runs `pnpm install --frozen-lockfile` and `pnpm run build` in `src/backend`. Keep the frozen install; it catches stale lockfiles before Cloud Build does.
+
+If `src/backend/package.json` changes, regenerate and commit `src/backend/pnpm-lock.yaml`:
 
 ```bash
 cd cedar-mastra-agent/src/backend
-gcloud auth configure-docker us-east4-docker.pkg.dev
-
-IMAGE_URI="us-east4-docker.pkg.dev/concise-foundry-465822-d7/rutgers-agent-backend-ar/rutgers-agent-mastra-backend-img:$(date +%Y%m%d%H%M%S)"
-docker build -t "$IMAGE_URI" .
-docker push "$IMAGE_URI"
+pnpm install
 ```
 
----
+## Manual Builds
 
-## 7) Deploy backend to Cloud Run
+Frontend:
 
 ```bash
-gcloud run deploy rutgers-agent-mastra-backend \
-  --image "$IMAGE_URI" \
-  --region us-east4 \
-  --platform managed \
-  --service-account rutgers-agent-mastra-backend@concise-foundry-465822-d7.iam.gserviceaccount.com \
-  --set-env-vars "GOOGLE_VERTEX_PROJECT=concise-foundry-465822-d7,GOOGLE_VERTEX_LOCATION=global,SUPABASE_URL=https://cokisotftjntuswdfuhc.supabase.co,SUPABASE_ANON_KEY=<anon-key>" \
-  --set-secrets "SUPABASE_SERVICE_ROLE_KEY=supabase-service-role-key:latest"
+gcloud builds submit . \
+  --project concise-foundry-465822-d7 \
+  --config cedar-mastra-agent/cloudbuild.frontend.yaml
 ```
 
-Successful deployment reference:
-- Service: `rutgers-agent-mastra-backend`
-- Revision: `rutgers-agent-mastra-backend-00002-q95`
-- URL: `https://rutgers-agent-mastra-backend-496012954691.us-east4.run.app`
-
-To update only the service-role secret binding on an existing Cloud Run service:
+Backend:
 
 ```bash
-gcloud run services update rutgers-agent-mastra-backend \
-  --region us-east4 \
-  --update-secrets SUPABASE_SERVICE_ROLE_KEY=supabase-service-role-key:latest
+gcloud builds submit . \
+  --project concise-foundry-465822-d7 \
+  --config cedar-mastra-agent/cloudbuild.backend.yaml
 ```
 
-Permission note:
-- Deploy permissions apply to the active `gcloud` account, not the runtime service account.
-- If you see `PERMISSION_DENIED: run.services.update`, switch account and grant IAM:
-  - `roles/run.admin` on project `concise-foundry-465822-d7`
-  - `roles/iam.serviceAccountUser` on `rutgers-agent-mastra-backend@concise-foundry-465822-d7.iam.gserviceaccount.com`
-- Check active account with `gcloud auth list` and set it with `gcloud config set account YOUR_USER_EMAIL`.
-
-Public access note (important for orgs with domain restrictions):
-- If `gcloud run services add-iam-policy-binding ... --member=allUsers --role=roles/run.invoker` fails with `FAILED_PRECONDITION` and mentions permitted customers, your org likely enforces `constraints/iam.allowedPolicyMemberDomains`.
-- In that case, use Cloud Run's unauthenticated mode instead of an `allUsers` IAM binding:
+After rollout:
 
 ```bash
-gcloud run services update rutgers-agent-mastra-backend \
+cd cedar-mastra-agent
+npm run deploy:verify
+```
+
+## Diagnose Failed Auto-Deploys
+
+List recent builds:
+
+```bash
+gcloud builds list \
+  --project concise-foundry-465822-d7 \
+  --limit=30
+```
+
+Read a failed build log:
+
+```bash
+gcloud builds log BUILD_ID \
+  --project concise-foundry-465822-d7
+```
+
+Inspect Cloud Build triggers:
+
+```bash
+gcloud builds triggers list \
+  --project concise-foundry-465822-d7
+```
+
+Inspect Cloud Run service config:
+
+```bash
+gcloud run services describe rutgers-soc-agent \
   --region us-east4 \
+  --project concise-foundry-465822-d7 \
+  --format=yaml
+
+gcloud run services describe rutgers-agent-mastra-backend \
+  --region us-east4 \
+  --project concise-foundry-465822-d7 \
+  --format=yaml
+```
+
+If the frontend URL returns `403 Forbidden`, public Cloud Run invocation is blocked. Restore the same public access mode used by the frontend build config:
+
+```bash
+gcloud run services update rutgers-soc-agent \
+  --region us-east4 \
+  --project concise-foundry-465822-d7 \
   --no-invoker-iam-check
 ```
 
-- To inspect effective org policies:
+Read service logs:
 
 ```bash
-gcloud resource-manager org-policies describe constraints/iam.allowedPolicyMemberDomains --effective --project=concise-foundry-465822-d7
-gcloud resource-manager org-policies describe constraints/iam.managed.allowedPolicyMembers --effective --project=concise-foundry-465822-d7
-gcloud resource-manager org-policies describe constraints/run.managed.requireInvokerIam --effective --project=concise-foundry-465822-d7
+gcloud logging read \
+  'resource.type="cloud_run_revision" AND resource.labels.service_name="rutgers-soc-agent"' \
+  --project concise-foundry-465822-d7 \
+  --freshness=7d \
+  --limit=120
+
+gcloud logging read \
+  'resource.type="cloud_run_revision" AND resource.labels.service_name="rutgers-agent-mastra-backend"' \
+  --project concise-foundry-465822-d7 \
+  --freshness=7d \
+  --limit=120
 ```
 
----
+## May 9, 2026 Incident Summary
 
-## 8) Verify backend health
+Frontend auto-deploy failed because Cloud Build did not pass the `NEXT_PUBLIC_*` Docker build args. `next build` failed while prerendering `/_not-found` with:
 
-1. Basic reachability check:
-
-```bash
-curl -i https://rutgers-agent-mastra-backend-496012954691.us-east4.run.app/chat
+```text
+Missing Supabase env vars: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
 ```
 
-If GET returns 404/405, that can still indicate service reachability.
+Backend auto-deploy failed because `src/backend/package.json` added `ai@5.0.44` without a matching `src/backend/pnpm-lock.yaml` update. The Docker build failed at:
 
-2. Functional POST stream test:
-
-```bash
-curl -N -X POST https://rutgers-agent-mastra-backend-496012954691.us-east4.run.app/chat/stream \
-  -H "Content-Type: application/json" \
-  -H "Accept: text/event-stream" \
-  -H "Authorization: Bearer <supabase-access-token>" \
-  -d '{"prompt":"Hello","temperature":0.2,"maxTokens":64}'
+```text
+pnpm install --frozen-lockfile
+[ERR_PNPM_OUTDATED_LOCKFILE]
 ```
 
-The `/chat/stream` endpoint requires a valid Supabase access token. Missing or invalid bearer tokens should return `401`.
+Both live Cloud Run services remained ready on older revisions, but push-triggered redeploys failed before new revisions were created.
 
----
-
-## 8.5) Supabase Migrations
-
-The security migrations have been applied to the Supabase project:
-
-- `20260428034924 harden_browser_sessions`
-- `20260428034930 lock_down_soc_catalog`
-- `create_degree_navigator_profiles`
-
-Expected database state:
-
-- `public.browser_sessions.user_id` exists and stores authenticated Supabase user ownership.
-- `public.browser_sessions` has RLS enabled with a backend-only deny-all frontend policy.
-- `anon` and `authenticated` have no direct grants on `public.browser_sessions`.
-- `public.degree_navigator_profiles` exists with RLS enabled and stores one latest Degree Navigator capture per authenticated `user_id`.
-- `public.degree_navigator_profiles` has top-level student lookup fields plus JSONB columns for `profile`, `programs`, `audits`, `transcript_terms`, and `run_notes`.
-- SOC catalog tables such as `courses`, `sections`, and `meeting_times` are read-only for `anon` and `authenticated`.
-
-The migration file for Degree Navigator storage is [`supabase/migrations/20260428_create_degree_navigator_profiles.sql`](supabase/migrations/20260428_create_degree_navigator_profiles.sql). If applying manually, use Supabase migrations rather than ad hoc SQL so local schema history stays aligned with the hosted project.
-
----
-
-## 9) Deploy frontend on Firebase App Hosting (GCP)
-
-1. In Firebase Console, create/select project `FIREBASE_PROJECT_ID`.
-2. Go to **App Hosting** and connect your GitHub repo.
-3. Set app root directory to `cedar-mastra-agent`.
-4. Set frontend environment variables:
-   - `NEXT_PUBLIC_MASTRA_URL=https://rutgers-agent-mastra-backend-496012954691.us-east4.run.app`
-   - `NEXT_PUBLIC_SUPABASE_URL=https://cokisotftjntuswdfuhc.supabase.co`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY=<same anon key used by backend>`
-5. Trigger deployment from the connected branch.
-
----
-
-## 10) Verify end-to-end
-
-1. Open the Firebase App Hosting URL.
-2. Open Cedar chat UI and send a message.
-3. Confirm response returns from backend.
-4. Validate login/schedule features (they rely on frontend Supabase env vars).
-5. Validate Degree Navigator profile routes with a valid Supabase bearer token:
-
-```bash
-curl -i https://rutgers-agent-mastra-backend-496012954691.us-east4.run.app/degree-navigator/profile \
-  -H "Authorization: Bearer <supabase-access-token>"
-```
-
-If there are network errors:
-- Check `NEXT_PUBLIC_MASTRA_URL` value.
-- Confirm Cloud Run service is reachable.
-- If you add CORS restrictions later, include your App Hosting domain.
-
----
-
-## 11) Production hardening (recommended)
-
-- Keep sensitive values in Secret Manager and reference them from Cloud Run.
-- Add Cloud Monitoring alerts for backend latency/error rate.
-- Configure Cloud Run min instances for reduced cold start.
-- Backend routes already verify Supabase bearer tokens; monitor `401`/`403` rates for auth issues.
-- Configure custom domain + SSL for frontend App Hosting.
-
----
-
-## 12) Optional CI/CD
-
-- Use Cloud Build trigger for backend image build/deploy on `main`.
-- Keep frontend auto-deploy via Firebase App Hosting GitHub integration.
-
----
-
-## Quick checklist
-
-- [ ] Cloud Run backend deployed and reachable
-- [ ] Backend env vars set (`GOOGLE_VERTEX_*`, `SUPABASE_*`, `BROWSERBASE_*`)
-- [ ] Firebase App Hosting connected to repo and deployed
-- [ ] Frontend env vars set (`NEXT_PUBLIC_MASTRA_URL`, `NEXT_PUBLIC_SUPABASE_*`)
-- [ ] End-to-end chat and auth paths work
+The frontend Cloud Run URL also returned `403 Forbidden` during smoke testing, which indicates public invocation was not enabled on that service URL. The repo frontend build config now includes `--no-invoker-iam-check` so future deploys preserve public access.

@@ -1,0 +1,54 @@
+substitutions:
+  _REGION: us-east4
+  _SERVICE_NAME: rutgers-agent-mastra-backend
+  _SERVICE_ACCOUNT: rutgers-agent-mastra-backend@concise-foundry-465822-d7.iam.gserviceaccount.com
+  _AR_REPO: rutgers-agent-backend-ar
+  _IMAGE_NAME: rutgers-agent-mastra-backend-img
+  _GOOGLE_VERTEX_PROJECT: concise-foundry-465822-d7
+  _GOOGLE_VERTEX_LOCATION: global
+  _SUPABASE_URL: https://cokisotftjntuswdfuhc.supabase.co
+  _SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNva2lzb3RmdGpudHVzd2RmdWhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwMjY4OTQsImV4cCI6MjA4MzYwMjg5NH0.BU9D9cMt_j2Gd5HYf8Xccd02cq5SGSJk-EBVJZIyBCU"
+  _BROWSERBASE_PROJECT_ID: 78f36cf1-ace4-43e9-89d8-333085143f48
+  _STAGEHAND_MODEL_PROVIDER: vertex
+  _STAGEHAND_MODEL_NAME: vertex/gemini-3.1-pro-preview
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    dir: cedar-mastra-agent/src/backend
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_IMAGE_NAME}:$COMMIT_SHA
+      - -f
+      - Dockerfile
+      - .
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_IMAGE_NAME}:$COMMIT_SHA
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE_NAME}
+      - --image
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_IMAGE_NAME}:$COMMIT_SHA
+      - --region
+      - ${_REGION}
+      - --platform
+      - managed
+      - --service-account
+      - ${_SERVICE_ACCOUNT}
+      - --no-invoker-iam-check
+      - --set-env-vars
+      - GOOGLE_VERTEX_PROJECT=${_GOOGLE_VERTEX_PROJECT},GOOGLE_VERTEX_LOCATION=${_GOOGLE_VERTEX_LOCATION},SUPABASE_URL=${_SUPABASE_URL},SUPABASE_ANON_KEY=${_SUPABASE_ANON_KEY},BROWSERBASE_PROJECT_ID=${_BROWSERBASE_PROJECT_ID},STAGEHAND_MODEL_PROVIDER=${_STAGEHAND_MODEL_PROVIDER},STAGEHAND_MODEL_NAME=${_STAGEHAND_MODEL_NAME}
+      - --set-secrets
+      - SUPABASE_SERVICE_ROLE_KEY=supabase-service-role-key:latest,BROWSERBASE_API_KEY=browserbase-api-key:latest
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_IMAGE_NAME}:$COMMIT_SHA
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  substitutionOption: ALLOW_LOOSE
