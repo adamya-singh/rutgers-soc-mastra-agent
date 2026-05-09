@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  ExternalLink,
   Loader2,
   MoreHorizontal,
   Plus,
@@ -50,6 +51,10 @@ import {
   buildActiveScheduleAgentContext,
   type ActiveScheduleSyncStatus,
 } from '@/lib/scheduleAgentContext';
+import {
+  buildWebRegRegistrationTarget,
+  type WebRegRegistrationTarget,
+} from '@/lib/webreg';
 import {
   deleteRemoteSchedule,
   hydrateFromRemote,
@@ -547,6 +552,104 @@ function SaveTempScheduleDialog({
 }
 
 /* ------------------------------------------------------------------ */
+/*  WebReg Registration Confirmation Dialog                            */
+/* ------------------------------------------------------------------ */
+
+function WebRegRegistrationDialog({
+  open,
+  target,
+  scheduleName,
+  termSummary,
+  isPreviewMode,
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean;
+  target: WebRegRegistrationTarget;
+  scheduleName: string;
+  termSummary: string;
+  isPreviewMode: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const hasInvalidIndexes = target.invalidIndexNumbers.length > 0;
+  const canRegister = Boolean(target.url) && !hasInvalidIndexes;
+  const formattedInvalidIndexes = target.invalidIndexNumbers
+    .map((indexNumber) => indexNumber || '(blank)')
+    .join(', ');
+
+  return (
+    <Dialog.Root open={open} onOpenChange={(nextOpen) => !nextOpen && onCancel()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-surface-2 p-6 shadow-elev-2 animate-fade-up">
+          <Dialog.Title className="text-base font-semibold text-foreground">
+            Register using WebReg
+          </Dialog.Title>
+          <Dialog.Description className="mt-2 text-sm text-muted-foreground">
+            This opens Rutgers WebReg for <strong>{scheduleName}</strong>. If you are
+            not signed in with your Rutgers NetID, CAS will ask you to log in before
+            WebReg continues.
+          </Dialog.Description>
+
+          <div className="mt-5 rounded-xl border border-border bg-surface-1 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {termSummary}
+              </span>
+              <span className="rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                {target.indexNumbers.length} {target.indexNumbers.length === 1 ? 'section' : 'sections'}
+              </span>
+            </div>
+            <div className="mt-3 break-words rounded-lg bg-surface-2 px-3 py-2 text-xs font-medium text-foreground">
+              {target.indexNumbers.join(', ') || 'No valid WebReg indexes'}
+            </div>
+          </div>
+
+          {isPreviewMode && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              You are registering the visible preview option. You do not need to save
+              it first.
+            </p>
+          )}
+
+          {hasInvalidIndexes && (
+            <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              WebReg registration is blocked because these indexes are not valid
+              5-digit section indexes: {formattedInvalidIndexes}.
+            </div>
+          )}
+
+          <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
+            WebReg is the source of truth. It may reject closed sections, linked-section
+            requirements, time conflicts, prerequisites, or registration restrictions.
+          </p>
+
+          <div className="mt-6 flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground transition hover:bg-surface-1"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={!canRegister}
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
+            >
+              <ExternalLink className="h-3.5 w-3.5" strokeWidth={2.25} />
+              Open WebReg
+            </button>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Main ScheduleGrid Component                                        */
 /* ------------------------------------------------------------------ */
 
@@ -708,6 +811,7 @@ export const ScheduleGrid: React.FC = () => {
   const [previewScheduleId, setPreviewScheduleId] = React.useState<string | null>(null);
   const [saveTempDialogOpen, setSaveTempDialogOpen] = React.useState(false);
   const [isSavingTemp, setIsSavingTemp] = React.useState(false);
+  const [webRegDialogOpen, setWebRegDialogOpen] = React.useState(false);
 
   const refreshWorkspace = React.useCallback(() => {
     const activeEntry = getActiveScheduleEntry();
@@ -1125,6 +1229,22 @@ export const ScheduleGrid: React.FC = () => {
     [previewEntry, schedule],
   );
 
+  const webRegTarget = React.useMemo(
+    () => buildWebRegRegistrationTarget(displaySchedule),
+    [displaySchedule],
+  );
+
+  const webRegTermSummary = `${resolveTermLabel(displaySchedule.termCode)} ${displaySchedule.termYear} · ${displaySchedule.campus}`;
+  const webRegScheduleName = previewEntry
+    ? previewEntry.temporary?.label || previewEntry.name || 'this preview option'
+    : scheduleName || activeEntry?.name || 'this schedule';
+
+  const handleConfirmWebRegRegistration = React.useCallback(() => {
+    if (!webRegTarget.url || webRegTarget.invalidIndexNumbers.length > 0) return;
+    window.open(webRegTarget.url, '_blank', 'noopener,noreferrer');
+    setWebRegDialogOpen(false);
+  }, [webRegTarget]);
+
   // ----- Compute total credits -----
   const totalCredits = React.useMemo(() => {
     return schedule.sections.reduce((sum, s) => sum + (s.credits ?? 0), 0);
@@ -1439,6 +1559,23 @@ export const ScheduleGrid: React.FC = () => {
 
             {/* Right: Schedule Builder + Save / sync status + overflow menu */}
             <div className="flex flex-shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setWebRegDialogOpen(true)}
+                disabled={webRegTarget.indexNumbers.length === 0}
+                className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 text-xs font-semibold text-foreground transition hover:bg-surface-0 disabled:cursor-not-allowed disabled:opacity-45"
+                title={
+                  webRegTarget.indexNumbers.length === 0
+                    ? 'Add sections before registering with WebReg'
+                    : 'Register this schedule using WebReg'
+                }
+                aria-label="Register using WebReg"
+              >
+                <ExternalLink className="h-3.5 w-3.5" strokeWidth={2.25} />
+                <span className="hidden sm:inline">Register using WebReg</span>
+                <span className="sm:hidden">WebReg</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setIsBuilderOpen(true)}
@@ -1862,6 +1999,16 @@ export const ScheduleGrid: React.FC = () => {
         isSaving={isSavingTemp}
         onConfirm={(name) => void handleConfirmSaveTemp(name)}
         onCancel={() => setSaveTempDialogOpen(false)}
+      />
+
+      <WebRegRegistrationDialog
+        open={webRegDialogOpen}
+        target={webRegTarget}
+        scheduleName={webRegScheduleName}
+        termSummary={webRegTermSummary}
+        isPreviewMode={isPreviewMode}
+        onConfirm={handleConfirmWebRegRegistration}
+        onCancel={() => setWebRegDialogOpen(false)}
       />
     </section>
   );
