@@ -120,6 +120,7 @@ type GridBlock = {
   indexNumber: string;
   courseTitle: string;
   instructors: string;
+  timeLabel: string;
 };
 
 type SidebarItem = {
@@ -244,6 +245,7 @@ function BlockPopover({
       {block.instructors && (
         <p className="mt-1 text-xs text-muted-foreground">{block.instructors}</p>
       )}
+      <p className="mt-1 text-xs font-medium text-foreground/80">{block.timeLabel}</p>
       <p className="mt-1 text-xs text-muted-foreground">{block.subtitle}</p>
       <div className="mt-3 flex items-center justify-between">
         <span className="text-[11px] text-muted-foreground">Index #{block.indexNumber}</span>
@@ -1268,6 +1270,7 @@ export const ScheduleGrid: React.FC = () => {
           indexNumber: section.indexNumber,
           courseTitle: title,
           instructors: instructor,
+          timeLabel,
         });
       });
     });

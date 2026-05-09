@@ -20,6 +20,7 @@ import {
  */
 export const CHECK_SCHEDULE_CONFLICTS_DESCRIPTION = `Check if multiple sections have time conflicts. 
 Use this tool to validate a schedule or find if classes overlap.
+The returned schedule is a conflict-check summary for explanation only; do not pass those entries to addSectionToSchedule or addSectionToTemporarySchedule. Resolve sections with searchSections or getSectionByIndex before adding them.
 Examples: "Do sections 09214 and 12345 conflict?", "Can I take all of these classes together?"`;
 
 export const checkScheduleConflictsInputSchema = z.object({
@@ -68,8 +69,8 @@ export const checkScheduleConflictsOutputSchema = z.object({
         startTime: z.string(),
         endTime: z.string(),
         location: z.string(),
-      })),
-    })),
+      })).describe('Display-only meeting summary. This is not the meetingTimes field required by add-section tools.'),
+    })).describe('Display-only conflict summary. Do not use these objects as add-section tool payloads.'),
     totalCredits: z.number().nullable(),
     warnings: z.array(z.string()),
   });

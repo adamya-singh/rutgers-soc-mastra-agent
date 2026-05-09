@@ -44,7 +44,7 @@ export type ActiveScheduleAgentContext = {
     sectionNumber?: string | null;
     instructors?: string[] | null;
     isOpen?: boolean | null;
-    meetings: MeetingTime[];
+    meetingTimes: MeetingTime[];
   }>;
   weekView: {
     days: string[];
@@ -246,7 +246,7 @@ export function buildActiveScheduleAgentContext({
       sectionNumber: section.sectionNumber,
       instructors: section.instructors,
       isOpen: section.isOpen,
-      meetings: section.meetingTimes || [],
+      meetingTimes: section.meetingTimes || [],
     })),
     weekView: {
       days: [...DAY_LABELS],

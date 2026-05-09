@@ -76,7 +76,31 @@ const SectionSchema = z.object({
   meetingTimes: z.array(SectionMeetingTimeSchema).optional(),
   isOnline: z.boolean().nullable().optional(),
   sessionDates: z.string().nullable().optional(),
-}).passthrough();
+}).passthrough().superRefine((section, ctx) => {
+  const hasMeetingTimes = Array.isArray(section.meetingTimes);
+  const hasDisplayOnlyMeetings = Array.isArray(
+    (section as { meetings?: unknown }).meetings,
+  );
+
+  if (hasDisplayOnlyMeetings && !hasMeetingTimes) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['meetingTimes'],
+      message:
+        'Use meetingTimes, not meetings; pass a section from searchSections or getSectionByIndex.',
+    });
+    return;
+  }
+
+  if (!hasMeetingTimes && section.isOnline !== true) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['meetingTimes'],
+      message:
+        'Section payload must include meetingTimes, or set isOnline true for an online/async section.',
+    });
+  }
+});
 
 // Schema for the addSectionToSchedule frontend tool
 export const AddSectionToScheduleSchema = z.object({

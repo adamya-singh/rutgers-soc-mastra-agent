@@ -1187,7 +1187,31 @@ export default function HomePage() {
     meetingTimes: z.array(FrontendSectionMeetingTimeSchema).optional(),
     isOnline: z.boolean().nullable().optional(),
     sessionDates: z.string().nullable().optional(),
-  }).passthrough();
+  }).passthrough().superRefine((section, ctx) => {
+    const hasMeetingTimes = Array.isArray(section.meetingTimes);
+    const hasDisplayOnlyMeetings = Array.isArray(
+      (section as { meetings?: unknown }).meetings,
+    );
+
+    if (hasDisplayOnlyMeetings && !hasMeetingTimes) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['meetingTimes'],
+        message:
+          'Use meetingTimes, not meetings; pass a section from searchSections or getSectionByIndex.',
+      });
+      return;
+    }
+
+    if (!hasMeetingTimes && section.isOnline !== true) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['meetingTimes'],
+        message:
+          'Section payload must include meetingTimes, or set isOnline true for an online/async section.',
+      });
+    }
+  });
 
   useRegisterFrontendTool({
     name: 'addSectionToSchedule',
@@ -1271,7 +1295,12 @@ export default function HomePage() {
           `Could not find temporary schedule "${args.scheduleId}" in this chat thread.`,
         );
       }
-      addSectionToScheduleById(id, args.section);
+      const added = addSectionToScheduleById(id, args.section);
+      if (!added) {
+        throw new Error(
+          `Could not add section "${args.section.indexNumber}" to temporary schedule "${args.scheduleId}". It may already be present.`,
+        );
+      }
     },
   });
 
