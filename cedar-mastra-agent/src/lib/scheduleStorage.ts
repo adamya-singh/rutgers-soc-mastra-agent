@@ -1,3 +1,5 @@
+import { v4 as uuidv4 } from 'uuid';
+
 const STORAGE_KEY = 'rutgers-soc-schedules';
 const LEGACY_STORAGE_KEY = 'rutgers-soc-schedule';
 const STORAGE_VERSION = 2;
@@ -436,7 +438,7 @@ const generateScheduleId = () => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID();
   }
-  return `schedule-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+  return uuidv4();
 };
 
 const loadScheduleWorkspace = (): ScheduleWorkspace => {
@@ -991,7 +993,7 @@ export const promoteTemporaryToSaved = (
   if (!entry || !isTemporarySchedule(entry)) return null;
   const lastUpdated = new Date().toISOString();
   const promotedEntry: ScheduleEntry = {
-    id: entry.id,
+    id: generateScheduleId(),
     name: trimmed,
     snapshot: {
       ...entry.snapshot,
@@ -1000,7 +1002,9 @@ export const promoteTemporaryToSaved = (
     },
     updatedAt: lastUpdated,
   };
-  replaceScheduleEntry(workspace, promotedEntry);
+  workspace.schedules = workspace.schedules.map((item) =>
+    item.id === scheduleId ? promotedEntry : item,
+  );
   saveScheduleWorkspace(workspace);
   dispatchScheduleUpdated();
   return promotedEntry;

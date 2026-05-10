@@ -50,7 +50,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 					return (
 						<span
 							key={index}
-							className='font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-1 rounded mx-0.5'>
+							className='font-mono font-bold text-blue-950 dark:text-blue-200 bg-blue-100 dark:bg-blue-950/40 border border-blue-300 dark:border-blue-500/30 px-1 rounded mx-0.5'>
 							{part}
 						</span>
 					);

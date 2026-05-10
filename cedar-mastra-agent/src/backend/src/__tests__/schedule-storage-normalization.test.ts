@@ -7,11 +7,15 @@ const {
   addSectionToSchedule,
   addSectionToScheduleById,
   buildTemporaryScheduleId,
+  createSchedule,
   createTemporarySchedule,
   normalizeScheduleSection,
   parseDisplayTimeToMilitary,
   parseMeetingLocation,
+  promoteTemporaryToSaved,
 } = scheduleStorage;
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 class MemoryStorage {
   private readonly values = new Map<string, string>();
@@ -136,6 +140,57 @@ describe('schedule storage section normalization', () => {
     assert.equal(tempEntry.snapshot.sections[0].meetingTimes[0].startTimeMilitary, '1020');
     assert.equal(tempEntry.snapshot.sections[0].meetingTimes[0].endTimeMilitary, '1140');
     assert.equal(tempEntry.snapshot.sections[0].meetingTimes[0].building, 'HLL');
+  });
+
+  it('generates UUID-shaped ids for normal schedules', () => {
+    const entry = createSchedule();
+
+    assert.match(entry.id, UUID_PATTERN);
+  });
+
+  it('promotes temporary schedules with a fresh UUID-shaped id', () => {
+    const threadId = 'thread-1';
+    const agentScheduleId = 'option-1';
+    const storageId = buildTemporaryScheduleId(threadId, agentScheduleId);
+
+    const created = createTemporarySchedule({
+      threadId,
+      id: storageId,
+      label: 'MWF mornings',
+    });
+    assert.ok(created);
+
+    const added = addSectionToScheduleById(storageId, {
+      indexNumber: '09214',
+      course: {
+        courseString: '01:198:111',
+        title: 'INTRO COMPUTER SCI',
+        credits: 4,
+      },
+      meetingTimes: [
+        {
+          dayName: 'Monday',
+          startTime: '10:20 AM',
+          endTime: '11:40 AM',
+          location: 'HLL 116 (Busch)',
+        },
+      ],
+    });
+    assert.equal(added, true);
+
+    const promoted = promoteTemporaryToSaved(storageId, 'Saved option');
+    assert.ok(promoted);
+    assert.notEqual(promoted.id, storageId);
+    assert.match(promoted.id, UUID_PATTERN);
+    assert.equal(promoted.temporary, undefined);
+    assert.equal(promoted.snapshot.sections[0]?.indexNumber, '09214');
+
+    const storage = (globalThis as unknown as { window: { localStorage: MemoryStorage } }).window.localStorage;
+    const rawWorkspace = storage.getItem('rutgers-soc-schedules');
+    assert.ok(rawWorkspace);
+    const workspace = JSON.parse(rawWorkspace);
+    assert.equal(workspace.schedules.some((entry: { id: string }) => entry.id === storageId), false);
+    assert.ok(workspace.schedules.some((entry: { id: string }) => entry.id === promoted.id));
   });
 
   it('normalizes sections when adding to a normal schedule snapshot', () => {
