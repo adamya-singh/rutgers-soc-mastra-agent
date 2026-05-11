@@ -1562,34 +1562,26 @@ Current tools:
 
 Temporary schedule options are for exploration and comparison; they do not appear in the saved schedule dropdown or sync to Supabase until the user explicitly saves one. Use `checkScheduleConflicts` before committing schedule options so every proposed option is actually conflict-free.
 
-### Schedule Builder askUserQuestion Checkpoints
+### Schedule Builder askUserQuestion Policy
 
-Schedule Builder mode can use `askUserQuestion`, but only at high-value decision points. The hard limit is **two calls per Schedule Builder run**, and specific forms should use **zero calls**.
+Schedule Builder mode should feel agentic and personalized. The target is **exactly one `askUserQuestion` call** per Schedule Builder run, unless the user explicitly says not to ask or the form already contains an unmistakable priority.
 
-**Checkpoint 1: pre-build strategy**
+Best timing: ask after reading the saved Degree Navigator profile, active schedule, target credits, declared programs, completed work, and stated preferences, plus enough initial SOC/search reasoning to understand the real trade-offs. Do not ask immediately at the start just because the form is broad. The single question should be the one that most improves the user's happiness with the finished schedule and makes them feel their input shaped the result.
 
-Ask before searching only when the submitted form is broad enough that different valid schedules would optimize for materially different goals. Good triggers:
+**Primary checkpoint: preference steering**
 
-- Subject focus is "any" and the saved Degree Navigator profile has multiple plausible remaining requirement/core/elective areas.
-- Time, day, and modality preferences are mostly unconstrained and the target credit range could be satisfied through different trade-offs.
-- The active schedule already meets or nearly meets the credit target, so the task is a swap/round-out decision rather than simply adding courses.
+Ask once before creating temporary schedules, after the agent understands the likely options. Use `id: "schedule_win"` and `header: "Priority"`:
 
-Use `id: "priority"` and `header: "Priority"` with four options:
-
-- `Requirement progress (Recommended)` - prioritize courses that move the student toward declared program or core requirements.
-- `Easiest load` - prioritize lower-risk, lighter courses within the target credits.
-- `Best timetable` - prioritize compact days, fewer gaps, and preferred campus/time fit.
+- `Degree progress (Recommended)` - prioritize courses that move the student toward declared program or core requirements.
+- `Manageable load` - prioritize lower-risk combinations and avoid stacking too many demanding courses.
+- `Best weekly fit` - prioritize compact days, fewer gaps, preferred times, and campus convenience.
 - `Explore electives` - prioritize variety and interesting courses related to the profile.
 
-Optionally include `id: "shape"` and `header: "Shape"` in the same call when it changes construction:
+Adapt the recommended first option to the user. If the profile suggests they are already requirement-heavy, make `Manageable load (Recommended)` first instead. If the form strongly emphasizes commute/time, make `Best weekly fit (Recommended)` first.
 
-- `Distinct options (Recommended)` - make options meaningfully different in subject mix or timetable.
-- `Similar options` - keep the same general footprint and vary courses or sections.
-- `One safe option` - produce one strongest option plus backups if possible.
+**Fallback checkpoint: constraint-breaking choice**
 
-**Checkpoint 2: constraint relaxation**
-
-Ask after searching/checking conflicts only when the agent cannot build 2–3 valid, conflict-free options under the original constraints, or when different relaxations produce different viable trade-offs.
+Use this only if the single question has not already been used and every reasonable option requires breaking or substantially bending a user-stated constraint. If the preference question has already been asked, the agent should make the best conservative relaxation itself, build the closest valid options, and clearly explain the trade-off.
 
 Use `id: "relax"` and `header: "Relax"` with four options:
 
@@ -1604,7 +1596,7 @@ Optionally include `id: "credits"` and `header: "Credits"` in the same call only
 - `Go lower` - allow a slightly lighter schedule.
 - `Go higher` - allow a slightly heavier schedule with a warning.
 
-After each `askUserQuestion` call, the agent must end its turn. When the next turn includes `[AskUserQuestion answers]`, merge the answer map into the existing Schedule Builder run using the stable ids (`priority`, `shape`, `relax`, `credits`) as keys: `priority` and `shape` influence ranking and option labels, while `relax` and `credits` loosen only the constraints that were actually blocking results. Never call `askUserQuestion` after creating temporary schedules.
+After an `askUserQuestion` call, the agent must end its turn. When the next turn includes `[AskUserQuestion answers]`, merge the answer map into the existing Schedule Builder run using the stable ids (`schedule_win`, `relax`, `credits`) as keys. `schedule_win` ranks and labels options; `relax` and `credits` loosen only constraints that were actually blocking results. Never call `askUserQuestion` after creating temporary schedules.
 
 ### Linked Section Grouping (Phase 2)
 
