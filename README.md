@@ -1,17 +1,25 @@
 <!--
-  Hero demo GIF was produced from the original screen recording with:
-    ffmpeg -y -i public/soc-agent-main-demo-video-*.mov \
+  Demo GIFs (soc-agent-demo.gif and soc-agent-degree-navigator-demo.gif) are
+  produced from the source screen recordings with a two-pass ffmpeg palette
+  pipeline. Source .mov files are gitignored. To re-encode, run:
+
+    SRC=public/soc-agent-main-demo-video-*.mov           # or the DN one
+    OUT=public/soc-agent-demo.gif                        # or the DN one
+    ffmpeg -y -i "$SRC" \
       -vf "fps=12,scale=960:-1:flags=lanczos,palettegen=stats_mode=diff" \
-      -update 1 -frames:v 1 /tmp/soc-palette.png
-    ffmpeg -y -i public/soc-agent-main-demo-video-*.mov -i /tmp/soc-palette.png \
+      -update 1 -frames:v 1 /tmp/palette.png
+    ffmpeg -y -i "$SRC" -i /tmp/palette.png \
       -lavfi "fps=12,scale=960:-1:flags=lanczos[v];[v][1:v]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle" \
-      -loop 0 public/soc-agent-demo.gif
-  Source .mov files are gitignored. Re-encode after re-recording.
+      -loop 0 "$OUT"
 -->
 
 # Rutgers SOC Agent
 
 > An AI scheduling co-pilot for Rutgers students. Search the live Schedule of Classes, build conflict-free schedules, check prerequisites, find empty classrooms, and drive Degree Navigator inside an embedded remote browser — all from one chat.
+
+<p align="center">
+  <a href="https://rutgers-soc-agent--concise-foundry-465822-d7.us-east4.hosted.app/"><strong>Try it live →</strong></a>
+</p>
 
 <p align="center">
   <img src="public/soc-agent-demo.gif" alt="Rutgers SOC Agent demo" width="900" />
@@ -25,7 +33,7 @@
   <img alt="Vertex AI"      src="https://img.shields.io/badge/Vertex%20AI-Gemini%203.1%20Pro-4285F4?logo=googlecloud&logoColor=white">
   <img alt="Supabase"       src="https://img.shields.io/badge/Supabase-Postgres%20%2B%20Auth-3ECF8E?logo=supabase&logoColor=white">
   <img alt="Browserbase"    src="https://img.shields.io/badge/Browserbase-remote%20browser-111">
-  <img alt="Cloud Run"      src="https://img.shields.io/badge/Cloud%20Run-deployed-4285F4?logo=googlecloud&logoColor=white">
+  <img alt="Live"           src="https://img.shields.io/badge/live-rutgers--soc--agent-22c55e?logo=firebase&logoColor=white">
 </p>
 
 ---
@@ -44,9 +52,17 @@ Picking a Rutgers schedule means juggling four tabs: the **Schedule of Classes**
 - **Degree Navigator automation** in an embedded **Browserbase Live View**: you log in manually inside the remote browser (no credentials are ever sent to the agent or stored), the agent extracts your declared programs, audit, and transcript into a schema-validated JSON profile, and saves it under your Supabase user.
 - **Anonymous trial chat** with backend-signed tokens and a daily message quota — try it without an account; sign in to unlock saved schedules and Degree Navigator sync.
 
+### Spotlight: Degree Navigator sync
+
+Sign in, click **Sync Degree Navigator**, log in once inside the embedded Browserbase Live View, and the agent extracts your declared programs, degree audit, and full transcript into a schema-validated JSON profile saved to your Supabase row. From then on, every schedule recommendation knows exactly what you've already taken and what's still required.
+
+<p align="center">
+  <img src="public/soc-agent-degree-navigator-demo.gif" alt="Degree Navigator sync demo" width="900" />
+</p>
+
 ## Try these prompts
 
-Once you're running, drop these into the chat:
+Drop these into the chat at the [live deployment](https://rutgers-soc-agent--concise-foundry-465822-d7.us-east4.hosted.app/) (anonymous trial works without an account):
 
 - *"Build me a 15-credit Spring 2026 schedule with no Friday classes and at least one CS elective."*
 - *"Find an empty classroom in Hill Center between 10 a.m. and noon on Wednesday for at least 90 minutes."*
@@ -213,7 +229,7 @@ python ingest_courses.py --year 2026 --term 1 --campus NB --clear
 
 ## Deployment
 
-Both the frontend and the Mastra backend are containerized and shipped to **Google Cloud Run** through **Cloud Build** triggers, with secrets in **Secret Manager**. See [`cedar-mastra-agent/DEPLOYMENT.md`](cedar-mastra-agent/DEPLOYMENT.md) for the runbook, [`cedar-mastra-agent/cloudbuild.frontend.yaml`](cedar-mastra-agent/cloudbuild.frontend.yaml) and [`cedar-mastra-agent/cloudbuild.backend.yaml`](cedar-mastra-agent/cloudbuild.backend.yaml) for the build pipelines, and [`cedar-mastra-agent/scripts/`](cedar-mastra-agent/scripts/) for trigger / secret rotation / verification scripts.
+The live app at [rutgers-soc-agent--concise-foundry-465822-d7.us-east4.hosted.app](https://rutgers-soc-agent--concise-foundry-465822-d7.us-east4.hosted.app/) ships the Next.js frontend through **Firebase App Hosting** ([`cedar-mastra-agent/apphosting.prod.yaml`](cedar-mastra-agent/apphosting.prod.yaml)) and the Mastra backend as a containerized **Google Cloud Run** service built by **Cloud Build** triggers, with secrets in **Secret Manager**. See [`cedar-mastra-agent/DEPLOYMENT.md`](cedar-mastra-agent/DEPLOYMENT.md) for the runbook, [`cedar-mastra-agent/cloudbuild.frontend.yaml`](cedar-mastra-agent/cloudbuild.frontend.yaml) and [`cedar-mastra-agent/cloudbuild.backend.yaml`](cedar-mastra-agent/cloudbuild.backend.yaml) for the alternative all-Cloud-Run build pipelines, and [`cedar-mastra-agent/scripts/`](cedar-mastra-agent/scripts/) for trigger / secret rotation / verification scripts.
 
 ## Security & privacy
 
