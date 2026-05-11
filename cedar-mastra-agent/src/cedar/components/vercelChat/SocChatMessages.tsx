@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
+import { ChevronRight, Sparkles } from 'lucide-react';
 import { cn } from 'cedar-os';
 
 import MarkdownRenderer from '@/cedar/components/chatMessages/MarkdownRenderer';
@@ -66,6 +67,10 @@ function getMessageText(message: SocChatMessage): string {
     .map((part) => part.text)
     .join('\n')
     .trim();
+}
+
+function isScheduleBuilderPrompt(text: string): boolean {
+  return text.trimStart().startsWith('Use Schedule Builder mode.');
 }
 
 function isToolLikePart(part: AnyPart): part is AnyPart & ToolPartLike {
@@ -173,11 +178,53 @@ interface UserBodyProps {
   message: SocChatMessage;
 }
 
+interface ScheduleBuilderPromptCardProps {
+  text: string;
+}
+
+const ScheduleBuilderPromptCard: React.FC<ScheduleBuilderPromptCardProps> = ({ text }) => {
+  const [open, setOpen] = React.useState(false);
+
+  return (
+    <div className="rounded-xl border border-action/30 bg-action/10 text-left shadow-sm">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((prev) => !prev)}
+        className={cn(
+          'flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm',
+          'text-foreground transition-colors hover:bg-action/10',
+        )}
+      >
+        <ChevronRight
+          className={cn('h-3.5 w-3.5 flex-shrink-0 transition-transform', open && 'rotate-90')}
+          strokeWidth={2.25}
+        />
+        <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-action/15 text-action">
+          <Sparkles className="h-3.5 w-3.5" strokeWidth={2.25} />
+        </span>
+        <span className="font-medium">used schedule builder</span>
+      </button>
+      {open && (
+        <div className="border-t border-action/20 px-3 pb-3 pt-2">
+          <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border-subtle bg-surface-1/80 p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
+            {text}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const UserBody: React.FC<UserBodyProps> = ({ message }) => {
   return (
     <div className="space-y-2">
       {message.parts.map((part, index) => {
         if (part.type === 'text') {
+          if (isScheduleBuilderPrompt(part.text)) {
+            return <ScheduleBuilderPromptCard key={index} text={part.text} />;
+          }
+
           return (
             <div key={index} className="whitespace-pre-wrap break-words">
               {part.text}
