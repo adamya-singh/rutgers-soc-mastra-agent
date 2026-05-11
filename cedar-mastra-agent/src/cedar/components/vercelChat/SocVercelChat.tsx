@@ -817,8 +817,8 @@ export const SocVercelChat: React.FC<SocVercelChatProps> = ({
                   : 'border-destructive/30 bg-destructive/5 text-destructive',
               )}>
                 {anonymousQuota.remaining > 0
-                  ? `${anonymousQuota.remaining} of ${anonymousQuota.dailyLimit} anonymous messages left today. Sign in to save chats.`
-                  : 'Daily anonymous chat limit reached. Sign in to continue chatting.'}
+                  ? `${anonymousQuota.remaining} of ${anonymousQuota.dailyLimit} anonymous messages left today. Sign in for unlimited usage.`
+                  : 'Daily anonymous chat limit reached. Sign in for unlimited usage.'}
               </div>
             )}
             <SocChatInput

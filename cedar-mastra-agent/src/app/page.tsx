@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { z } from 'zod';
 import {
@@ -1395,7 +1396,15 @@ export default function HomePage() {
                   href="/"
                   className="focus-ring -mx-1 inline-flex items-center gap-2 rounded px-1 py-1"
                 >
-                  <span aria-hidden="true" className="h-2 w-2 rounded-sm bg-primary" />
+                  <Image
+                    src="/soc-agent-icon.svg"
+                    alt=""
+                    aria-hidden="true"
+                    width={20}
+                    height={20}
+                    priority
+                    className="h-5 w-5"
+                  />
                   <span className="text-sm font-semibold tracking-tight text-foreground">
                     SOCAgent
                   </span>

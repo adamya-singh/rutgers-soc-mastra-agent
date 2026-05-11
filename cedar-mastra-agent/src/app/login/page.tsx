@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabaseClient } from '@/lib/supabaseClient';
@@ -70,7 +71,14 @@ export default function LoginPage() {
 
       <div className="w-full max-w-[400px]">
         <div className="mb-7 flex items-center gap-2">
-          <span aria-hidden="true" className="h-2 w-2 rounded-sm bg-primary" />
+          <Image
+            src="/soc-agent-icon.svg"
+            alt=""
+            aria-hidden="true"
+            width={20}
+            height={20}
+            className="h-5 w-5"
+          />
           <span className="text-sm font-semibold tracking-tight text-foreground">SOCAgent</span>
         </div>
 

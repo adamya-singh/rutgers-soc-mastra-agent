@@ -80,6 +80,13 @@ export default function RootLayout({
 
   return (
     <html lang="en">
+      <head>
+        <title>Rutgers SOC Agent</title>
+        <meta
+          name="description"
+          content="AI assistant for the Rutgers Schedule of Classes and degree planning."
+        />
+      </head>
       <body
         className={`${spaceGrotesk.variable} ${plexSans.variable} ${jetbrainsMono.variable} antialiased`}
       >
