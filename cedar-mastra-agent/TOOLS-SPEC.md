@@ -22,7 +22,8 @@
    - [findRoomAvailability](#room-availability-workflow-built-in-mastra)
 5. [Agent Behavior Rules](#agent-behavior-rules)
 6. [Schedule Building](#schedule-building-current-frontend-tools)
-7. [Shared Utilities](#shared-utilities)
+7. [askUserQuestion (Interactive Clarification)](#askuserquestion-interactive-clarification)
+8. [Shared Utilities](#shared-utilities)
 8. [Agent System Prompt](#agent-system-prompt)
 9. [Environment Configuration](#environment-configuration)
 10. [Implementation Checklist](#implementation-checklist)
@@ -1561,6 +1562,50 @@ Current tools:
 
 Temporary schedule options are for exploration and comparison; they do not appear in the saved schedule dropdown or sync to Supabase until the user explicitly saves one. Use `checkScheduleConflicts` before committing schedule options so every proposed option is actually conflict-free.
 
+### Schedule Builder askUserQuestion Checkpoints
+
+Schedule Builder mode can use `askUserQuestion`, but only at high-value decision points. The hard limit is **two calls per Schedule Builder run**, and specific forms should use **zero calls**.
+
+**Checkpoint 1: pre-build strategy**
+
+Ask before searching only when the submitted form is broad enough that different valid schedules would optimize for materially different goals. Good triggers:
+
+- Subject focus is "any" and the saved Degree Navigator profile has multiple plausible remaining requirement/core/elective areas.
+- Time, day, and modality preferences are mostly unconstrained and the target credit range could be satisfied through different trade-offs.
+- The active schedule already meets or nearly meets the credit target, so the task is a swap/round-out decision rather than simply adding courses.
+
+Use `id: "priority"` and `header: "Priority"` with four options:
+
+- `Requirement progress (Recommended)` - prioritize courses that move the student toward declared program or core requirements.
+- `Easiest load` - prioritize lower-risk, lighter courses within the target credits.
+- `Best timetable` - prioritize compact days, fewer gaps, and preferred campus/time fit.
+- `Explore electives` - prioritize variety and interesting courses related to the profile.
+
+Optionally include `id: "shape"` and `header: "Shape"` in the same call when it changes construction:
+
+- `Distinct options (Recommended)` - make options meaningfully different in subject mix or timetable.
+- `Similar options` - keep the same general footprint and vary courses or sections.
+- `One safe option` - produce one strongest option plus backups if possible.
+
+**Checkpoint 2: constraint relaxation**
+
+Ask after searching/checking conflicts only when the agent cannot build 2–3 valid, conflict-free options under the original constraints, or when different relaxations produce different viable trade-offs.
+
+Use `id: "relax"` and `header: "Relax"` with four options:
+
+- `Time/days (Recommended)` - allow classes outside preferred days or time windows.
+- `Campus area` - allow other New Brunswick sub-areas.
+- `Modality` - allow online, hybrid, or in-person sections outside the original modality preference.
+- `Availability` - include closed sections, clearly labeled as closed.
+
+Optionally include `id: "credits"` and `header: "Credits"` in the same call only if the credit target itself blocks options:
+
+- `Stay in range (Recommended)` - keep credits inside the target even if fewer options result.
+- `Go lower` - allow a slightly lighter schedule.
+- `Go higher` - allow a slightly heavier schedule with a warning.
+
+After each `askUserQuestion` call, the agent must end its turn. When the next turn includes `[AskUserQuestion answers]`, merge the answer map into the existing Schedule Builder run using the stable ids (`priority`, `shape`, `relax`, `credits`) as keys: `priority` and `shape` influence ranking and option labels, while `relax` and `credits` loosen only the constraints that were actually blocking results. Never call `askUserQuestion` after creating temporary schedules.
+
 ### Linked Section Grouping (Phase 2)
 
 Many Rutgers courses require registration in multiple linked sections (e.g., Lecture + Recitation, Lecture + Lab). Phase 2 will implement automatic grouping.
@@ -1594,6 +1639,110 @@ Course: 01:198:111 - INTRO COMPUTER SCI
 ├── Group 2: LEC 01 (09214) + REC 02 (09216) - OPEN  
 └── Group 3: LEC 02 (09217) + REC 03 (09218) - CLOSED
 ```
+
+---
+
+## askUserQuestion (Interactive Clarification)
+
+Mirrors the strongest Claude Code `AskUserQuestion` and Codex `request_user_input` guidance while preserving the app's two-turn chat architecture. The agent asks the user 1–4 structured questions inline in chat only when non-mutating exploration cannot resolve a decision that materially affects the answer, plan, or next action. Backed by [`src/backend/src/mastra/tools/ask-user-question.ts`](src/backend/src/mastra/tools/ask-user-question.ts) and rendered by [`src/cedar/components/chatMessages/AskUserQuestion.tsx`](src/cedar/components/chatMessages/AskUserQuestion.tsx) inside [`SocChatMessages.tsx`](src/cedar/components/vercelChat/SocChatMessages.tsx).
+
+### Input Schema
+
+```ts
+{
+  questions: Array<{
+    id?: string;             // stable per-question id; normalized to q1/q2 if omitted
+    header: string;          // short chip label (<= 12 chars)
+    question: string;        // clear user-facing text, max 300 chars, must end with ?
+    multiSelect?: boolean;   // default false
+    isOther?: boolean;       // default true, enables custom free-text answer
+    isSecret?: boolean;      // default false, password-style free text + visible redaction
+    options?: Array<{
+      label: string;         // displayed choice (max 60 chars)
+      description: string;   // one-sentence consequence/trade-off, max 200 chars
+      preview?: {
+        format: "markdown" | "html";
+        content: string;     // max 4000 chars
+      };
+    }>;                      // 2-4 options per question
+  }>;                        // 1-4 questions per call
+}
+```
+
+Constraints (enforced by Zod):
+
+| Field                | Rule                              |
+| -------------------- | --------------------------------- |
+| `questions.length`   | 1–4                               |
+| `id`                 | optional, 1–48 chars if provided; normalized when omitted |
+| `header.length`      | 1–12 characters                   |
+| `question.length`    | 1–300 characters                  |
+| `question`           | must end with `?`                 |
+| `options.length`     | optional only when `isOther` or `isSecret` allows free text; 2–4 when present |
+| `option.label`       | 1–60 characters                   |
+| `option.description` | required, 1–200 characters        |
+| `option.preview`     | optional markdown/html preview, 1–4000 chars |
+| `multiSelect`        | optional boolean, defaults `false` |
+| `isOther`            | optional boolean, defaults `true` |
+| `isSecret`           | optional boolean, defaults `false`; rejects multiple-choice options |
+
+The agent must NOT add an "Other" option manually. Use `isOther` to enable a custom answer path; the custom text is returned as the answer value, not the literal word `Other`. Recommended/default options should be first and end with `(Recommended)`.
+
+Secret inputs are only safe when hidden answer transport is available. The `/chat/ui` route sets that support flag and persists only the visible redacted summary. If a secret question is attempted in another context, the tool fails with a deterministic error. Do not use secret inputs for Rutgers passwords, Duo codes, or credentials.
+
+### Output Schema
+
+```ts
+{
+  status: "asked",
+  questionId: string,        // UUID generated server-side
+  instruction: string,       // reminder to end the turn
+}
+```
+
+The output deliberately does NOT contain the user's answer. `questionId` is a request-level id kept for compatibility; answer keys are the per-question `id` values. This tool is a two-turn handoff (see [HARNESS.md](HARNESS.md#asking-the-user-flow)):
+
+1. The tool streams a non-transient `data-ask_user_question` UI event with normalized `{ questionId, questions }` and returns `{ status: "asked" }` immediately. The agent ends its turn after the call.
+2. The frontend renders an inline card. The user selects option(s), types a custom answer when `isOther` is true, or provides secret free text when `isSecret` is true.
+3. The card submits a concise visible user message and hidden model-only context:
+
+   ```
+   User answered: Priority -> Requirement progress (Recommended)
+
+   // hidden model-only context, not persisted in visible chat history:
+   [AskUserQuestion answers] {"questionId":"<uuid>","questions":[{"id":"priority","header":"Priority","question":"..."}],"answers":{"priority":{"answers":["Requirement progress (Recommended)"]}}}
+   ```
+
+4. The agent reads the next turn and model-only context, then continues. Treat the `[AskUserQuestion answers] {...}` JSON block as authoritative when present; the visible summary is for the transcript.
+
+### Answer Payload Shape
+
+```ts
+{
+  questionId: string;
+  questions: Array<{
+    id: string;
+    header: string;
+    question: string;
+  }>;
+  answers: Record<string, {
+    answers: string[];       // selected labels and/or custom text; secret raw value is hidden-only
+  }>;
+}
+```
+
+The `answers` object is keyed by stable question id, not question text. For single-choice questions, `answers` has exactly one entry. For `multiSelect`, it may contain multiple option labels. For custom text, it contains the user's text directly. For secret text, the visible transcript shows `[secret provided]`, while the raw secret exists only in the hidden model context for that turn and is not persisted as visible chat text.
+
+### Behavior Rules
+
+- Before asking, resolve discoverable facts through non-mutating exploration: inspect relevant files/context, saved schedule, Degree Navigator profile, SOC results, docs, schemas, types, constants, and chat history.
+- Use when the user must pick between meaningfully different options (e.g. MWF vs Tue/Thu, add-to-saved vs preview-as-option, confirming a destructive action).
+- Skip for values you can infer from `activeSchedule`, `readDegreeNavigatorProfile`, SOC data, or chat history.
+- Skip for trivial yes/no where the user has already implied the answer.
+- Do not use this for plan approval, "Should I proceed?", or hidden plan references.
+- Batch related questions into a single call (max 4, prefer 1–2) rather than asking sequentially across turns.
+- After calling, end the turn. Do not generate any more text or call any other tool.
+- If the user replies without structured `[AskUserQuestion answers]` context (e.g. they typed something else), fall back to normal conversation rules; do not loop on the same question.
 
 ---
 

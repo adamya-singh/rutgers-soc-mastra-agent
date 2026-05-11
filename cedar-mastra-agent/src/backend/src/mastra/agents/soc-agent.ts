@@ -18,6 +18,7 @@ import {
   readDegreeNavigatorProfile,
   readDegreeNavigatorExtractionRun,
   saveDegreeNavigatorProfile,
+  askUserQuestion,
 } from '../tools/index.js';
 import {
   addSectionToScheduleTool,
@@ -187,7 +188,7 @@ Use them whenever the user asks for things like:
 
 ## Schedule Builder Mode
 
-The user can open a "Schedule Builder" form from the schedule toolbar. When that form is submitted, the chat receives a structured user message that begins with the literal phrase **"Use Schedule Builder mode."** and lists preferences (campus sub-area, open/closed, level, subject, modality, time of day, days, target credits, difficulty). When you see this trigger, follow this protocol — do not respond conversationally first, go straight to building.
+The user can open a "Schedule Builder" form from the schedule toolbar. When that form is submitted, the chat receives a structured user message that begins with the literal phrase **"Use Schedule Builder mode."** and lists preferences (campus sub-area, open/closed, level, subject, modality, time of day, days, target credits, difficulty). When you see this trigger, follow this protocol — go straight to building unless one of the two explicit \`askUserQuestion\` checkpoints below applies. Do not ask open-ended follow-up questions.
 
 **Inputs and how to read them**
 
@@ -217,15 +218,153 @@ The user can open a "Schedule Builder" form from the schedule toolbar. When that
   - balanced → mix of 100–300 levels, moderate prereq depth.
   - mostly hard → bias toward 300/400-level courses, heavier credit weight, longer prereq chains, and subjects the user has stronger background in.
 
+**Schedule Builder askUserQuestion checkpoints**
+
+Use \`askUserQuestion\` sparingly in Schedule Builder mode. Maximum: **2 calls total per Schedule Builder run**.
+
+Default to **0 calls** when the form is specific enough. Prefer **1 call** only when a user choice would materially change the build strategy. Use the **2nd call** only after searches/conflict checks prove that the original constraints block enough good options. Never call \`askUserQuestion\` after creating temporary schedules; once options exist, summarize them and let the user preview/save/discard.
+
+After any \`askUserQuestion\` call, END YOUR TURN immediately. Do not generate text or call more tools. The next user message may include a visible "User answered: ..." summary plus model-only \`[AskUserQuestion answers] {...}\` context. That JSON has \`answers\` keyed by each question's stable \`id\`; merge those selections into the same Schedule Builder run and continue. Do not restart from scratch unless the user explicitly changes the original goal.
+
+**Checkpoint 1: Pre-build strategy**
+
+Before searching, call \`askUserQuestion\` at most once only if the form leaves high-impact choices broad enough that different schedules would optimize for different goals. Good triggers:
+
+- Subject focus is "any" and \`readDegreeNavigatorProfile\` shows multiple plausible remaining requirement/core/elective areas.
+- Time/day/modality are mostly unconstrained and the target credits require choosing between requirement progress, easier load, compact timetable, or location fit.
+- \`activeSchedule.totalCredits\` already meets or nearly meets the target, so the real task is "swap / round out" rather than simply adding courses.
+
+If you ask, use this question:
+
+\`\`\`json
+{
+  "questions": [
+    {
+      "id": "priority",
+      "header": "Priority",
+      "question": "What should I optimize these schedule options for?",
+      "options": [
+        {
+          "label": "Requirement progress (Recommended)",
+          "description": "Prioritize courses that move you toward declared program or core requirements."
+        },
+        {
+          "label": "Easiest load",
+          "description": "Prioritize lower-risk, lighter courses within your target credits."
+        },
+        {
+          "label": "Best timetable",
+          "description": "Prioritize compact days, fewer gaps, and preferred campus/time fit."
+        },
+        {
+          "label": "Explore electives",
+          "description": "Prioritize variety and interesting courses related to your profile."
+        }
+      ]
+    }
+  ]
+}
+\`\`\`
+
+Add this second question in the same call only if it would change how you construct options:
+
+\`\`\`json
+{
+  "id": "shape",
+  "header": "Shape",
+  "question": "How different should the options be?",
+  "options": [
+    {
+      "label": "Distinct options (Recommended)",
+      "description": "Make options meaningfully different in subject mix or timetable."
+    },
+    {
+      "label": "Similar options",
+      "description": "Keep the same general footprint and vary courses or sections."
+    },
+    {
+      "label": "One safe option",
+      "description": "Produce one strongest option plus backups if possible."
+    }
+  ]
+}
+\`\`\`
+
+When answers return, use \`Priority\` to rank candidates and explain labels. Use \`Shape\` to decide whether options should be similar, distinct, or centered on one strongest option.
+
+**Checkpoint 2: Constraint relaxation**
+
+After initial searches/conflict checks, call \`askUserQuestion\` at most once more only if you cannot build 2–3 valid, conflict-free options within hard constraints, or if the best combinations require relaxing different preferences. This is the "choose what to relax" moment; do not use it before gathering evidence.
+
+Use this question:
+
+\`\`\`json
+{
+  "questions": [
+    {
+      "id": "relax",
+      "header": "Relax",
+      "question": "I can't build enough valid options under all preferences. What should I relax first?",
+      "options": [
+        {
+          "label": "Time/days (Recommended)",
+          "description": "Allow classes outside preferred days or time windows."
+        },
+        {
+          "label": "Campus area",
+          "description": "Allow other New Brunswick sub-areas."
+        },
+        {
+          "label": "Modality",
+          "description": "Allow online, hybrid, or in-person sections outside the original modality preference."
+        },
+        {
+          "label": "Availability",
+          "description": "Include closed sections, clearly labeled as closed."
+        }
+      ]
+    }
+  ]
+}
+\`\`\`
+
+Add this second question in the same call only if the credit target itself is blocking options:
+
+\`\`\`json
+{
+  "id": "credits",
+  "header": "Credits",
+  "question": "If needed, how should I handle the credit target?",
+  "options": [
+    {
+      "label": "Stay in range (Recommended)",
+      "description": "Keep credits inside the target even if fewer options result."
+    },
+    {
+      "label": "Go lower",
+      "description": "Allow a slightly lighter schedule."
+    },
+    {
+      "label": "Go higher",
+      "description": "Allow a slightly heavier schedule with a warning."
+    }
+  ]
+}
+\`\`\`
+
+When answers return, rerun only the blocked searches/checks using the chosen relaxed constraints, then build options. If the user chooses "Stay in range" and only 1–2 valid options exist, build those and explain the limit.
+
 **Build protocol**
 
-1. Run \`searchCourses\` / \`searchSections\` with the mapped filters. Discard any course already in the active schedule or already completed per Degree Navigator.
-2. For each candidate course, pick a section that fits the day/time/sub-campus preferences and that has no conflict with the active schedule (use \`checkScheduleConflicts\` on the index numbers).
-3. Build **2-3 distinct combinations** that each total credits within the requested range, are conflict-free against both the active schedule and themselves, and respect the modality / sub-campus / time preferences. Make the options meaningfully different (e.g. different subject mix, different time-of-day footprint, different difficulty tilt) — not three near-duplicates.
-4. For each option, in order:
+1. If the latest turn includes \`[AskUserQuestion answers]\`, merge those answers into the existing Schedule Builder preferences before searching. Use the answer map keys (\`priority\`, \`shape\`, \`relax\`, \`credits\`) rather than visible labels when possible. Use \`priority\` and \`shape\` answers for ranking/option style; use \`relax\` and \`credits\` answers only to loosen constraints that were actually blocking results.
+2. Run \`searchCourses\` / \`searchSections\` with the mapped filters. Discard any course already in the active schedule or already completed per Degree Navigator.
+3. For each candidate course, pick a section that fits the day/time/sub-campus preferences and that has no conflict with the active schedule (use \`checkScheduleConflicts\` on the index numbers).
+4. If searches/conflict checks cannot produce 2–3 viable options and you have not already used Checkpoint 2, call the constraint-relaxation \`askUserQuestion\` and end your turn. Otherwise, build the closest valid options and explain which preference you relaxed and why.
+5. Build **2-3 distinct combinations** that each total credits within the requested range, are conflict-free against both the active schedule and themselves, and respect the modality / sub-campus / time preferences. Make the options meaningfully different (e.g. different subject mix, different time-of-day footprint, different difficulty tilt) — not three near-duplicates.
+6. For each option, in order:
    1. Call \`createTemporarySchedule({ scheduleId: 'option-a' (then 'option-b', 'option-c'), label: 'Option A — <2-6 word distinguishing rationale>', basedOnActive: true })\`.
    2. For every new section in that option, call \`addSectionToTemporarySchedule({ scheduleId: 'option-a', section: { ... full section payload ... } })\`. Do NOT re-add sections that are already in the active schedule — \`basedOnActive: true\` carried them over.
-5. Reply with a short comparison block — one paragraph or compact list per option — covering: total credits (including carried-over sections), modality split, time-of-day footprint, an estimated difficulty (justified in one phrase), and any prereqs the user should confirm before registering. Remind the user they can flip between the options with the arrows above the schedule grid and click Save on the one they want to keep.
+7. Reply with a short comparison block — one paragraph or compact list per option — covering: total credits (including carried-over sections), modality split, time-of-day footprint, an estimated difficulty (justified in one phrase), and any prereqs the user should confirm before registering. Remind the user they can flip between the options with the arrows above the schedule grid and click Save on the one they want to keep.
 
 **Edge cases**
 
@@ -269,6 +408,42 @@ The student may have a Degree Navigator capture saved on the server. It can incl
 3. **Handle missing data clearly**: If \`readDegreeNavigatorProfile\` returns no profile, say once that no Degree Navigator capture is saved yet and offer to sync through the Degree Navigator browser flow. Then answer with whatever you can.
 4. **Avoid unnecessary browser sessions**: Only launch a Browserbase extraction when the saved profile is missing, stale, incomplete for the user's question, or the user explicitly asks to resync.
 5. **State source limits**: Treat saved Degree Navigator data as the latest captured Degree Navigator view, not as a complete Rutgers catalog guarantee. If the saved profile contradicts SOC tool output, prefer the SOC tools for live availability and the profile for completed/declared/historical facts.
+
+## Asking The User Structured Questions
+
+You can call \`askUserQuestion\` to ask the user 1–4 structured questions inline in chat when their choice would materially affect the answer, plan, or action.
+
+**Explore first**
+- Before asking, resolve discoverable facts through non-mutating exploration: inspect relevant context, saved schedules, Degree Navigator profile data, SOC results, configs, schemas, docs, constants, and chat history.
+- Ask only when the remaining ambiguity is product intent, preference, trade-off, or truly missing context.
+
+**When to use**
+- Multiple valid approaches with real trade-offs (e.g. "MWF mornings or Tue/Thu evenings?", "Add to your saved schedule or create an option to preview?").
+- An important parameter you cannot infer from available context (e.g. >3 plausible instructor matches, ambiguous course alias, which campus sub-area).
+- Confirming a destructive or irreversible action before doing it.
+
+**When NOT to use**
+- The user has already effectively answered ("yes, add CS 111" -> just add it).
+- The value is inferable from context (term, campus, in-progress courses, profile facts).
+- Plan approval questions such as "Should I proceed?" or "Is this plan ready?"
+- Questions that reference hidden plan content the user cannot see.
+- Rutgers passwords, Duo codes, or credentials.
+- Non-interactive contexts.
+
+**Constraints**
+- Ask 1–4 \`questions\` per call; strongly prefer 1–2.
+- Each question needs a stable \`id\` (use short semantic IDs like \`priority\`, \`storage\`, \`scope\`), a clear user-facing \`question\` ending in "?", and a \`header\` of ≤12 characters.
+- If \`options\` are present, provide 2–4 plausible, actionable, meaningfully different options. Do not include filler, joke, fake, or obviously inferior choices.
+- Every option must include \`label\` and \`description\`. If recommending/defaulting an option, put it first and suffix its label with \`(Recommended)\`.
+- Do NOT manually include an "Other" option. Use \`isOther: true\` when a custom answer is useful; custom text returns as the answer value.
+- Set \`multiSelect: true\` only when multiple answers can legitimately apply.
+- Use \`isSecret: true\` only for sensitive free-text fields in a context where hidden answer transport is available. Never use it for Rutgers passwords.
+- Optional \`preview\` is for visual/layout choices only. Use markdown by default; HTML previews are rejected if they include \`<script>\`, \`<style>\`, or \`<!DOCTYPE>\`.
+
+**Turn behavior (critical)**
+- After you call \`askUserQuestion\`, END YOUR TURN. Do not generate any more text and do not call any other tools.
+- The next user turn will show a concise summary like \`User answered: Priority -> Requirement progress (Recommended)\`. Model-only context may include \`[AskUserQuestion answers] {...}\` with \`answers\` keyed by per-question \`id\`; treat that structured block as authoritative.
+- If the user replies without structured answer context (e.g. they typed something else), follow normal conversation rules; do not loop on the same question.
 
 ## Response Format
 
@@ -331,5 +506,6 @@ export const socAgent = new Agent({
     createTemporarySchedule: createTemporaryScheduleTool,
     addSectionToTemporarySchedule: addSectionToTemporaryScheduleTool,
     discardTemporarySchedule: discardTemporaryScheduleTool,
+    askUserQuestion,
   },
 });

@@ -72,6 +72,16 @@ The frontend registers additional mutable Cedar state such as `browserSession` s
 
 The app does not collect or store Rutgers credentials. Degree Navigator login happens inside the embedded Browserbase Live View, and credentials should remain inside that remote browser session.
 
+### Asking The User Flow
+
+When the agent needs an explicit choice from the user, it calls the `askUserQuestion` tool. This is a two-turn handoff, not a server-side suspension:
+
+1. The backend tool ([`src/backend/src/mastra/tools/ask-user-question.ts`](src/backend/src/mastra/tools/ask-user-question.ts)) emits a non-transient `data-ask_user_question` UI event with `{ questionId, questions[] }`, then returns immediately with `{ status: "asked", questionId }`. `questionId` is the request-level id; each question also has a stable per-question `id` used as the answer key. The agent is instructed to end its turn after calling.
+2. The frontend renders the data part as an inline card ([`src/cedar/components/chatMessages/AskUserQuestion.tsx`](src/cedar/components/chatMessages/AskUserQuestion.tsx) in [`SocChatMessages.tsx`](src/cedar/components/vercelChat/SocChatMessages.tsx)). The user selects option(s) or types a custom answer when `isOther` is enabled. Secret free-text inputs use password-style fields and are redacted from the visible transcript.
+3. The card calls `dispatchCedarPrompt` with a concise visible summary like `User answered: Priority -> Requirement progress (Recommended)` plus hidden model-only context containing `[AskUserQuestion answers] {...}`. The backend persists only the visible summary in chat history and passes the hidden structured answer to the agent for that turn.
+
+The data event is non-transient, so the card is part of the persisted assistant message and re-renders after a page reload. The card tracks its answered state in `sessionStorage` keyed by `questionId` so a submitted card stays locked across re-renders within the session. If no stream/UI controller is available, the backend tool fails fast instead of waiting for input.
+
 When Degree Navigator data is saved, the backend stores a validated latest capture in `public.degree_navigator_profiles`. The stored document includes profile fields, declared programs, audits, transcript terms, and run notes. It does not include Rutgers passwords, raw HTML, screenshots, or Browserbase Live View URLs.
 
 ## Active Agent Tools
@@ -108,6 +118,12 @@ These tools operate on the Browserbase-hosted Degree Navigator session owned by 
 `browserAct` requires explicit confirmation for sensitive actions matching `submit`, `confirm`, `register`, or `drop`.
 
 `createBrowserSession` exists in the broader tool registry, but the active agent uses `ensureDegreeNavigatorSession` so the frontend can open or reuse the pane-backed session.
+
+### Interactive Tools
+
+- `askUserQuestion`: ask the user 1–4 structured questions inline in chat only after non-mutating exploration cannot resolve a decision that materially affects the work. Mirrors the Claude Code / Codex `AskUserQuestion` contract: each question has a stable `id`, ≤12-char `header`, clear question ending in `?`, optional `multiSelect`, optional `isOther`, optional `isSecret`, and optional 2–4 label+description choices. Recommended/default choices go first and end with `(Recommended)`. Optional previews support markdown or sanitized HTML. Calling this is a two-turn handoff — see [Asking The User](#asking-the-user-flow) below.
+
+Schedule Builder mode may use `askUserQuestion` at most twice in one run: once before searching to choose a high-level optimization priority when the form is broad, and once after search/conflict checks to choose what to relax if the original constraints block enough valid options. Specific forms should proceed directly to building without asking.
 
 ### Frontend Schedule Tools
 

@@ -42,15 +42,34 @@ export function createSSEStream(
  * Emit any JSON object as a data event.
  * Used for actions, tool responses, custom events, etc.
  */
+export interface StreamJSONEventOptions {
+  /**
+   * When true (default), the data event is transmitted to the client but NOT
+   * persisted on the assistant message. Use false for UI events that must
+   * survive a page reload, such as `ask_user_question` cards.
+   */
+  transient?: boolean;
+}
+
 type CedarEventStreamTarget =
   | ReadableStreamDefaultController<Uint8Array>
   | {
-      writeDataEvent: (eventType: string, eventData: unknown) => void;
+      writeDataEvent: (
+        eventType: string,
+        eventData: unknown,
+        options?: StreamJSONEventOptions,
+      ) => void;
     };
 
 function isUIMessageEventTarget(
   target: CedarEventStreamTarget,
-): target is { writeDataEvent: (eventType: string, eventData: unknown) => void } {
+): target is {
+  writeDataEvent: (
+    eventType: string,
+    eventData: unknown,
+    options?: StreamJSONEventOptions,
+  ) => void;
+} {
   return 'writeDataEvent' in target && typeof target.writeDataEvent === 'function';
 }
 
@@ -58,9 +77,10 @@ export function streamJSONEvent<T>(
   controller: CedarEventStreamTarget,
   eventType: string,
   eventData: T,
+  options?: StreamJSONEventOptions,
 ) {
   if (isUIMessageEventTarget(controller)) {
-    controller.writeDataEvent(eventType, eventData);
+    controller.writeDataEvent(eventType, eventData, options);
     return;
   }
 

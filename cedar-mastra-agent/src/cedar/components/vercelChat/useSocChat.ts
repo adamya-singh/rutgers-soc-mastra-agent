@@ -24,9 +24,34 @@ type CedarSetStateEvent = {
   args?: unknown;
 };
 
+export type AskUserQuestionOptionPayload = {
+  label: string;
+  description?: string;
+  preview?: {
+    format: 'markdown' | 'html';
+    content: string;
+  };
+};
+
+export type AskUserQuestionItemPayload = {
+  id?: string;
+  question: string;
+  header: string;
+  multiSelect?: boolean;
+  isOther?: boolean;
+  isSecret?: boolean;
+  options?: AskUserQuestionOptionPayload[];
+};
+
+export type AskUserQuestionEventData = {
+  questionId: string;
+  questions: AskUserQuestionItemPayload[];
+};
+
 type SocChatDataParts = {
   frontendTool: CedarFrontendToolEvent;
   setState: CedarSetStateEvent;
+  ask_user_question: AskUserQuestionEventData;
 };
 
 export type SocChatMessage = UIMessage<unknown, SocChatDataParts>;
@@ -146,7 +171,15 @@ export function useSocChat({
   }, [chat.status, setIsProcessing]);
 
   const sendSocMessage = useCallback(
-    async ({ text, files }: { text: string; files?: FileList }) => {
+    async ({
+      text,
+      files,
+      hiddenModelContext,
+    }: {
+      text: string;
+      files?: FileList;
+      hiddenModelContext?: string;
+    }) => {
       if (!threadId) {
         throw new Error('Create or select a chat before sending a message.');
       }
@@ -165,6 +198,7 @@ export function useSocChat({
           body: {
             threadId,
             additionalContext,
+            hiddenModelContext,
           },
         },
       );

@@ -19,6 +19,10 @@ export const ChatUIRequestSchema = z.object({
   temperature: z.number().optional(),
   maxTokens: z.number().optional(),
   additionalContext: z.any().optional(),
+  hiddenModelContext: z
+    .string()
+    .max(20000, 'Hidden model context must be 20000 characters or fewer')
+    .optional(),
 });
 
 export const ChatThreadSchema = z.object({

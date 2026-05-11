@@ -13,7 +13,7 @@ interface SocChatInputProps {
   isBusy?: boolean;
   /** Retained for backwards compatibility; prompt suggestions now live in SocVercelChat. */
   isEmptyThread?: boolean;
-  onSubmit: (input: { text: string; files?: FileList }) => Promise<void>;
+  onSubmit: (input: { text: string; files?: FileList; hiddenModelContext?: string }) => Promise<void>;
   onStop?: () => void;
   className?: string;
 }
@@ -66,7 +66,10 @@ export const SocChatInput: React.FC<SocChatInputProps> = ({
   }, [voice]);
 
   const submit = useCallback(
-    async (textOverride?: string) => {
+    async (options?: string | { textOverride?: string; hiddenModelContext?: string }) => {
+      const textOverride = typeof options === 'string' ? options : options?.textOverride;
+      const hiddenModelContext =
+        typeof options === 'string' ? undefined : options?.hiddenModelContext;
       const textToSend = textOverride ?? input;
       if (disabled || (!textToSend.trim() && !hasFiles)) return;
 
@@ -84,6 +87,7 @@ export const SocChatInput: React.FC<SocChatInputProps> = ({
         await onSubmit({
           text: textToSend.trim() || 'Please analyze the attached image.',
           files: filesToSend,
+          hiddenModelContext,
         });
       } catch (error) {
         // Restore the text so the user can retry without re-typing.
@@ -96,11 +100,12 @@ export const SocChatInput: React.FC<SocChatInputProps> = ({
 
   useEffect(() => {
     const handleExternalPrompt = (event: Event) => {
-      const { prompt } = (event as CustomEvent<CedarSubmitPromptDetail>).detail ?? {};
+      const { prompt, hiddenModelContext } =
+        (event as CustomEvent<CedarSubmitPromptDetail>).detail ?? {};
       if (typeof prompt === 'string' && prompt.trim().length > 0) {
         setInput(prompt);
         requestAnimationFrame(() => {
-          void submit(prompt);
+          void submit({ textOverride: prompt, hiddenModelContext });
         });
       }
     };

@@ -219,6 +219,20 @@ export function createAdditionalContextModelMessage(additionalContext: unknown) 
   };
 }
 
+export function createHiddenModelContextMessage(hiddenModelContext: string | undefined) {
+  const trimmed = hiddenModelContext?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  return {
+    role: 'system',
+    content:
+      'Model-only context for the latest user turn. This content is not visible in the persisted transcript. ' +
+      trimmed,
+  };
+}
+
 function chatOwnerFromPrincipal(principal: ChatPrincipal): ChatOwner {
   if (principal.type === 'authenticated') {
     return authenticatedChatOwner(principal.userId);
@@ -428,7 +442,14 @@ export const apiRoutes = [
         const memoryResource = getMemoryResourceFromPrincipal(chatPrincipal);
         const authenticatedUserId = getRuntimeUserIdFromPrincipal(chatPrincipal);
         const body = await c.req.json();
-        const { threadId, messages, temperature, maxTokens, additionalContext } =
+        const {
+          threadId,
+          messages,
+          temperature,
+          maxTokens,
+          additionalContext,
+          hiddenModelContext,
+        } =
           ChatUIRequestSchema.parse(body);
         const originalMessages = normalizeChatUIMessages(messages);
         const { messages: persistedMessages } = await getChatThreadWithMessages(
@@ -451,6 +472,8 @@ export const apiRoutes = [
             ? persistedUiMessages
             : selectMessagesForAgent(originalMessages);
         const additionalContextMessage = createAdditionalContextModelMessage(additionalContext);
+        const hiddenModelContextMessage =
+          createHiddenModelContextMessage(hiddenModelContext);
 
         await requireChatThread(chatOwner, threadId);
         if (chatPrincipal.type === 'anonymous') {
@@ -467,16 +490,21 @@ export const apiRoutes = [
             runtimeContext.set('additionalContext', additionalContext);
             runtimeContext.set('authenticatedUserId', authenticatedUserId);
             runtimeContext.set('chatPrincipalType', chatPrincipal.type);
+            runtimeContext.set('supportsHiddenAskUserQuestionAnswers', true);
             if (chatPrincipal.type === 'anonymous') {
               runtimeContext.set('anonymousClientId', chatPrincipal.anonymousClientId);
             }
             runtimeContext.set('streamController', {
-              writeDataEvent: (eventType: string, eventData: unknown) => {
+              writeDataEvent: (
+                eventType: string,
+                eventData: unknown,
+                options?: { transient?: boolean },
+              ) => {
                 writer.write({
                   type: `data-${eventType}`,
                   id: `${eventType}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
                   data: eventData,
-                  transient: true,
+                  transient: options?.transient ?? true,
                 } as never);
               },
             });
@@ -491,9 +519,16 @@ export const apiRoutes = [
               runtimeContext,
               ...(additionalContextMessage
                 ? {
-                    context: [additionalContextMessage],
+                    context: [
+                      additionalContextMessage,
+                      hiddenModelContextMessage,
+                    ].filter(Boolean),
                   }
-                : {}),
+                : hiddenModelContextMessage
+                  ? {
+                      context: [hiddenModelContextMessage],
+                    }
+                  : {}),
               memory: {
                 thread: threadId,
                 resource: memoryResource,

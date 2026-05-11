@@ -3,6 +3,9 @@ import { AnimatePresence, motion } from 'motion/react';
 import { cn } from 'cedar-os';
 
 import MarkdownRenderer from '@/cedar/components/chatMessages/MarkdownRenderer';
+import AskUserQuestionCard, {
+  type AskUserQuestionPayload,
+} from '@/cedar/components/chatMessages/AskUserQuestion';
 import { ShimmerText } from '@/cedar/components/text/ShimmerText';
 import { MessageRow } from './parts/MessageRow';
 import { ToolPart, type ToolPartLike } from './parts/ToolPart';
@@ -11,6 +14,35 @@ import { SourcesRow, type SourceLike } from './parts/SourcesRow';
 import { FilePart, type FilePartLike } from './parts/FilePart';
 import { MessageActions } from './parts/MessageActions';
 import type { SocChatMessage } from './useSocChat';
+
+function isAskUserQuestionPayload(value: unknown): value is AskUserQuestionPayload {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as Partial<AskUserQuestionPayload>;
+  return (
+    typeof candidate.questionId === 'string' &&
+    Array.isArray(candidate.questions) &&
+    candidate.questions.every((question) => {
+      if (typeof question !== 'object' || question === null) return false;
+      const q = question as Partial<AskUserQuestionPayload['questions'][number]>;
+      return (
+        (q.id === undefined || typeof q.id === 'string') &&
+        typeof q.question === 'string' &&
+        typeof q.header === 'string' &&
+        (q.isOther === undefined || typeof q.isOther === 'boolean') &&
+        (q.isSecret === undefined || typeof q.isSecret === 'boolean') &&
+        (q.options === undefined ||
+          (Array.isArray(q.options) &&
+            q.options.every((option) =>
+              typeof option === 'object' &&
+              option !== null &&
+              typeof (option as { label?: unknown }).label === 'string' &&
+              ((option as { description?: unknown }).description === undefined ||
+                typeof (option as { description?: unknown }).description === 'string'),
+            )))
+      );
+    })
+  );
+}
 
 interface SocChatMessagesProps {
   messages: SocChatMessage[];
@@ -107,7 +139,15 @@ const AssistantBody: React.FC<AssistantBodyProps> = ({
       return;
     }
 
-    // step-start, data-* and unknown parts are intentionally ignored.
+    if (part.type === 'data-ask_user_question') {
+      const data = (part as { data?: unknown }).data;
+      if (isAskUserQuestionPayload(data)) {
+        nodes.push(<AskUserQuestionCard key={`p-${index}`} payload={data} />);
+      }
+      return;
+    }
+
+    // step-start, other data-* and unknown parts are intentionally ignored.
   });
 
   // If we only have the streaming caret and nothing else (i.e. assistant just

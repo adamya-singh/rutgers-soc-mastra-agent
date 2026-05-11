@@ -10,6 +10,7 @@ import { BrowserSessionError } from '../browser/types.js';
 import {
   ChatUIRequestSchema,
   createAdditionalContextModelMessage,
+  createHiddenModelContextMessage,
   normalizeChatUIMessages,
   selectMessagesForAgent,
 } from '../mastra/apiRegistry.js';
@@ -65,6 +66,25 @@ describe('security hardening', () => {
         messages: [{ role: 'user', parts: [{ type: 'text', text: 'hello' }] }],
       }),
     );
+  });
+
+  it('accepts hidden model context without adding it to UI messages', () => {
+    const parsed = ChatUIRequestSchema.parse({
+      threadId: '11111111-1111-4111-8111-111111111111',
+      messages: [
+        {
+          id: 'user-1',
+          role: 'user',
+          parts: [{ type: 'text', text: 'User answered: Token -> [secret provided]' }],
+        },
+      ],
+      hiddenModelContext: '[AskUserQuestion answers] {"answers":{"token":{"answers":["secret"]}}}',
+    });
+    const contextMessage = createHiddenModelContextMessage(parsed.hiddenModelContext);
+
+    assert.strictEqual(parsed.messages[0]?.parts[0]?.type, 'text');
+    assert.ok(contextMessage);
+    assert.match(contextMessage.content, /\[AskUserQuestion answers\]/);
   });
 
   it('sends only the latest user UI message to the agent', () => {
