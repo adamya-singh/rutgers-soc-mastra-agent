@@ -22,3 +22,6 @@ typeface-soc-rag-project
 # Large source videos (keep optimized GIFs/MP4s in repo, not raw recordings)
 *.mov
 
+# macOS metadata
+.DS_Store
+
