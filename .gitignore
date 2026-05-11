@@ -18,3 +18,7 @@ soc-database/soc-venv
 
 #typeface RAG project
 typeface-soc-rag-project
+
+# Large source videos (keep optimized GIFs/MP4s in repo, not raw recordings)
+*.mov
+
