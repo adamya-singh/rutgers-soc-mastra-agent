@@ -69,8 +69,15 @@ function getMessageText(message: SocChatMessage): string {
     .trim();
 }
 
-function isScheduleBuilderPrompt(text: string): boolean {
-  return text.trimStart().startsWith('Use Schedule Builder mode.');
+function getCollapsedUserPromptLabel(text: string): string | null {
+  const trimmed = text.trimStart();
+  if (trimmed.startsWith('Use Schedule Builder mode.')) {
+    return 'used schedule builder';
+  }
+  if (trimmed.startsWith('Read the Degree Navigator extraction run ')) {
+    return 'used degree navigator sync';
+  }
+  return null;
 }
 
 function isToolLikePart(part: AnyPart): part is AnyPart & ToolPartLike {
@@ -178,11 +185,12 @@ interface UserBodyProps {
   message: SocChatMessage;
 }
 
-interface ScheduleBuilderPromptCardProps {
+interface CollapsedUserPromptCardProps {
   text: string;
+  label: string;
 }
 
-const ScheduleBuilderPromptCard: React.FC<ScheduleBuilderPromptCardProps> = ({ text }) => {
+const CollapsedUserPromptCard: React.FC<CollapsedUserPromptCardProps> = ({ text, label }) => {
   const [open, setOpen] = React.useState(false);
 
   return (
@@ -203,7 +211,7 @@ const ScheduleBuilderPromptCard: React.FC<ScheduleBuilderPromptCardProps> = ({ t
         <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-action/15 text-action">
           <Sparkles className="h-3.5 w-3.5" strokeWidth={2.25} />
         </span>
-        <span className="font-medium">used schedule builder</span>
+        <span className="font-medium">{label}</span>
       </button>
       {open && (
         <div className="border-t border-action/20 px-3 pb-3 pt-2">
@@ -221,8 +229,15 @@ const UserBody: React.FC<UserBodyProps> = ({ message }) => {
     <div className="space-y-2">
       {message.parts.map((part, index) => {
         if (part.type === 'text') {
-          if (isScheduleBuilderPrompt(part.text)) {
-            return <ScheduleBuilderPromptCard key={index} text={part.text} />;
+          const collapsedLabel = getCollapsedUserPromptLabel(part.text);
+          if (collapsedLabel) {
+            return (
+              <CollapsedUserPromptCard
+                key={index}
+                text={part.text}
+                label={collapsedLabel}
+              />
+            );
           }
 
           return (
